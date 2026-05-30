@@ -1,0 +1,16 @@
+{
+  "name": "connectsphere",
+  "version": "1.0.0",
+  "description": "ConnectSphere is a full-stack virtual workspace. It enables instant HD multi-user video and audio calling, structured collaboration workspace teams, custom channels, calendar management, and secure OTP checkups — all in a single web client.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "http-proxy": "^1.18.1"
+  }
+}

@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: connectsphere_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: connectsphere
+      POSTGRES_USER: connectsphere
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "connectsphere"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: connectsphere_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://connectsphere:password@postgres:5432/connectsphere
+      JWT_ACCESS_SECRET: your_access_secret_here
+      JWT_REFRESH_SECRET: your_refresh_secret_here
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 7d
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: saisiddharthvooka@gmail.com
+      SMTP_PASS: ooxxfmucouvrzygc
+      EMAIL_FROM: '"ConnectSphere" <saisiddharthvooka@gmail.com>'
+      PORT: 4000
+      FRONTEND_URL: http://localhost:3000
+      NODE_ENV: development
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/src:/backend/src
+      - ./backend/package.json:/backend/package.json
+      - ./backend/tsconfig.json:/backend/tsconfig.json
+
+  frontend:
+    build: ./frontend
+    container_name: connectsphere_frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:4000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/frontend/src
+      - ./frontend/package.json:/frontend/package.json
+      - ./frontend/next.config.ts:/frontend/next.config.ts
+      - ./frontend/tailwind.config.ts:/frontend/tailwind.config.ts
+      - ./frontend/tsconfig.json:/frontend/tsconfig.json
+
+volumes:
+  postgres_data:

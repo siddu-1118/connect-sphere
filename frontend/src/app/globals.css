@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Material Symbols Outlined font */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased transition-colors duration-200;
+  font-family: 'Inter', 'Outfit', sans-serif;
+}
+
+/* Glassmorphism effect */
+.glass {
+  @apply bg-slate-900/40 border border-slate-800 backdrop-blur-xl shadow-2xl;
+}
+
+/* Floating emojis keyframe reaction animations */
+@keyframes floatUpReaction {
+  0% {
+    transform: translateY(50px) scale(0.5);
+    opacity: 0;
+  }
+  15% {
+    transform: translateY(-20px) scale(1.2) rotate(-10deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-80px) scale(1) rotate(10deg);
+    opacity: 1;
+  }
+  85% {
+    transform: translateY(-150px) scale(0.9) rotate(-5deg);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-200px) scale(0.7) rotate(0deg);
+    opacity: 0;
+  }
+}
+
+.reaction-animate {
+  animation: floatUpReaction 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* Custom scrollbars */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.15);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.3);
+}
+
+/* Simple fade-in animations for cards */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
