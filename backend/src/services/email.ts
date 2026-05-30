@@ -124,6 +124,37 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
     </html>
   `;
 
+  // Resend API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    console.log(`📬 Sending OTP email via Resend API to ${email}...`);
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM_EMAIL || 'AeroMeet <onboarding@resend.dev>',
+          to: email,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ OTP email sent successfully via Resend to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Resend API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send email via Resend:`, err);
+    }
+  }
+
   const mailOptions = {
     from: EMAIL_FROM,
     to: email,
@@ -254,6 +285,37 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
       </body>
     </html>
   `;
+
+  // Resend API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    console.log(`📬 Sending password reset email via Resend API to ${email}...`);
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM_EMAIL || 'AeroMeet <onboarding@resend.dev>',
+          to: email,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ Password reset email sent successfully via Resend to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Resend API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send reset email via Resend:`, err);
+    }
+  }
 
   const mailOptions = {
     from: EMAIL_FROM,
