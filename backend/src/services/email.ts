@@ -22,6 +22,9 @@ function getTransporter() {
         user: SMTP_USER,
         pass: SMTP_PASS,
       },
+      connectionTimeout: 3000, // 3 seconds timeout
+      greetingTimeout: 3000,
+      socketTimeout: 3000,
     });
   } else {
     console.warn('⚠️ SMTP settings not configured. Falling back to console-logging email simulator.');
