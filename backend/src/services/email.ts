@@ -136,6 +136,15 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
       return true;
     } catch (err) {
       console.error(`❌ Failed to send OTP email to ${email}:`, err);
+      console.log(`
+===================================================
+🔑 [SMTP Fallback Log]
+To: ${email}
+Subject: ${subject}
+Name: ${userName}
+OTP Code: ${otp} (Copied to logs because SMTP failed)
+===================================================
+      `);
       return false;
     }
   } else {
@@ -258,6 +267,15 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
       return true;
     } catch (err) {
       console.error(`❌ Failed to send reset email to ${email}:`, err);
+      console.log(`
+===================================================
+🔑 [SMTP Fallback Log]
+To: ${email}
+Subject: ${subject}
+Name: ${userName}
+OTP Code: ${otp} (Copied to logs because SMTP failed)
+===================================================
+      `);
       return false;
     }
   } else {
