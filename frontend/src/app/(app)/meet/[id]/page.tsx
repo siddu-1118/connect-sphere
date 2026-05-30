@@ -37,10 +37,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
+import { useSocket } from '@/hooks/useSocket';
+import { useWebRTC } from '@/hooks/useWebRTC';
 
 /* ═══════════════════════════════════════════════════════════════
    TYPES
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 type ActivePanel = null | 'chat' | 'participants' | 'qa' | 'poll';
 type ViewMode = 'gallery' | 'speaker';
 
@@ -65,9 +67,17 @@ interface QAQuestion {
   upvoted: boolean;
 }
 
+interface ParticipantInfo {
+  userId: string;
+  userName: string;
+  socketId: string;
+  isMuted?: boolean;
+  isCameraOff?: boolean;
+}
+
 /* ═══════════════════════════════════════════════════════════════
    HELPERS
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -81,7 +91,7 @@ function nowTimeString(): string {
 
 /* ═══════════════════════════════════════════════════════════════
    FLOATING REACTION ITEM
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function FloatingReactionItem({ emoji, left }: { emoji: string; left: number }) {
   const [opacity, setOpacity] = useState(1);
   const [bottom, setBottom] = useState(80);
@@ -111,7 +121,7 @@ function FloatingReactionItem({ emoji, left }: { emoji: string; left: number }) 
 
 /* ═══════════════════════════════════════════════════════════════
    EMOJI POPOVER
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '🎉', '🎊', '✋', '🙏'];
 
 function EmojiPopover({
@@ -153,7 +163,7 @@ function EmojiPopover({
 
 /* ═══════════════════════════════════════════════════════════════
    MORE MENU
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function MoreMenu({
   onBreakout,
   onClose,
@@ -199,7 +209,7 @@ function MoreMenu({
 
 /* ═══════════════════════════════════════════════════════════════
    BREAKOUT ROOMS MODAL
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -245,17 +255,23 @@ function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
 
 /* ═══════════════════════════════════════════════════════════════
    PARTICIPANTS PANEL
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function ParticipantsPanel({
   userName,
   avatarUrl,
+  participants,
   onClose,
 }: {
   userName: string;
   avatarUrl: string | null;
+  participants: ParticipantInfo[];
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
+
+  const filteredParticipants = participants.filter((p) =>
+    p.userName.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -263,7 +279,9 @@ function ParticipantsPanel({
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-[#818cf8]" />
           <span className="text-sm font-semibold text-slate-100">Participants</span>
-          <span className="bg-[#5B5FC7]/20 text-[#818cf8] text-[10px] font-bold px-1.5 py-0.5 rounded-md">1</span>
+          <span className="bg-[#5B5FC7]/20 text-[#818cf8] text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+            {participants.length + 1}
+          </span>
         </div>
         <button
           onClick={onClose}
@@ -288,7 +306,9 @@ function ParticipantsPanel({
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">In meeting · 1</span>
+          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">
+            In meeting · {filteredParticipants.length + 1}
+          </span>
         </div>
 
         {/* You entry */}
@@ -301,26 +321,54 @@ function ParticipantsPanel({
               <span className="text-[9px] text-slate-600">(You)</span>
             </div>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Mic className="w-3.5 h-3.5 text-slate-500" />
-          </div>
         </div>
 
-        {/* Empty state for other participants */}
-        <div className="flex flex-col items-center justify-center gap-2 py-8 mt-2">
-          <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center border border-white/[0.06]">
-            <UserPlus className="w-4 h-4 text-slate-600" />
+        {/* Remote entries */}
+        {filteredParticipants.map((p) => (
+          <div
+            key={p.socketId}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04] transition-colors group"
+          >
+            <Avatar name={p.userName} size="sm" />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-200 font-medium truncate">{p.userName}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {p.isMuted ? (
+                <MicOff className="w-3.5 h-3.5 text-red-500" />
+              ) : (
+                <Mic className="w-3.5 h-3.5 text-slate-500" />
+              )}
+            </div>
           </div>
-          <p className="text-xs text-slate-600 text-center">
-            Waiting for others to join
-          </p>
-        </div>
+        ))}
+
+        {/* Empty state for other participants */}
+        {participants.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 mt-2">
+            <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center border border-white/[0.06]">
+              <UserPlus className="w-4 h-4 text-slate-600" />
+            </div>
+            <p className="text-xs text-slate-600 text-center">
+              Waiting for others to join
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="p-4 border-t border-white/[0.06] shrink-0">
-        <button className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer">
+        <button
+          onClick={() => {
+            const link = window.location.href;
+            navigator.clipboard.writeText(link);
+            alert('Meeting link copied to clipboard!');
+          }}
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer border border-transparent"
+        >
           <UserPlus className="w-4 h-4" />
-          Invite Participants
+          Copy Meet Link
         </button>
       </div>
     </div>
@@ -329,7 +377,7 @@ function ParticipantsPanel({
 
 /* ═══════════════════════════════════════════════════════════════
    CHAT PANEL
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function ChatPanel({
   messages,
   onSend,
@@ -418,7 +466,7 @@ function ChatPanel({
 
 /* ═══════════════════════════════════════════════════════════════
    Q&A PANEL
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function QAPanel({
   questions,
   onAsk,
@@ -462,7 +510,7 @@ function QAPanel({
           <button
             onClick={() => { if (draft.trim()) { onAsk(draft.trim()); setDraft(''); } }}
             disabled={!draft.trim()}
-            className="self-end px-4 py-2 bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:bg-white/5 disabled:text-slate-600 text-white disabled:text-slate-600 font-semibold rounded-xl text-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+            className="self-end px-4 py-2 bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:bg-white/5 disabled:text-slate-600 text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Submit
           </button>
@@ -505,7 +553,7 @@ function QAPanel({
 
 /* ═══════════════════════════════════════════════════════════════
    POLLS PANEL
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function PollsPanel({ onClose }: { onClose: () => void }) {
   return (
     <div className="flex flex-col h-full">
@@ -539,48 +587,37 @@ function PollsPanel({ onClose }: { onClose: () => void }) {
 
 /* ═══════════════════════════════════════════════════════════════
    LOCAL VIDEO TILE (YOU)
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function LocalVideoTile({
   cameraOn,
   userName,
   avatarUrl,
   isSpeakerView,
   isActive,
+  stream,
 }: {
   cameraOn: boolean;
   userName: string;
   avatarUrl: string | null;
   isSpeakerView: boolean;
   isActive: boolean;
+  stream: MediaStream | null;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    if (!cameraOn) {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-      return;
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
     }
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then((stream) => {
-        streamRef.current = stream;
-        if (videoRef.current) videoRef.current.srcObject = stream;
-      })
-      .catch(() => {});
-    return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
-    };
-  }, [cameraOn]);
+  }, [stream]);
 
   return (
     <div
       className={`relative bg-[#252540] rounded-2xl overflow-hidden border transition-all duration-200 ${
         isActive ? 'ring-2 ring-[#2D8CFF] ring-offset-1 ring-offset-[#1a1a2e] border-transparent' : 'border-white/[0.06]'
-      } ${isSpeakerView ? 'aspect-video' : 'aspect-video'}`}
+      } aspect-video`}
     >
-      {cameraOn ? (
+      {cameraOn && stream ? (
         <video
           ref={videoRef}
           autoPlay
@@ -603,8 +640,54 @@ function LocalVideoTile({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   REMOTE VIDEO TILE (PARTICIPANTS)
+   ═══════════════════════════════════════════════════════════════ */
+function RemoteVideoTile({
+  participant,
+  stream,
+  isSpeakerView,
+}: {
+  participant: ParticipantInfo;
+  stream: MediaStream | null;
+  isSpeakerView: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  const cameraOn = !participant.isCameraOff;
+
+  return (
+    <div className="relative bg-[#252540] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video">
+      {cameraOn && stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center bg-[#1e1e35]">
+          <Avatar name={participant.userName} size="lg" />
+        </div>
+      )}
+      {/* name label */}
+      <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-0.5">
+        <span className="text-[11px] text-white font-medium">
+          {participant.userName} {participant.isMuted ? '🎤❌' : ''}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    EMPTY PARTICIPANT TILE
-═══════════════════════════════════════════════════════════════ */
+   ═══════════════════════════════════════════════════════════════ */
 function WaitingTile() {
   return (
     <div className="relative bg-[#1e1e35] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video flex flex-col items-center justify-center gap-3">
@@ -617,37 +700,74 @@ function WaitingTile() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   INNER MEETING COMPONENT (uses useSearchParams — needs Suspense)
-═══════════════════════════════════════════════════════════════ */
+   INNER MEETING COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
 function MeetingRoomInner() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const socket = useSocket();
 
   const meetingId = typeof params.id === 'string' ? params.id : Array.isArray(params.id) ? params.id[0] : '';
   const userName = user?.name ?? 'Guest';
   const avatarUrl = user?.avatarUrl ?? null;
+  const userId = user?.id ?? '';
 
   /* ── search params ── */
   const initVideo = searchParams.get('video') !== 'false';
   const initAudio = searchParams.get('audio') !== 'false';
 
-  /* ── media state ── */
-  const [micOn, setMicOn] = useState(initAudio);
-  const [cameraOn, setCameraOn] = useState(initVideo);
-  const [sharing, setSharing] = useState(false);
-  const [recording, setRecording] = useState(false);
+  /* ── WebRTC hook integration ── */
+  const {
+    localStream,
+    remoteStreams,
+    participants,
+    chatMessages: webrtcChatMessages,
+    isMuted,
+    isCameraOff,
+    isScreenSharing,
+    toggleMute,
+    toggleCamera,
+    startScreenShare,
+    stopScreenShare,
+    sendChatMessage,
+  } = useWebRTC(meetingId, socket, userId, userName);
 
-  /* ── UI state ── */
+  const micOn = !isMuted;
+  const cameraOn = !isCameraOff;
+  const sharing = isScreenSharing;
+
+  /* ── UI states ── */
   const [activePanel, setActivePanel] = useState<ActivePanel>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('gallery');
   const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showBreakout, setShowBreakout] = useState(false);
-  const [waitingCount] = useState(0);
   const [handRaised, setHandRaised] = useState(false);
+  const [recording, setRecording] = useState(false);
+
+  /* ── unread chat sync ── */
+  const [prevMessagesCount, setPrevMessagesCount] = useState(0);
+  const [unreadChat, setUnreadChat] = useState(0);
+
+  useEffect(() => {
+    if (webrtcChatMessages.length > prevMessagesCount) {
+      if (activePanel !== 'chat') {
+        setUnreadChat((n) => n + (webrtcChatMessages.length - prevMessagesCount));
+      }
+      setPrevMessagesCount(webrtcChatMessages.length);
+    }
+  }, [webrtcChatMessages, activePanel, prevMessagesCount]);
+
+  /* ── map chat messages to UI structure ── */
+  const chatMessages = webrtcChatMessages.map((msg, idx) => ({
+    id: `${msg.userId}-${idx}`,
+    sender: msg.userName,
+    text: msg.content,
+    time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  }));
 
   /* ── duration timer ── */
   const [duration, setDuration] = useState(0);
@@ -667,24 +787,7 @@ function MeetingRoomInner() {
     }, 3000);
   }, []);
 
-  /* ── chat ── */
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [unreadChat, setUnreadChat] = useState(0);
-  const sendChatMessage = useCallback(
-    (text: string) => {
-      const msg: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: userName,
-        text,
-        time: nowTimeString(),
-      };
-      setChatMessages((prev) => [...prev, msg]);
-      if (activePanel !== 'chat') setUnreadChat((n) => n + 1);
-    },
-    [userName, activePanel]
-  );
-
-  /* ── Q&A ── */
+  /* ── Q&A (local mockup) ── */
   const [questions, setQuestions] = useState<QAQuestion[]>([]);
   const askQuestion = useCallback(
     (text: string) => {
@@ -717,10 +820,13 @@ function MeetingRoomInner() {
 
   /* ── leave ── */
   const handleLeave = () => {
+    if (socket) {
+      socket.emit('user-leave', { roomId: meetingId, userId });
+    }
     router.push('/dashboard');
   };
 
-  /* ── view toggle button ── */
+  /* ── view toggle button dropdown ── */
   const [showViewMenu, setShowViewMenu] = useState(false);
   const viewMenuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -731,9 +837,6 @@ function MeetingRoomInner() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  /* ═════════════════════════════════════════════════════════════
-     RENDER
-  ═════════════════════════════════════════════════════════════ */
   return (
     <div className="h-screen bg-[#1a1a2e] flex flex-col overflow-hidden">
 
@@ -772,7 +875,7 @@ function MeetingRoomInner() {
           </button>
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/[0.06] rounded-lg px-2 py-1">
             <Users className="w-3 h-3 text-slate-500" />
-            <span className="text-[10px] font-semibold text-slate-400">1</span>
+            <span className="text-[10px] font-semibold text-slate-400">{participants.length + 1}</span>
           </div>
         </div>
       </div>
@@ -780,20 +883,8 @@ function MeetingRoomInner() {
       {/* ── main area ── */}
       <div className="flex flex-1 min-h-0">
 
-        {/* ── video + banners ── */}
+        {/* ── video area ── */}
         <div className="flex-1 flex flex-col min-w-0 relative">
-
-          {/* waiting room banner */}
-          {waitingCount > 0 && (
-            <div className="flex items-center justify-between bg-[#5B5FC7]/15 border-b border-[#5B5FC7]/30 px-4 py-2 shrink-0">
-              <span className="text-sm text-[#818cf8] font-medium">
-                {waitingCount} participant{waitingCount > 1 ? 's' : ''} in waiting room
-              </span>
-              <button className="text-xs font-semibold text-white bg-[#5B5FC7] hover:bg-[#4f52b2] px-3 py-1 rounded-lg transition-colors cursor-pointer">
-                Admit all
-              </button>
-            </div>
-          )}
 
           {/* hand raise banner */}
           {handRaised && (
@@ -809,7 +900,7 @@ function MeetingRoomInner() {
           )}
 
           {/* video grid area */}
-          <div className="flex-1 relative p-2 overflow-hidden">
+          <div className="flex-1 relative p-4 overflow-y-auto">
 
             {/* floating reactions */}
             {reactions.map((r) => (
@@ -817,34 +908,75 @@ function MeetingRoomInner() {
             ))}
 
             {viewMode === 'gallery' ? (
-              <div className="h-full grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 auto-rows-fr content-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr content-start">
                 <LocalVideoTile
                   cameraOn={cameraOn}
                   userName={userName}
                   avatarUrl={avatarUrl}
                   isSpeakerView={false}
                   isActive={true}
+                  stream={localStream}
                 />
-                <WaitingTile />
+                {participants.map((p) => (
+                  <RemoteVideoTile
+                    key={p.socketId}
+                    participant={p}
+                    stream={remoteStreams[p.socketId] || null}
+                    isSpeakerView={false}
+                  />
+                ))}
+                {participants.length === 0 && <WaitingTile />}
               </div>
             ) : (
               /* speaker view */
-              <div className="h-full flex flex-col gap-2">
+              <div className="h-full flex flex-col gap-4">
                 {/* large speaker tile */}
                 <div className="flex-1 min-h-0">
-                  <LocalVideoTile
-                    cameraOn={cameraOn}
-                    userName={userName}
-                    avatarUrl={avatarUrl}
-                    isSpeakerView={true}
-                    isActive={true}
-                  />
+                  {participants.length > 0 ? (
+                    <RemoteVideoTile
+                      participant={participants[0]}
+                      stream={remoteStreams[participants[0].socketId] || null}
+                      isSpeakerView={true}
+                    />
+                  ) : (
+                    <LocalVideoTile
+                      cameraOn={cameraOn}
+                      userName={userName}
+                      avatarUrl={avatarUrl}
+                      isSpeakerView={true}
+                      isActive={true}
+                      stream={localStream}
+                    />
+                  )}
                 </div>
                 {/* strip of others */}
-                <div className="h-28 flex gap-2 overflow-x-auto shrink-0">
-                  <div className="w-48 shrink-0">
-                    <WaitingTile />
-                  </div>
+                <div className="h-32 flex gap-4 overflow-x-auto shrink-0 pb-2">
+                  {participants.length > 0 && (
+                    <div className="w-56 shrink-0">
+                      <LocalVideoTile
+                        cameraOn={cameraOn}
+                        userName={userName}
+                        avatarUrl={avatarUrl}
+                        isSpeakerView={false}
+                        isActive={false}
+                        stream={localStream}
+                      />
+                    </div>
+                  )}
+                  {participants.slice(1).map((p) => (
+                    <div key={p.socketId} className="w-56 shrink-0">
+                      <RemoteVideoTile
+                        participant={p}
+                        stream={remoteStreams[p.socketId] || null}
+                        isSpeakerView={false}
+                      />
+                    </div>
+                  ))}
+                  {participants.length === 0 && (
+                    <div className="w-56 shrink-0">
+                      <WaitingTile />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -866,7 +998,7 @@ function MeetingRoomInner() {
             <div className="flex items-center gap-2">
               <button
                 title="Security"
-                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border border-transparent"
               >
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:block">Security</span>
@@ -877,12 +1009,12 @@ function MeetingRoomInner() {
             <div className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
               {/* mic */}
               <button
-                onClick={() => setMicOn(!micOn)}
+                onClick={toggleMute}
                 title={micOn ? 'Mute' : 'Unmute'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   micOn
                     ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-red-600/80 hover:bg-red-600 text-white'
+                    : 'bg-red-650 hover:bg-red-700 text-white'
                 }`}
               >
                 {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
@@ -890,12 +1022,12 @@ function MeetingRoomInner() {
 
               {/* camera */}
               <button
-                onClick={() => setCameraOn(!cameraOn)}
+                onClick={toggleCamera}
                 title={cameraOn ? 'Stop Video' : 'Start Video'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   cameraOn
                     ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-red-600/80 hover:bg-red-600 text-white'
+                    : 'bg-red-650 hover:bg-red-700 text-white'
                 }`}
               >
                 {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
@@ -903,11 +1035,11 @@ function MeetingRoomInner() {
 
               {/* screen share */}
               <button
-                onClick={() => setSharing(!sharing)}
+                onClick={sharing ? stopScreenShare : startScreenShare}
                 title={sharing ? 'Stop Sharing' : 'Share Screen'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   sharing
-                    ? 'bg-green-600/80 hover:bg-green-600 text-white'
+                    ? 'bg-emerald-650 hover:bg-emerald-700 text-white'
                     : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
               >
@@ -919,7 +1051,7 @@ function MeetingRoomInner() {
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                   title="Reactions"
-                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
                 >
                   <Smile className="w-5 h-5" />
                 </button>
@@ -936,7 +1068,7 @@ function MeetingRoomInner() {
                 <button
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   title="More options"
-                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer"
+                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
                 >
                   <MoreHorizontal className="w-5 h-5" />
                 </button>
@@ -954,20 +1086,20 @@ function MeetingRoomInner() {
               {/* participants */}
               <button
                 onClick={() => togglePanel('participants')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'participants'
                     ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
                     : 'bg-white/10 hover:bg-white/15 text-slate-300'
                 }`}
               >
                 <Users className="w-4 h-4" />
-                <span className="hidden sm:block">1</span>
+                <span className="hidden sm:block">{participants.length + 1}</span>
               </button>
 
               {/* chat */}
               <button
                 onClick={() => togglePanel('chat')}
-                className={`relative flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer ${
+                className={`relative flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'chat'
                     ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
                     : 'bg-white/10 hover:bg-white/15 text-slate-300'
@@ -985,7 +1117,7 @@ function MeetingRoomInner() {
               {/* Q&A */}
               <button
                 onClick={() => togglePanel('qa')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'qa'
                     ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
                     : 'bg-white/10 hover:bg-white/15 text-slate-300'
@@ -999,7 +1131,7 @@ function MeetingRoomInner() {
               <div className="relative" ref={viewMenuRef}>
                 <button
                   onClick={() => setShowViewMenu(!showViewMenu)}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-slate-300 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer"
+                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-slate-300 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0"
                 >
                   {viewMode === 'gallery' ? <Grid className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
                 </button>
@@ -1010,7 +1142,7 @@ function MeetingRoomInner() {
                         <button
                           key={mode}
                           onClick={() => { setViewMode(mode); setShowViewMenu(false); }}
-                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors cursor-pointer ${
+                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors cursor-pointer border-0 ${
                             viewMode === mode
                               ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
                               : 'text-slate-300 hover:bg-white/[0.04]'
@@ -1029,7 +1161,7 @@ function MeetingRoomInner() {
               <button
                 onClick={handleLeave}
                 title="Leave meeting"
-                className="w-12 h-12 rounded-full bg-red-600 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-red-650 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border-0"
               >
                 <PhoneOff className="w-5 h-5" />
               </button>
@@ -1047,6 +1179,7 @@ function MeetingRoomInner() {
             <ParticipantsPanel
               userName={userName}
               avatarUrl={avatarUrl}
+              participants={participants}
               onClose={() => setActivePanel(null)}
             />
           )}
@@ -1079,8 +1212,8 @@ function MeetingRoomInner() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PAGE EXPORT — Suspense boundary for useSearchParams
-═══════════════════════════════════════════════════════════════ */
+   PAGE EXPORT
+   ═══════════════════════════════════════════════════════════════ */
 export default function MeetingRoomPage() {
   return (
     <Suspense
