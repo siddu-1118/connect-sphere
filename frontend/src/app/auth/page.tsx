@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
+import { Compass } from 'lucide-react';
 
 function AuthContent() {
   const router = useRouter();
@@ -164,7 +165,7 @@ function AuthContent() {
   const handleGoogleSso = () => {
     setEmail('aksbasg@gmail.com');
     setPassword('TestPassword123');
-    setSuccess('Google SSO authorized. Completing Multi-Factor check...');
+    setSuccess('SSO authorized. Completing Multi-Factor check...');
     setTimeout(() => {
       setShowMfaModal(true);
       setSuccess(null);
@@ -180,19 +181,16 @@ function AuthContent() {
         {/* Header Branding */}
         <div className="flex flex-col items-center text-center mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <svg className="w-8 h-8" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.5 12c0-.7-.1-1.3-.2-1.9H12v3.7h5.9c-.3 1.4-1.1 2.6-2.3 3.4l3.1 2.4c1.8-1.7 2.8-4.2 2.8-7.6z"/>
-              <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.1-2.4c-1 .7-2.2 1.1-4.2 1.1-3.2 0-6-2.2-7-5.2L1.8 17c2 3.9 6 6 10.2 6z"/>
-              <path fill="#FBBC05" d="M5 13.8c-.3-.8-.4-1.7-.4-2.8s.1-2 .4-2.8L1.8 5.4c-1 1.8-1.5 4-1.5 6.6s.5 4.8 1.5 6.6L5 13.8z"/>
-              <path fill="#EA4335" d="M12 4.8c1.6 0 3.1.6 4.2 1.7l3.2-3.2C17.5 1.6 15 1 12 1 7.8 1 3.8 3.1 1.8 7L5 12.2c1-3 3.8-5.2 7-5.2z"/>
-            </svg>
-            <span className="text-xl font-bold tracking-tight text-[#1f1f1f] dark:text-[#e3e3e3] font-product">Google</span>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow shadow-indigo-500/25">
+              <Compass className="w-4.5 h-4.5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-[#1f1f1f] dark:text-[#e3e3e3] font-product">AeroMeet</span>
           </div>
 
           {flow === 'signin-email' && (
             <>
               <h1 className="text-2xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">Sign in</h1>
-              <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-2">to continue to Google Workspace</p>
+              <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-2">to continue to AeroMeet Workspace</p>
             </>
           )}
 
@@ -209,8 +207,8 @@ function AuthContent() {
 
           {flow === 'signup' && (
             <>
-              <h1 className="text-2xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">Create your Google Account</h1>
-              <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-2">to access Google Meet coordinate rooms</p>
+              <h1 className="text-2xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">Create your AeroMeet Account</h1>
+              <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-2">to access AeroMeet coordinate rooms</p>
             </>
           )}
 
@@ -548,7 +546,7 @@ function AuthContent() {
               <span className="material-symbols-outlined text-[40px] text-[#1a73e8] dark:text-[#8ab4f8] mb-3">security</span>
               <h3 className="text-xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">2-Step Verification</h3>
               <p className="text-xs text-[#5f6368] dark:text-[#9aa0a6] mt-2">
-                Google sent a verification code to your authenticator app. Enter it below to secure your session.
+                AeroMeet sent a verification code to your authenticator app. Enter it below to secure your session.
               </p>
             </div>
 

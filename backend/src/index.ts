@@ -35,7 +35,7 @@ app.get('/health', (req, res) => {
 app.use(errorHandler);
 
 const httpServer = http.createServer(app);
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 7860;
 
 // Setup Socket.IO
 setupSocketIO(httpServer);
