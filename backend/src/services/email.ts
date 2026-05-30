@@ -124,6 +124,46 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
     </html>
   `;
 
+  // Brevo API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    console.log(`📬 Sending OTP email via Brevo API to ${email}...`);
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'AeroMeet',
+            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+          },
+          to: [
+            {
+              email: email,
+              name: userName
+            }
+          ],
+          subject: subject,
+          htmlContent: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ OTP email sent successfully via Brevo to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Brevo API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send email via Brevo:`, err);
+    }
+  }
+
   // Resend API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
   const resendApiKey = process.env.RESEND_API_KEY;
   if (resendApiKey) {
@@ -285,6 +325,46 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
       </body>
     </html>
   `;
+
+  // Brevo API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    console.log(`📬 Sending password reset email via Brevo API to ${email}...`);
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'AeroMeet',
+            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+          },
+          to: [
+            {
+              email: email,
+              name: userName
+            }
+          ],
+          subject: subject,
+          htmlContent: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ Password reset email sent successfully via Brevo to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Brevo API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send reset email via Brevo:`, err);
+    }
+  }
 
   // Resend API integration (uses HTTPS port 443 - not blocked by Render/Hugging Face)
   const resendApiKey = process.env.RESEND_API_KEY;
