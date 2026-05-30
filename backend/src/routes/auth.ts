@@ -63,6 +63,9 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
+    // If there is an existing user but they are NOT verified, delete them so they can register fresh
+    await db.delete(users).where(and(eq(users.email, email), eq(users.isVerified, false)));
+
     // Check if email already exists
     const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (existingUsers.length > 0) {
