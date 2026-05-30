@@ -8,7 +8,7 @@ import api from '../lib/api';
 import Avatar from '../components/ui/Avatar';
 import { Video, Calendar, Link as LinkIcon, HelpCircle, AlertCircle, Copy, Check, LogOut, Compass, X } from 'lucide-react';
 
-// Abstract Premium SVGs customized for ConnectSphere with Indigo and Cyan branding
+// Abstract Premium SVGs customized for AeroMeet with Indigo and Cyan branding
 const carouselSlides = [
   {
     title: 'Share your coordinate link',
@@ -26,7 +26,7 @@ const carouselSlides = [
   },
   {
     title: 'Plan ahead in Orbits',
-    description: 'Coordinate session times inside the ConnectSphere Calendar and send invitations to orbits.',
+    description: 'Coordinate session times inside the AeroMeet Calendar and send invitations to orbits.',
     svg: (
       <svg className="w-64 h-48 mx-auto" viewBox="0 0 200 150" fill="none">
         <circle cx="100" cy="75" r="50" fill="rgba(91, 95, 199, 0.05)" />
@@ -54,7 +54,7 @@ const carouselSlides = [
   }
 ];
 
-export default function ConnectSphereLandingPage() {
+export default function AeroMeetLandingPage() {
   const router = useRouter();
   const { user, logout, loading } = useAuth();
 
@@ -184,7 +184,7 @@ export default function ConnectSphereLandingPage() {
             <Compass className="w-4 h-4" />
           </div>
           <span className="text-lg font-medium tracking-tight text-slate-350 select-none">
-            Connect <strong className="font-extrabold text-cyan-400">Sphere</strong>
+            Aero <strong className="font-extrabold text-cyan-400">Meet</strong>
           </span>
         </div>
 
@@ -304,7 +304,7 @@ export default function ConnectSphereLandingPage() {
                     className="w-full px-4 py-3 hover:bg-slate-850 text-left text-xs font-semibold text-slate-200 flex items-center gap-3 transition-colors cursor-pointer"
                   >
                     <Calendar className="w-4 h-4 text-emerald-400" />
-                    <span>Schedule in ConnectSphere Calendar</span>
+                    <span>Schedule in AeroMeet Calendar</span>
                   </button>
                 </div>
               )}
@@ -404,7 +404,7 @@ export default function ConnectSphereLandingPage() {
             </button>
 
             <h3 className="text-base font-bold text-white mb-2 pr-6">
-              ConnectSphere Meeting Coordinates
+              AeroMeet Meeting Coordinates
             </h3>
             
             <p className="text-xs text-slate-450 leading-relaxed mb-4">

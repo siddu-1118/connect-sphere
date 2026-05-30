@@ -3,7 +3,7 @@ import { AuthProvider } from '../hooks/useAuth';
 import { ThemeProvider } from '../hooks/useTheme';
 
 export const metadata = {
-  title: 'ConnectSphere — Video Conferencing & Team Collaboration',
+  title: 'AeroMeet — Video Conferencing & Team Collaboration',
   description: 'A premium, real-time collaboration space featuring HD multi-party WebRTC video calling, workspaces, channel chats, and calendars.',
 };
 

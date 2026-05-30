@@ -4,7 +4,7 @@ const SMTP_HOST = process.env.SMTP_HOST;
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587');
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
-const EMAIL_FROM = process.env.EMAIL_FROM || '"ConnectSphere" <noreply@connectsphere.app>';
+const EMAIL_FROM = process.env.EMAIL_FROM || '"AeroMeet" <noreply@aeromeet.app>';
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -31,7 +31,7 @@ function getTransporter() {
 }
 
 export async function sendOTPEmail(email: string, otp: string, userName: string): Promise<boolean> {
-  const subject = 'Your ConnectSphere Verification Code';
+  const subject = 'Your AeroMeet Verification Code';
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -105,16 +105,16 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
       </head>
       <body>
         <div class="container">
-          <div class="logo">ConnectSphere</div>
+          <div class="logo">AeroMeet</div>
           <h2>Verify Your Email</h2>
           <p>Hi ${userName},</p>
-          <p>Thank you for signing up for ConnectSphere. Please use the verification code below to activate your account. This code is valid for 10 minutes.</p>
+          <p>Thank you for signing up for AeroMeet. Please use the verification code below to activate your account. This code is valid for 10 minutes.</p>
           <div class="code-box">
             <div class="otp-code">${otp}</div>
           </div>
           <p>If you did not request this, you can safely ignore this email.</p>
           <div class="footer">
-            © 2026 ConnectSphere. Built for premium real-time collaboration.
+            © 2026 AeroMeet. Built for premium real-time collaboration.
           </div>
         </div>
       </body>
@@ -141,7 +141,7 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
   } else {
     console.log(`
 ===================================================
-📬 [ConnectSphere Email Simulator]
+📬 [AeroMeet Email Simulator]
 To: ${email}
 Subject: ${subject}
 Name: ${userName}
@@ -153,7 +153,7 @@ OTP Code: ${otp}
 }
 
 export async function sendPasswordResetEmail(email: string, otp: string, userName: string): Promise<boolean> {
-  const subject = 'Reset Your ConnectSphere Password';
+  const subject = 'Reset Your AeroMeet Password';
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -227,7 +227,7 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
       </head>
       <body>
         <div class="container">
-          <div class="logo">ConnectSphere</div>
+          <div class="logo">AeroMeet</div>
           <h2>Reset Your Password</h2>
           <p>Hi ${userName},</p>
           <p>We received a request to reset your password. Please use the 6-digit verification code below to authorize your reset. This code is valid for 10 minutes.</p>
@@ -236,7 +236,7 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
           </div>
           <p>If you did not make this request, you can safely ignore this email. Your password will remain unchanged.</p>
           <div class="footer">
-            © 2026 ConnectSphere. Built for premium real-time collaboration.
+            © 2026 AeroMeet. Built for premium real-time collaboration.
           </div>
         </div>
       </body>
@@ -263,7 +263,7 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
   } else {
     console.log(`
 ===================================================
-📬 [ConnectSphere Email Reset Simulator]
+📬 [AeroMeet Email Reset Simulator]
 To: ${email}
 Subject: ${subject}
 Name: ${userName}

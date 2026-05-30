@@ -281,7 +281,7 @@ function GeneralPanel() {
 
         <SettingsRow
           label="Theme"
-          description="ConnectSphere uses a dark theme for optimal focus and clarity."
+          description="AeroMeet uses a dark theme for optimal focus and clarity."
         >
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500">Dark</span>
@@ -291,7 +291,7 @@ function GeneralPanel() {
 
         <SettingsRow
           label="Start on Login"
-          description="Launch ConnectSphere automatically when you log in to your system."
+          description="Launch AeroMeet automatically when you log in to your system."
         >
           <ToggleSwitch checked={startOnLogin} onChange={setStartOnLogin} />
         </SettingsRow>
@@ -669,8 +669,8 @@ function PrivacyPanel() {
           <div>
             <p className="text-sm font-semibold text-slate-200 mb-1">Data Sharing</p>
             <p className="text-xs text-slate-500 leading-relaxed">
-              ConnectSphere collects anonymized usage data to improve product performance and features.
-              We never sell your personal data to third parties. You can request a full data export or
+              AeroMeet collects anonymized usage data to improve product performance and features.
+              We never sell your personal data to third parties. You can request a data export or
               account deletion by contacting our privacy team.
             </p>
           </div>
@@ -744,10 +744,10 @@ function AboutPanel() {
       {/* Logo + version */}
       <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-6 flex flex-col items-center gap-3">
         <div className="w-16 h-16 rounded-2xl bg-[#5B5FC7]/20 border border-[#5B5FC7]/30 flex items-center justify-center">
-          <span className="text-2xl font-black text-[#818cf8]">CS</span>
+          <span className="text-2xl font-black text-[#818cf8]">AM</span>
         </div>
         <div className="text-center">
-          <p className="text-base font-bold text-slate-100">ConnectSphere</p>
+          <p className="text-base font-bold text-slate-100">AeroMeet</p>
           <p className="text-xs text-slate-500 mt-0.5">Version 1.0.0</p>
           <p className="text-[11px] text-slate-600 mt-0.5">Build 2026.05.29</p>
         </div>
@@ -788,7 +788,7 @@ function AboutPanel() {
       </div>
 
       <p className="text-center text-[11px] text-slate-700">
-        © 2026 ConnectSphere Inc. All rights reserved.
+        © 2026 AeroMeet Inc. All rights reserved.
       </p>
     </div>
   );

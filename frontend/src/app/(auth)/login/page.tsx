@@ -111,7 +111,7 @@ export default function LoginPage() {
 
       {/* Redirect Footer */}
       <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-500 bg-slate-900/10">
-        New to ConnectSphere?{' '}
+        New to AeroMeet?{' '}
         <Link href="/register" className="font-bold text-blue-400 hover:text-blue-300 hover:underline">
           Create Account
         </Link>

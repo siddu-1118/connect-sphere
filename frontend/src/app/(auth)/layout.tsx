@@ -17,7 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <Layers className="w-5 h-5 text-white" />
         </div>
         <span className="text-xl font-black tracking-tighter text-white bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          ConnectSphere
+          AeroMeet
         </span>
       </Link>
 

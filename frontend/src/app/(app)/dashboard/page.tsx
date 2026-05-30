@@ -415,7 +415,7 @@ export default function DashboardPage() {
 
         {/* ── Teams-style: What to try ── */}
         <div>
-          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Explore ConnectSphere</h2>
+          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Explore AeroMeet</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
               {

@@ -35,7 +35,7 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
             <Layers className="w-5 h-5 text-white" />
           </div>
           <span className="text-lg font-black tracking-tighter text-[#5B5FC7] dark:text-white bg-clip-text hidden sm:inline">
-            ConnectSphere
+            AeroMeet
           </span>
         </Link>
       </div>

@@ -128,7 +128,7 @@ export function CommandSearch({ isOpen, onClose }: CommandSearchProps) {
 
         {/* Footnote */}
         <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/40 border-t border-[#E0E0E0] dark:border-slate-800 text-[10px] text-slate-400 flex justify-between items-center">
-          <span>Search or navigate instantly across ConnectSphere.</span>
+          <span>Search or navigate instantly across AeroMeet.</span>
           <span>Press <kbd className="font-mono bg-slate-200 dark:bg-slate-900 px-1 py-0.5 rounded text-[9px]">Enter</kbd> to select</span>
         </div>
       </div>
