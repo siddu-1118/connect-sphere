@@ -11,45 +11,154 @@ import { Video, Calendar, Link as LinkIcon, HelpCircle, AlertCircle, Copy, Check
 // Abstract Premium SVGs customized for AeroMeet with Indigo and Cyan branding
 const carouselSlides = [
   {
-    title: 'Share your coordinate link',
-    description: 'Initialize a new sync room to generate coordinates you can share with your team spheres.',
-    svg: (
-      <svg className="w-64 h-48 mx-auto" viewBox="0 0 200 150" fill="none">
-        <circle cx="100" cy="75" r="50" fill="rgba(6, 182, 212, 0.05)" />
-        <rect x="70" y="65" width="60" height="20" rx="10" fill="#22d3ee" opacity="0.8" />
-        <path d="M85 75h30" stroke="#FFF" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="85" cy="75" r="4" fill="#FFF" />
-        <circle cx="115" cy="75" r="4" fill="#FFF" />
-        <path d="M125 50l15-15m-55 70l-15 15" stroke="#5B5FC7" strokeWidth="2" strokeDasharray="4 4" />
-      </svg>
+    title: 'Real-Time HD calling stage',
+    description: 'Launch instant high-definition WebRTC video sessions with encrypted audio and peer-to-peer grids.',
+    element: (
+      <div className="w-full max-w-[340px] aspect-[4/3] bg-slate-950/80 rounded-2xl border border-white/[0.06] p-3 flex flex-col justify-between relative shadow-inner">
+        {/* Call Grid */}
+        <div className="grid grid-cols-2 gap-2 flex-grow">
+          {/* Tile 1 */}
+          <div className="bg-slate-900 rounded-xl border border-white/[0.04] p-2 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-1.5 right-1.5 px-1 py-0.5 rounded bg-black/60 text-[6px] font-semibold text-emerald-400 flex items-center gap-0.5">
+              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+              LIVE
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-black text-xs">
+                SH
+              </div>
+            </div>
+            <div className="text-[8px] font-bold text-slate-350">Sarah (Host)</div>
+          </div>
+          {/* Tile 2 */}
+          <div className="bg-slate-900 rounded-xl border border-white/[0.04] p-2 flex flex-col justify-between relative overflow-hidden">
+            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded bg-blue-500/20 text-[6.5px] font-bold text-blue-400">
+              SPEAKING
+            </div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-cyan-400 font-black text-xs relative">
+                AM
+                <span className="absolute inset-0 rounded-full border border-cyan-500/50 animate-ping" />
+              </div>
+            </div>
+            <div className="text-[8px] font-bold text-slate-350">Alex Miller</div>
+          </div>
+          {/* Tile 3 */}
+          <div className="bg-slate-900 rounded-xl border border-white/[0.04] p-2 flex flex-col justify-between relative overflow-hidden">
+            <div className="flex-grow flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 font-black text-xs">
+                U
+              </div>
+            </div>
+            <div className="text-[8px] font-bold text-slate-350">You (Muted)</div>
+          </div>
+          {/* Tile 4 */}
+          <div className="bg-slate-900 rounded-xl border border-white/[0.04] p-2 flex flex-col justify-between relative overflow-hidden">
+            <div className="flex-grow flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-400 font-black text-xs">
+                BOT
+              </div>
+            </div>
+            <div className="text-[8px] font-bold text-slate-350">AeroBot</div>
+          </div>
+        </div>
+        {/* Controls */}
+        <div className="flex items-center justify-center gap-2 mt-2 pt-2 border-t border-white/[0.04]">
+          <div className="w-6.5 h-6.5 rounded-lg bg-slate-900 border border-white/[0.06] flex items-center justify-center text-slate-500 hover:text-white cursor-pointer transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+          </div>
+          <div className="w-6.5 h-6.5 rounded-lg bg-slate-900 border border-white/[0.06] flex items-center justify-center text-slate-500 hover:text-white cursor-pointer transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+          </div>
+          <div className="w-6.5 h-6.5 rounded-lg bg-red-650 flex items-center justify-center text-white cursor-pointer transition-all hover:bg-red-700">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M16 8l2 2m0 0l2 2m-2-2l-2 2m2-2l2-2M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5z"/></svg>
+          </div>
+        </div>
+      </div>
     ),
   },
   {
-    title: 'Plan ahead in Orbits',
-    description: 'Coordinate session times inside the AeroMeet Calendar and send invitations to orbits.',
-    svg: (
-      <svg className="w-64 h-48 mx-auto" viewBox="0 0 200 150" fill="none">
-        <circle cx="100" cy="75" r="50" fill="rgba(91, 95, 199, 0.05)" />
-        <rect x="75" y="50" width="50" height="50" rx="8" fill="#5B5FC7" opacity="0.8" />
-        <rect x="75" y="50" width="50" height="12" rx="4" fill="#474aac" />
-        <circle cx="90" cy="72" r="3" fill="#FFF" />
-        <circle cx="100" cy="72" r="3" fill="#FFF" />
-        <circle cx="110" cy="72" r="3" fill="#FFF" />
-        <rect x="85" y="82" width="30" height="5" rx="2.5" fill="#FFF" />
-      </svg>
+    title: 'Collaborative Vector Sandbox',
+    description: 'Sketch layout specs, pin sticky note diagrams, and draw vector shapes together on a shared canvas.',
+    element: (
+      <div className="w-full max-w-[340px] aspect-[4/3] bg-slate-950/80 rounded-2xl border border-white/[0.06] p-4 flex relative overflow-hidden shadow-inner bg-[radial-gradient(#1e293b_1px,transparent_1px)] bg-[size:15px_15px]">
+        {/* Draw Shapes */}
+        <div className="absolute top-6 left-10 w-12 h-12 rounded-full border border-cyan-400/60 flex items-center justify-center text-cyan-400 text-[8px] bg-cyan-400/[0.02]">Circle</div>
+        <div className="absolute top-14 left-24 w-20 h-10 border border-indigo-400/65 flex items-center justify-center text-indigo-450 text-[8px] rounded-lg bg-indigo-500/[0.02]">Rectangle</div>
+        
+        {/* Sticky Note */}
+        <div className="absolute top-4 right-8 w-22 bg-amber-400 p-2 rounded-lg shadow-lg rotate-3 text-slate-950 flex flex-col justify-between aspect-square">
+          <p className="text-[7.5px] font-black leading-snug text-left text-slate-900">Design dynamic page styling today.</p>
+          <div className="text-[5.5px] uppercase tracking-widest opacity-60 font-black border-t border-slate-950/10 pt-0.5 mt-0.5 text-left">Idea Note</div>
+        </div>
+        
+        {/* Vector toolbar mockup */}
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 bg-slate-900 border border-white/[0.06] p-1 rounded-md flex flex-col gap-1 shadow-xl">
+          <div className="w-4.5 h-4.5 rounded bg-indigo-500 flex items-center justify-center"><svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></div>
+          <div className="w-4.5 h-4.5 rounded bg-transparent flex items-center justify-center text-slate-500"><svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg></div>
+          <div className="w-4.5 h-4.5 rounded bg-transparent flex items-center justify-center text-slate-500"><svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></div>
+        </div>
+        
+        {/* Collaborator Cursor */}
+        <div className="absolute bottom-8 left-16 flex items-center gap-0.5">
+          <svg className="w-2.5 h-2.5 text-cyan-400 fill-cyan-400 rotate-45" viewBox="0 0 24 24"><path d="M12 2L2 22l10-6 10 6L12 2z"/></svg>
+          <div className="px-1 py-0.2 rounded bg-cyan-400 text-[5px] text-slate-950 font-black uppercase">Sarah</div>
+        </div>
+      </div>
     ),
   },
   {
-    title: 'Your stage is encrypted',
-    description: 'Enjoy secure video grid connections. Admission requires host authorization or direct invites.',
-    svg: (
-      <svg className="w-64 h-48 mx-auto" viewBox="0 0 200 150" fill="none">
-        <circle cx="100" cy="75" r="50" fill="rgba(34, 211, 238, 0.05)" />
-        <rect x="80" y="60" width="40" height="35" rx="6" fill="#22d3ee" opacity="0.9" />
-        <path d="M90 60v-8c0-5.5 4.5-10 10-10s10 4.5 10 10v8" stroke="#22d3ee" strokeWidth="4" strokeLinecap="round" />
-        <circle cx="100" cy="75" r="3" fill="#0f172a" />
-        <path d="M100 78v6" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" />
-      </svg>
+    title: 'Organized Team Workspaces',
+    description: 'Create customized team workspaces, structure channel orbits, and exchange real-time thread messages.',
+    element: (
+      <div className="w-full max-w-[340px] aspect-[4/3] bg-slate-950/80 rounded-2xl border border-white/[0.06] flex shadow-inner overflow-hidden text-left">
+        {/* Sidebar Mock */}
+        <div className="w-1/3 bg-slate-900 border-r border-white/[0.04] p-2 flex flex-col gap-1.5">
+          <div className="h-4 bg-white/[0.03] rounded mb-1 flex items-center px-1 text-[7px] text-slate-500 font-bold uppercase tracking-wider">Channels</div>
+          <div className="flex flex-col gap-0.5">
+            <div className="h-5 rounded bg-[#5B5FC7]/20 border border-[#5B5FC7]/35 flex items-center px-1.5 text-[7px] font-semibold text-slate-200 gap-1 select-none">
+              <span className="text-slate-400">#</span> general
+            </div>
+            <div className="h-5 rounded hover:bg-white/[0.02] flex items-center px-1.5 text-[7px] font-semibold text-slate-500 gap-1">
+              <span className="text-slate-600">#</span> marketing
+            </div>
+            <div className="h-5 rounded hover:bg-white/[0.02] flex items-center px-1.5 text-[7px] font-semibold text-slate-500 gap-1">
+              <span className="text-slate-600">#</span> design-system
+            </div>
+          </div>
+        </div>
+        {/* Chat Panel Mock */}
+        <div className="flex-1 p-2 flex flex-col justify-between">
+          {/* Messages */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start gap-1">
+              <div className="w-4 h-4 rounded-full bg-indigo-500/20 flex items-center justify-center text-[6px] text-indigo-400 font-black shrink-0">SH</div>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[7.5px] font-bold text-white leading-none">Sarah</span>
+                  <span className="text-[5.5px] text-slate-500">12:34 PM</span>
+                </div>
+                <p className="text-[7.5px] text-slate-450 mt-0.5 leading-snug">Let's coordinate on the design spec!</p>
+              </div>
+            </div>
+            <div className="flex items-start gap-1">
+              <div className="w-4 h-4 rounded-full bg-cyan-500/20 flex items-center justify-center text-[6px] text-cyan-400 font-black shrink-0">AM</div>
+              <div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-[7.5px] font-bold text-white leading-none">Alex</span>
+                  <span className="text-[5.5px] text-slate-500">12:35 PM</span>
+                </div>
+                <p className="text-[7.5px] text-slate-450 mt-0.5 leading-snug">Sure! Pinned a sticky note in Whiteboard.</p>
+              </div>
+            </div>
+          </div>
+          {/* Input block */}
+          <div className="bg-slate-900 border border-white/[0.06] rounded-lg p-1 flex items-center gap-1">
+            <input type="text" disabled placeholder="Message #general..." className="w-full bg-transparent text-[7.5px] text-slate-500 placeholder-slate-700 outline-none" />
+            <div className="w-3.5 h-3.5 rounded bg-[#5B5FC7] flex items-center justify-center text-white shrink-0"><svg className="w-2 h-2" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></div>
+          </div>
+        </div>
+      </div>
     ),
   }
 ];
@@ -162,37 +271,37 @@ export default function AeroMeetLandingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-955 flex items-center justify-center font-sans">
+      <div className="min-h-screen bg-[#0B0F19] flex items-center justify-center font-sans">
         <div className="w-10 h-10 rounded-full border-4 border-t-cyan-400 border-slate-900 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-955 text-slate-100 flex flex-col font-sans relative overflow-hidden select-none">
+    <div className="min-h-screen bg-gradient-to-tr from-[#0a0d14] via-[#0B0F19] to-[#0f172a] text-slate-100 flex flex-col font-sans relative overflow-hidden select-none">
       
       {/* Background visual glows */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-[#5B5FC7]/10 blur-[120px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] bg-[#22d3ee]/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[-20%] right-[-10%] w-[60%] h-[60%] bg-[#5B5FC7]/10 blur-[140px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] left-[-20%] w-[50%] h-[50%] bg-[#22d3ee]/8 blur-[140px] rounded-full pointer-events-none" />
 
       {/* 1. Header Toolbar */}
-      <header className="h-16 px-6 flex items-center justify-between border-b border-slate-900 bg-slate-950/40 backdrop-blur-xl z-20">
+      <header className="h-16 px-6 flex items-center justify-between border-b border-white/[0.06] bg-slate-950/30 backdrop-blur-xl z-20">
         
         {/* Brand Logo */}
         <div className="flex items-center gap-2.5">
           <div className="w-7.5 h-7.5 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
             <Compass className="w-4 h-4" />
           </div>
-          <span className="text-lg font-medium tracking-tight text-slate-350 select-none">
-            Aero <strong className="font-extrabold text-cyan-400">Meet</strong>
+          <span className="text-lg font-medium tracking-tight text-slate-300 select-none">
+            Aero<strong className="font-extrabold text-cyan-400">Meet</strong>
           </span>
         </div>
 
         {/* Right Info and Profile controls */}
         <div className="flex items-center gap-4">
-          <div className="hidden sm:flex items-center text-xs text-slate-450 font-bold uppercase tracking-wider select-none">
+          <div className="hidden sm:flex items-center text-xs text-slate-455 font-bold uppercase tracking-wider select-none">
             <span>{timeStr}</span>
-            <span className="mx-2 text-slate-600">•</span>
+            <span className="mx-2 text-slate-650">•</span>
             <span>{dateStr}</span>
           </div>
 
@@ -213,7 +322,7 @@ export default function AeroMeetLandingPage() {
                 {/* Avatar context menu */}
                 {showAvatarMenu && (
                   <div className="absolute right-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-2xl z-50 animate-fadeIn">
-                    <div className="flex flex-col items-center border-b border-slate-800 pb-3 mb-3">
+                    <div className="flex flex-col items-center border-b border-slate-850 pb-3 mb-3">
                       <Avatar name={user.name} size="lg" className="mb-2" />
                       <span className="text-sm font-semibold text-white">{user.name}</span>
                       <span className="text-xs text-slate-500 mt-0.5">{user.email}</span>
@@ -245,18 +354,23 @@ export default function AeroMeetLandingPage() {
       </header>
 
       {/* 2. Main Content Canvas */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center px-6 md:px-16 max-w-7xl mx-auto w-full gap-12 lg:gap-16 pt-8 pb-16 z-10">
+      <main className="flex-grow flex flex-col lg:flex-row items-center justify-center px-6 md:px-16 max-w-7xl mx-auto w-full gap-12 lg:gap-16 pt-8 pb-16 z-10">
         
         {/* Left Side: Onboarding meeting actions */}
         <div className="flex-1 space-y-6 max-w-lg w-full text-center lg:text-left">
           
-          <h1 className="text-4xl md:text-[44px] leading-[1.15] font-normal tracking-tight text-white">
-            Premium call coordinates.<br />
-            Now free for your teams.
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] text-[10px] font-semibold text-cyan-400 uppercase tracking-widest mb-2 shadow-inner">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            Active Session Sync Grid
+          </div>
+
+          <h1 className="text-4xl md:text-[50px] leading-[1.1] font-bold tracking-tight text-white select-none">
+            Premium calling.<br />
+            Now <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">effortless</span> for everyone.
           </h1>
 
           <p className="text-slate-400 text-sm md:text-base leading-relaxed max-w-md font-light">
-            Coordinate organizational spheres, map channel orbits, sketch specs on collaborative whiteboards, and launch secure video sync stages on any device.
+            Coordinate organizational workspaces, channel orbits, sketch ideas on collaborative whiteboards, and launch secure video sync stages on any device.
           </p>
 
           {/* Action Row */}
@@ -311,22 +425,22 @@ export default function AeroMeetLandingPage() {
             </div>
 
             {/* Joining field input */}
-            <form onSubmit={handleJoinClick} className="w-full sm:w-auto flex items-center gap-3 flex-1 max-w-xs">
+            <form onSubmit={handleJoinClick} className="w-full sm:w-auto flex items-center gap-2 flex-1 max-w-xs bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] focus-within:border-cyan-500/40 p-1.5 rounded-2xl transition-all shadow-inner">
               <div className="relative flex-1">
-                <Video className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-550 select-none" />
+                <Video className="absolute left-3 top-3.5 w-4 h-4 text-slate-550 select-none" />
                 <input
                   type="text"
                   placeholder="Enter room code or link"
                   value={meetingCode}
                   onChange={(e) => setMeetingCode(e.target.value)}
-                  className="w-full pl-11 pr-3 py-3.5 border border-slate-800 rounded-xl text-xs bg-slate-950/60 focus:outline-none focus:border-[#5B5FC7] focus:ring-0 placeholder-slate-600 text-slate-200"
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl text-xs bg-transparent focus:outline-none placeholder-slate-650 text-slate-250"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={!meetingCode.trim()}
-                className="text-xs font-bold uppercase tracking-wider text-cyan-400 hover:text-cyan-300 disabled:text-slate-600 px-4 py-3 rounded-full transition-colors cursor-pointer disabled:cursor-not-allowed select-none"
+                className="text-xs font-black uppercase tracking-wider text-slate-950 bg-cyan-400 hover:bg-cyan-350 disabled:bg-slate-850 disabled:text-slate-600 px-5 py-3 rounded-xl transition-all cursor-pointer disabled:cursor-not-allowed select-none shadow"
               >
                 Join
               </button>
@@ -334,8 +448,8 @@ export default function AeroMeetLandingPage() {
 
           </div>
 
-          <div className="border-t border-slate-900 pt-4 mt-6">
-            <p className="text-xs text-slate-500 font-normal leading-relaxed">
+          <div className="border-t border-white/[0.04] pt-4 mt-6">
+            <p className="text-xs text-slate-550 font-normal leading-relaxed">
               <span className="text-cyan-400">Secure Stage Infrastructure</span>. Fully encrypted P2P peer calls.
             </p>
           </div>
@@ -343,15 +457,15 @@ export default function AeroMeetLandingPage() {
         </div>
 
         {/* Right Side: Showcase Carousel and Schedule */}
-        <div className="flex-1 flex flex-col items-center justify-center max-w-md w-full relative">
+        <div className="flex-grow flex flex-col items-center justify-center max-w-md w-full relative z-10">
           
           {/* Card Frame */}
-          <div className="w-full bg-slate-900/30 border border-slate-900 rounded-[32px] p-6 shadow-2xl flex flex-col items-center text-center relative overflow-hidden min-h-[380px] justify-between backdrop-blur-xl">
+          <div className="w-full bg-white/[0.02] border border-white/[0.06] rounded-[32px] p-6 shadow-2xl flex flex-col items-center text-center relative overflow-hidden min-h-[420px] justify-between backdrop-blur-xl">
             
             {/* Visual illustration slider */}
             <div className="w-full flex-1 flex flex-col justify-center select-none">
-              <div className="mb-4">
-                {carouselSlides[carouselIndex].svg}
+              <div className="mb-6 w-full flex justify-center">
+                {carouselSlides[carouselIndex].element}
               </div>
               
               <h3 className="text-sm font-black uppercase tracking-wider text-white mb-2">
@@ -373,23 +487,24 @@ export default function AeroMeetLandingPage() {
                     carouselIndex === idx ? 'bg-cyan-400 scale-110 shadow-lg shadow-cyan-400/50' : 'bg-slate-800'
                   }`}
                   title={`Go to slide ${idx + 1}`}
+                  type="button"
                 />
               ))}
             </div>
 
             {/* Timetable schedule section — STRICT EMPTY STATE */}
-            <div className="border-t border-slate-900 w-full pt-4 mt-2 shrink-0">
-              <div className="flex flex-col items-center justify-center p-4">
-                <Calendar className="w-5 h-5 text-slate-600 mb-1.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Nothing scheduled today</span>
-                <p className="text-[9px] text-slate-600 mt-1 max-w-[200px] leading-relaxed">Use Calendar planner slots to schedule upcoming coordinate calls.</p>
+            <div className="border-t border-white/[0.04] w-full pt-4 mt-2 shrink-0">
+              <div className="flex flex-col items-center justify-center p-2">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <Calendar className="w-4 h-4" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest">Nothing scheduled today</span>
+                </div>
               </div>
             </div>
 
           </div>
 
         </div>
-
       </main>
 
       {/* --- SHARE MEETING LINK POPUP MODAL --- */}
