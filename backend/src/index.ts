@@ -26,7 +26,57 @@ app.use('/api/meetings', meetingsRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/calendar', calendarRoutes);
 
-// Health check
+// Health check & landing
+app.get('/', (req, res) => {
+  res.send(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>AeroMeet API Server</title>
+        <style>
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0B0F19;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+          }
+          .card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            max-width: 400px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+          }
+          h1 {
+            color: #22d3ee;
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 12px;
+          }
+          p {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>🚀 AeroMeet Backend Online</h1>
+          <p>The real-time database and signaling server is running successfully. Connect your frontend client to begin.</p>
+        </div>
+      </body>
+    </html>
+  `);
+});
+
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
