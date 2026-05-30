@@ -70,31 +70,9 @@ function AuthContent() {
     setLoading(true);
     setError(null);
     try {
-      // Simulate credential pre-check, then prompt MFA overlay
-      setTimeout(() => {
-        setLoading(false);
-        setShowMfaModal(true);
-      }, 800);
+      await login(email, password);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid credentials.');
-      setLoading(false);
-    }
-  };
-
-  const handleMfaConfirm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (mfaCode.length !== 6) {
-      setError('Verification code must be 6 digits.');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await login(email, password);
-      setShowMfaModal(false);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Authentication failed. Please verify credentials.');
-      setShowMfaModal(false);
     } finally {
       setLoading(false);
     }
@@ -163,13 +141,7 @@ function AuthContent() {
   };
 
   const handleGoogleSso = () => {
-    setEmail('aksbasg@gmail.com');
-    setPassword('TestPassword123');
-    setSuccess('SSO authorized. Completing Multi-Factor check...');
-    setTimeout(() => {
-      setShowMfaModal(true);
-      setSuccess(null);
-    }, 1000);
+    setError('Google SSO is currently unavailable. Please sign in or register with your email and password.');
   };
 
   return (
@@ -523,7 +495,7 @@ function AuthContent() {
                   setEmail('aksbasg@gmail.com');
                   setPassword('TestPassword123');
                   setFlow('signin-password');
-                  setSuccess('Demo account loaded. Enter any password to trigger MFA check.');
+                  setSuccess('Demo account loaded. Click Sign in to continue.');
                   setError(null);
                 }}
                 className="w-full py-2.5 text-center text-xs font-semibold text-[#5f6368] dark:text-[#9aa0a6] hover:text-[#1a73e8] dark:hover:text-[#8ab4f8] transition-colors rounded-full hover:bg-slate-200/50 dark:hover:bg-slate-800/50"
