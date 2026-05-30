@@ -28,9 +28,7 @@ function AuthContent() {
   const [otpCode, setOtpCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
 
-  // MFA simulation overlay
-  const [showMfaModal, setShowMfaModal] = useState(false);
-  const [mfaCode, setMfaCode] = useState('');
+
 
   // Redirect if already logged in
   useEffect(() => {
@@ -509,60 +507,7 @@ function AuthContent() {
 
       </div>
 
-      {/* --- SIMULATED MFA OVERLAY MODAL --- */}
-      {showMfaModal && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="w-full max-w-[380px] bg-white dark:bg-[#1a1c22] border border-[#e0e2e6] dark:border-[#2e3138] rounded-[28px] p-6 md:p-8 shadow-2xl relative">
-            
-            <div className="flex flex-col items-center text-center mb-6">
-              <span className="material-symbols-outlined text-[40px] text-[#1a73e8] dark:text-[#8ab4f8] mb-3">security</span>
-              <h3 className="text-xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">2-Step Verification</h3>
-              <p className="text-xs text-[#5f6368] dark:text-[#9aa0a6] mt-2">
-                AeroMeet sent a verification code to your authenticator app. Enter it below to secure your session.
-              </p>
-            </div>
 
-            <form onSubmit={handleMfaConfirm} className="space-y-6">
-              <div className="relative group">
-                <input
-                  type="text"
-                  maxLength={6}
-                  id="mfa-input"
-                  required
-                  value={mfaCode}
-                  onChange={e => setMfaCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder=" "
-                  className="w-full px-4 py-3.5 text-center text-sm font-mono tracking-widest text-[#1f1f1f] dark:text-[#e3e3e3] bg-transparent border border-[#74777f] dark:border-[#8e9099] rounded-lg focus:outline-none focus:border-[#1a73e8] dark:focus:border-[#8ab4f8] peer transition-all placeholder-transparent"
-                />
-                <label 
-                  htmlFor="mfa-input"
-                  className="absolute left-3 top-3 px-1 bg-white dark:bg-[#1a1c22] text-[#5f6368] dark:text-[#9aa0a6] text-sm transform transition-all -translate-y-5 scale-75 origin-[0] peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:-translate-y-5 peer-focus:scale-75 peer-focus:text-[#1a73e8] dark:peer-focus:text-[#8ab4f8] w-[calc(100%-24px)] text-left"
-                >
-                  Enter 6-digit MFA code
-                </label>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMfaModal(false)}
-                  className="flex-1 py-2.5 border border-[#dadce0] dark:border-[#3c4043] hover:bg-slate-100 dark:hover:bg-slate-800 text-[#1a73e8] dark:text-[#8ab4f8] text-xs font-semibold rounded-full transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2.5 bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-semibold rounded-full tracking-wide shadow-sm transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {loading ? 'Verifying...' : 'Verify'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
     </div>
   );
