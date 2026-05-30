@@ -305,10 +305,21 @@ function GeneralPanel() {
 function ProfilePanel() {
   const { user, updateProfile } = useAuth();
   const [displayName, setDisplayName] = useState(user?.name ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl ?? '');
   const [status, setStatus] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [showAvatarPresets, setShowAvatarPresets] = useState(false);
+
+  const presets = [
+    { name: 'Bot 1', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aero1' },
+    { name: 'Bot 2', url: 'https://api.dicebear.com/7.x/bottts/svg?seed=Aero2' },
+    { name: 'Avatar 1', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix' },
+    { name: 'Avatar 2', url: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka' },
+    { name: 'Lorelei', url: 'https://api.dicebear.com/7.x/lorelei/svg?seed=Jack' },
+    { name: 'Tech', url: 'https://api.dicebear.com/7.x/identicon/svg?seed=Tech' },
+  ];
 
   const handleSave = async () => {
     if (!displayName.trim()) return;
@@ -316,7 +327,7 @@ function ProfilePanel() {
     setError('');
     setSaved(false);
     try {
-      await updateProfile(displayName.trim(), user?.avatarUrl ?? null);
+      await updateProfile(displayName.trim(), avatarUrl.trim() || null);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch {
@@ -331,16 +342,67 @@ function ProfilePanel() {
       <SectionHeader title="Profile" />
 
       {/* Avatar section */}
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-6 mb-4 flex items-center gap-5">
-        <Avatar name={user?.name ?? 'You'} src={user?.avatarUrl} size="xl" />
-        <div>
-          <p className="text-sm font-semibold text-slate-100">{user?.name}</p>
-          <p className="text-xs text-slate-500 mb-3">{user?.email}</p>
-          <button className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer border border-white/[0.06]">
-            <Camera className="w-3.5 h-3.5" />
-            Change photo
-          </button>
+      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-6 mb-4 flex flex-col gap-4">
+        <div className="flex items-center gap-5">
+          <Avatar name={displayName || 'You'} src={avatarUrl} size="xl" />
+          <div>
+            <p className="text-sm font-semibold text-slate-100">{displayName || user?.name}</p>
+            <p className="text-xs text-slate-500 mb-3">{user?.email}</p>
+            <button
+              onClick={() => setShowAvatarPresets(!showAvatarPresets)}
+              className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer border border-white/[0.06]"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Change photo
+            </button>
+          </div>
         </div>
+
+        {/* Change photo dropdown/presets */}
+        {showAvatarPresets && (
+          <div className="pt-4 border-t border-white/[0.04] animate-fadeIn">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+              Select a Preset Avatar
+            </p>
+            <div className="flex flex-wrap gap-3 mb-4">
+              {presets.map((preset) => (
+                <button
+                  key={preset.url}
+                  onClick={() => setAvatarUrl(preset.url)}
+                  className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all p-0.5 bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 ${
+                    avatarUrl === preset.url ? 'border-[#5B5FC7]' : 'border-transparent hover:border-white/20'
+                  }`}
+                  title={preset.name}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={preset.url} alt={preset.name} className="w-full h-full object-cover rounded-lg" />
+                </button>
+              ))}
+              <button
+                onClick={() => setAvatarUrl('')}
+                className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 text-[10px] font-bold transition-all bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 text-slate-400 ${
+                  !avatarUrl ? 'border-[#5B5FC7] text-white' : 'border-transparent hover:border-white/20'
+                }`}
+                title="Clear avatar"
+              >
+                Reset
+              </button>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
+                Or enter custom image URL
+              </label>
+              <input
+                type="text"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+                className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+                placeholder="https://example.com/avatar.png"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form fields */}
