@@ -13,6 +13,7 @@ interface AuthContextType {
   verifyOtp: (email: string, otpCode: string) => Promise<void>;
   resendOtp: (email: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (email: string, otpCode: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -100,6 +101,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Login with Google
+  const loginWithGoogle = async (credential: string) => {
+    const response = await api.post('/auth/google', { credential });
+    const { accessToken, refreshToken, user: loggedUser } = response.data;
+    
+    setTokens(accessToken, refreshToken);
+    setUser(loggedUser);
+    persistUser(loggedUser);
+    
+    router.push('/');
+  };
+
   // Forgot password OTP request
   const forgotPassword = async (email: string) => {
     await api.post('/auth/forgot-password', { email });
@@ -157,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     verifyOtp,
     resendOtp,
     login,
+    loginWithGoogle,
     forgotPassword,
     resetPassword,
     logout,

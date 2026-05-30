@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcrypt';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
 import { users } from '../db/schema';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt';
@@ -56,7 +57,130 @@ const refreshSchema = z.object({
   }),
 });
 
+const googleAuthSchema = z.object({
+  body: z.object({
+    credential: z.string().min(1, 'Google credential (ID token) is required'),
+  }),
+});
+
 // --- API Router Handlers ---
+
+// POST /google
+router.post('/google', validate(googleAuthSchema), async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+
+    // Verify token with Google's API
+    const googleTokenInfoUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`;
+    const googleResponse = await fetch(googleTokenInfoUrl);
+
+    if (!googleResponse.ok) {
+      res.status(401).json({ success: false, error: 'Invalid Google credential' });
+      return;
+    }
+
+    const payload = (await googleResponse.json()) as any;
+
+    const email = payload.email;
+    const emailVerified = payload.email_verified;
+    const name = payload.name;
+    const picture = payload.picture;
+
+    if (!email) {
+      res.status(400).json({ success: false, error: 'Google account does not provide email information' });
+      return;
+    }
+
+    if (emailVerified !== true && emailVerified !== 'true') {
+      res.status(400).json({ success: false, error: 'Google email is not verified' });
+      return;
+    }
+
+    // Optional: check client id (audience) matches if configured
+    const expectedClientId = process.env.GOOGLE_CLIENT_ID;
+    if (expectedClientId && payload.aud !== expectedClientId) {
+      console.warn(`Google client ID mismatch: expected ${expectedClientId}, got ${payload.aud}`);
+    }
+
+    // Check if user exists in database
+    let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+
+    if (!user) {
+      // User doesn't exist, create a new one since they verified via Google
+      const randomPassword = uuidv4();
+      const passwordHash = await bcrypt.hash(randomPassword, SALT_ROUNDS);
+
+      [user] = await db
+        .insert(users)
+        .values({
+          name: name || email.split('@')[0],
+          email: email,
+          passwordHash: passwordHash,
+          isVerified: true,
+          avatarUrl: picture || null,
+        })
+        .returning();
+    } else {
+      // User exists. Update their avatar if needed, and make sure they are verified
+      const updateData: Partial<typeof users.$inferInsert> = {};
+      let needsUpdate = false;
+
+      if (!user.isVerified) {
+        updateData.isVerified = true;
+        needsUpdate = true;
+      }
+      if (!user.avatarUrl && picture) {
+        updateData.avatarUrl = picture;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        await db
+          .update(users)
+          .set({
+            ...updateData,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, user.id));
+        
+        // Retrieve the updated user record
+        const [updatedUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+        user = updatedUser;
+      }
+    }
+
+    // Generate JWT access and refresh tokens
+    const accessPayload = { userId: user.id, email: user.email };
+    const accessToken = generateAccessToken(accessPayload);
+    const refreshToken = generateRefreshToken(accessPayload);
+
+    // Save refresh token to user record
+    await db
+      .update(users)
+      .set({
+        refreshToken: refreshToken,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+        notificationEmail: user.notificationEmail,
+        notificationPush: user.notificationPush,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // POST /register
 router.post('/register', validate(registerSchema), async (req, res, next) => {
