@@ -1,3 +1,6 @@
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { users, meetings, meetingParticipants, meetingMessages, teams, teamMembers, channels, channelMessages, calendarEvents } from './schema';
