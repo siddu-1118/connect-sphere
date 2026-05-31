@@ -96,8 +96,6 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
   useEffect(() => {
     if (!socket) return;
 
-    const myId = socket.id;
-
     // Helper: Initialize an RTCPeerConnection for a remote peer
     const createPeerConnection = (remoteSocketId: string, remoteUserName: string, initiateOffer: boolean) => {
       if (peersRef.current[remoteSocketId]) {
@@ -119,10 +117,10 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
 
       // Handle ICE Candidate generation
       pc.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && socket.id) {
           socket.emit('ice-candidate', {
             to: remoteSocketId,
-            from: myId,
+            from: socket.id,
             candidate: event.candidate,
           });
         }
@@ -156,13 +154,14 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       if (initiateOffer) {
         pc.onnegotiationneeded = async () => {
           try {
+            if (!socket.id) return;
             console.log(`🤝 Creating SDP offer for ${remoteSocketId}`);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             
             socket.emit('offer', {
               to: remoteSocketId,
-              from: myId,
+              from: socket.id,
               sdp: offer,
             });
           } catch (err) {
@@ -234,11 +233,13 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
 
-        socket.emit('answer', {
-          to: from,
-          from: myId,
-          sdp: answer,
-        });
+        if (socket.id) {
+          socket.emit('answer', {
+            to: from,
+            from: socket.id,
+            sdp: answer,
+          });
+        }
 
         // Apply buffered candidates
         await processCandidateQueue(from, pc);
@@ -305,15 +306,25 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       handlePeerLeave(leftSocketId);
     });
 
-    // Connect to room signaling
-    socket.emit('join-room', {
-      roomId,
-      userId,
-      userName,
-    });
+    // Handler to join room on connect
+    const handleConnect = () => {
+      console.log(`🔌 Signaling socket connected: ${socket.id}. Joining room...`);
+      socket.emit('join-room', {
+        roomId,
+        userId,
+        userName,
+      });
+    };
+
+    if (socket.connected) {
+      handleConnect();
+    }
+
+    socket.on('connect', handleConnect);
 
     return () => {
       // Cleanup room socket listeners
+      socket.off('connect', handleConnect);
       socket.off('all-users');
       socket.off('user-joined');
       socket.off('offer');
