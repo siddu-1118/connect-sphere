@@ -92,6 +92,8 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
     };
   }, []);
 
+  const hasLocalStream = !!localStream;
+
   // WebRTC full-mesh signaling handlers
   useEffect(() => {
     if (!socket || !localStream) return;
@@ -125,12 +127,18 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
 
       // Handle receiving remote media tracks
       pc.ontrack = (event) => {
-        console.log(`🎥 Received remote track from socket: ${remoteSocketId}`);
-        const stream = event.streams[0] || new MediaStream([event.track]);
-        setRemoteStreams((prev) => ({
-          ...prev,
-          [remoteSocketId]: stream,
-        }));
+        console.log(`🎥 Received remote track from socket: ${remoteSocketId}, kind: ${event.track.kind}`);
+        setRemoteStreams((prev) => {
+          const existingStream = prev[remoteSocketId] || new MediaStream();
+          // Avoid duplicate tracks
+          if (!existingStream.getTracks().find((t) => t.id === event.track.id)) {
+            existingStream.addTrack(event.track);
+          }
+          return {
+            ...prev,
+            [remoteSocketId]: new MediaStream(existingStream.getTracks()),
+          };
+        });
       };
 
       // Handle connection state changes
@@ -310,7 +318,7 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       });
       peersRef.current = {};
     };
-  }, [roomId, socket, localStream]);
+  }, [roomId, socket, hasLocalStream]);
 
   // Helper: Close a single peer connection
   const handlePeerLeave = (socketId: string) => {

@@ -617,22 +617,23 @@ function LocalVideoTile({
         isActive ? 'ring-2 ring-[#2D8CFF] ring-offset-1 ring-offset-[#1a1a2e] border-transparent' : 'border-white/[0.06]'
       } aspect-video`}
     >
-      {cameraOn && stream ? (
+      {stream && (
         <video
           ref={videoRef}
           autoPlay
           muted
           playsInline
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover ${cameraOn ? 'block' : 'hidden'}`}
           style={{ transform: 'scaleX(-1)' }}
         />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-[#1e1e35]">
+      )}
+      {(!cameraOn || !stream) && (
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1e1e35] z-0">
           <Avatar name={userName} src={avatarUrl} size="lg" />
         </div>
       )}
       {/* name label */}
-      <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-0.5">
+      <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-0.5 z-10">
         <span className="text-[11px] text-white font-medium">{userName} (You)</span>
       </div>
     </div>
@@ -663,20 +664,21 @@ function RemoteVideoTile({
 
   return (
     <div className="relative bg-[#252540] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video">
-      {cameraOn && stream ? (
+      {stream && (
         <video
           ref={videoRef}
           autoPlay
           playsInline
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover ${cameraOn ? 'block' : 'hidden'}`}
         />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center bg-[#1e1e35]">
+      )}
+      {(!cameraOn || !stream) && (
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1e1e35] z-0">
           <Avatar name={participant.userName} size="lg" />
         </div>
       )}
       {/* name label */}
-      <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-0.5">
+      <div className="absolute bottom-2 left-2 bg-black/50 rounded-lg px-2 py-0.5 z-10">
         <span className="text-[11px] text-white font-medium">
           {participant.userName} {participant.isMuted ? '🎤❌' : ''}
         </span>
