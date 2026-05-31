@@ -13,9 +13,7 @@ import {
   Check,
   X,
   ChevronDown,
-  MonitorUp,
-  Sliders,
-  Tv
+  Sliders
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
@@ -33,11 +31,16 @@ const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
 ];
 
+interface DeviceOption {
+  id: string;
+  label: string;
+}
+
 interface CustomDropdownProps {
   label: string;
-  value: string;
-  options: string[];
-  onChange: (val: string) => void;
+  value: string; // The display label of the active device
+  options: DeviceOption[];
+  onChange: (id: string) => void;
 }
 
 // Custom dropdown with glassmorphic slate styling
@@ -55,7 +58,7 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
 
   return (
     <div className="flex flex-col gap-1.5 w-full select-none" ref={ref}>
-      <span className="text-[9px] font-black uppercase tracking-wider text-slate-550">{label}</span>
+      <span className="text-[9px] font-black uppercase tracking-wider text-slate-500">{label}</span>
       <div className="relative">
         <button
           onClick={() => setOpen(!open)}
@@ -68,20 +71,24 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
         </button>
         {open && (
           <div className="absolute z-50 top-full mt-1.5 w-full bg-slate-900 border border-slate-850 rounded-xl shadow-2xl overflow-hidden max-h-40 overflow-y-auto backdrop-blur-md">
-            {options.map((opt) => (
-              <button
-                key={opt}
-                onClick={() => { onChange(opt); setOpen(false); }}
-                className={cn(
-                  "w-full text-left px-4 py-3 text-xs transition-colors cursor-pointer block select-none border-b border-slate-850/20 last:border-0",
-                  opt === value
-                    ? "bg-cyan-500/10 text-cyan-400 font-bold"
-                    : "text-slate-350 hover:bg-slate-850"
-                )}
-              >
-                {opt}
-              </button>
-            ))}
+            {options.length === 0 ? (
+              <div className="px-4 py-3 text-xs text-slate-500 italic">No devices found</div>
+            ) : (
+              options.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => { onChange(opt.id); setOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-4 py-3 text-xs transition-colors cursor-pointer block select-none border-b border-slate-850/20 last:border-0",
+                    opt.label === value
+                      ? "bg-cyan-500/10 text-cyan-400 font-bold"
+                      : "text-slate-350 hover:bg-slate-855"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))
+            )}
           </div>
         )}
       </div>
@@ -89,41 +96,33 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
   );
 }
 
-// Active dynamic audio volume meter
-function AudioMeter({ active }: { active: boolean }) {
-  const [levels, setLevels] = useState([0.1, 0.1, 0.1, 0.1, 0.1]);
-
-  useEffect(() => {
-    if (!active) {
-      setLevels([0.05, 0.05, 0.05, 0.05, 0.05]);
-      return;
-    }
-    const id = setInterval(() => {
-      setLevels([
-        0.1 + Math.random() * 0.9,
-        0.1 + Math.random() * 0.9,
-        0.1 + Math.random() * 0.9,
-        0.1 + Math.random() * 0.9,
-        0.1 + Math.random() * 0.9,
-      ]);
-    }, 120);
-    return () => clearInterval(id);
-  }, [active]);
+// Active dynamic audio volume meter using real mic amplitude
+function AudioMeter({ active, level }: { active: boolean; level: number }) {
+  const barLevels = [
+    level * 0.7,
+    level * 1.2,
+    level * 1.5,
+    level * 0.9,
+    level * 0.6
+  ];
 
   return (
     <div className="absolute bottom-4 left-4 flex items-end gap-1.5 z-10 bg-slate-950/65 px-3 py-2 rounded-full border border-slate-850/60 backdrop-blur-md shadow-2xl">
-      {levels.map((lvl, i) => (
-        <div
-          key={i}
-          className="w-0.5 rounded-full transition-all duration-100"
-          style={{
-            height: `${Math.max(4, lvl * 18)}px`,
-            backgroundColor: active ? '#00f0ff' : '#475569',
-            boxShadow: active ? '0 0 8px rgba(6,182,212,0.5)' : 'none',
-            opacity: active ? 0.95 : 0.4,
-          }}
-        />
-      ))}
+      {barLevels.map((lvl, i) => {
+        const val = active ? Math.min(1, Math.max(0.05, lvl)) : 0.05;
+        return (
+          <div
+            key={i}
+            className="w-0.5 rounded-full transition-all duration-75"
+            style={{
+              height: `${Math.max(4, val * 18)}px`,
+              backgroundColor: active ? '#00f0ff' : '#475569',
+              boxShadow: active ? '0 0 8px rgba(6,182,212,0.5)' : 'none',
+              opacity: active ? 0.95 : 0.4,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -146,17 +145,24 @@ export default function GreenRoomPage() {
   const [noiseCancellation, setNoiseCancellation] = useState(true);
   const [joining, setJoining] = useState(false);
 
-  // Device list placeholders
-  const [cameras] = useState(['HD FaceCam Studio', 'Virtual Screen Camera', 'System Default Video']);
-  const [microphones] = useState(['Dynamic Condenser Microphone', 'Built-in Audio Array', 'Bluetooth Headset Input']);
-  const [speakers] = useState(['Studio Output Monitors', 'System Speaker Device', 'External Audio Jack']);
-  const [selectedCamera, setSelectedCamera] = useState('HD FaceCam Studio');
-  const [selectedMic, setSelectedMic] = useState('Dynamic Condenser Microphone');
-  const [selectedSpeaker, setSelectedSpeaker] = useState('Studio Output Monitors');
+  // Hardware Lists
+  const [cameras, setCameras] = useState<DeviceOption[]>([]);
+  const [microphones, setMicrophones] = useState<DeviceOption[]>([]);
+  const [speakers, setSpeakers] = useState<DeviceOption[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [selectedMicId, setSelectedMicId] = useState('');
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState('');
 
   // Media references
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Audio analyser refs
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const [micLevel, setMicLevel] = useState<number>(0);
 
   // Hydrate user profile details
   useEffect(() => {
@@ -164,32 +170,164 @@ export default function GreenRoomPage() {
     if (user?.avatarUrl) setSelectedAvatarUrl(user.avatarUrl);
   }, [user]);
 
-  // Handle local user media preview
+  // Load hardware media devices
+  const updateDeviceList = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      
+      const videoDevs = devices
+        .filter((d) => d.kind === 'videoinput')
+        .map((d, index) => ({
+          id: d.deviceId,
+          label: d.label || `Camera ${index + 1}`,
+        }));
+        
+      const audioInDevs = devices
+        .filter((d) => d.kind === 'audioinput')
+        .map((d, index) => ({
+          id: d.deviceId,
+          label: d.label || `Microphone ${index + 1}`,
+        }));
+        
+      const audioOutDevs = devices
+        .filter((d) => d.kind === 'audiooutput')
+        .map((d, index) => ({
+          id: d.deviceId,
+          label: d.label || `Speaker ${index + 1}`,
+        }));
+
+      setCameras(videoDevs);
+      setMicrophones(audioInDevs);
+      setSpeakers(audioOutDevs);
+
+      // Bind defaults if not set
+      if (videoDevs.length > 0 && !selectedCameraId) setSelectedCameraId(videoDevs[0].id);
+      if (audioInDevs.length > 0 && !selectedMicId) setSelectedMicId(audioInDevs[0].id);
+      if (audioOutDevs.length > 0 && !selectedSpeakerId) setSelectedSpeakerId(audioOutDevs[0].id);
+    } catch (e) {
+      console.error('Error listing hardware devices:', e);
+    }
+  }, [selectedCameraId, selectedMicId, selectedSpeakerId]);
+
+  // Cleanup audio analyzing nodes
+  const stopAudioAnalyser = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioSourceRef.current) {
+      audioSourceRef.current.disconnect();
+      audioSourceRef.current = null;
+    }
+    if (analyserRef.current) {
+      analyserRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    setMicLevel(0);
+  };
+
+  // Start audio voice analyzing
+  const startAudioAnalyser = (stream: MediaStream) => {
+    stopAudioAnalyser();
+
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0 || !micOn) return;
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      const audioContext = new AudioCtx();
+      audioContextRef.current = audioContext;
+
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyserRef.current = analyser;
+
+      const source = audioContext.createMediaStreamSource(stream);
+      audioSourceRef.current = source;
+      source.connect(analyser);
+
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const checkVolume = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        // Map average (0 - 255) to volume (0 - 1)
+        const mapped = Math.min(1, average / 60);
+        setMicLevel(mapped);
+        
+        animationFrameRef.current = requestAnimationFrame(checkVolume);
+      };
+
+      checkVolume();
+    } catch (e) {
+      console.warn('Web Audio API analysis blocked or failed:', e);
+    }
+  };
+
+  // Start media stream
   const startStream = useCallback(async () => {
+    stopAudioAnalyser();
+    
     try {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
       }
-      if (cameraOn) {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: micOn,
-        });
+      
+      if (cameraOn || micOn) {
+        const constraints: MediaStreamConstraints = {
+          video: cameraOn
+            ? {
+                deviceId: selectedCameraId ? { exact: selectedCameraId } : undefined,
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              }
+            : false,
+          audio: micOn
+            ? {
+                deviceId: selectedMicId ? { exact: selectedMicId } : undefined,
+                echoCancellation: true,
+                noiseSuppression: noiseCancellation,
+              }
+            : false,
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
-        if (videoRef.current) {
+
+        if (cameraOn && videoRef.current) {
           videoRef.current.srcObject = stream;
         }
+
+        if (micOn) {
+          startAudioAnalyser(stream);
+        }
+
+        // Re-enumerate to get labeled devices
+        await updateDeviceList();
       } else {
         streamRef.current = null;
       }
-    } catch {
-      // Graceful fallback for permission blocking
+    } catch (err) {
+      console.warn('Webcam/Mic hardware streaming permission denied or unavailable:', err);
+      streamRef.current = null;
     }
-  }, [cameraOn, micOn]);
+  }, [cameraOn, micOn, selectedCameraId, selectedMicId, noiseCancellation, updateDeviceList]);
 
+  // Init and sync streams
   useEffect(() => {
     startStream();
     return () => {
+      stopAudioAnalyser();
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, [startStream]);
@@ -223,11 +361,17 @@ export default function GreenRoomPage() {
       console.error('Failed to sync profile before call entry', e);
     }
 
+    stopAudioAnalyser();
     streamRef.current?.getTracks().forEach((t) => t.stop());
     router.push(
-      `/meet/${meetingId}?video=${vid}&audio=${micOn}&blur=${activeEffect === 'blur' ? 10 : 0}&effect=${activeEffect}`
+      `/meet/${meetingId}?video=${vid}&audio=${micOn}&blur=${activeEffect === 'blur' ? 10 : 0}&effect=${activeEffect}&camId=${selectedCameraId}&micId=${selectedMicId}&speakerId=${selectedSpeakerId}`
     );
   };
+
+  // Label resolvers
+  const activeCameraLabel = cameras.find((c) => c.id === selectedCameraId)?.label || 'Default Camera';
+  const activeMicLabel = microphones.find((m) => m.id === selectedMicId)?.label || 'Default Microphone';
+  const activeSpeakerLabel = speakers.find((s) => s.id === selectedSpeakerId)?.label || 'Default Speaker';
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col font-outfit text-slate-200 select-none overflow-hidden relative">
@@ -247,7 +391,7 @@ export default function GreenRoomPage() {
         </button>
 
         <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-500 uppercase tracking-widest font-black hidden sm:inline">Sync Room</span>
+          <span className="text-[10px] text-slate-505 uppercase tracking-widest font-black hidden sm:inline">Sync Room</span>
           <code className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-4 py-2 rounded-xl tracking-widest border border-cyan-500/15 shadow-inner uppercase">
             {meetingId}
           </code>
@@ -267,11 +411,11 @@ export default function GreenRoomPage() {
           <div className="lg:col-span-7 flex flex-col gap-6 w-full">
             <div
               className={cn(
-                "relative aspect-video bg-slate-950 border rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ring-offset-2 ring-offset-slate-950",
+                "relative aspect-video bg-[#0c0f17] border rounded-2xl overflow-hidden shadow-2xl transition-all duration-300 ring-offset-2 ring-offset-slate-955",
                 micOn ? "border-cyan-500/30 ring-2 ring-cyan-500/10" : "border-slate-900"
               )}
             >
-              {cameraOn ? (
+              {cameraOn && streamRef.current ? (
                 <video
                   ref={videoRef}
                   autoPlay
@@ -282,7 +426,7 @@ export default function GreenRoomPage() {
                 />
               ) : (
                 /* Premium illustrated camera off state */
-                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-4 bg-slate-955 select-none">
+                <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-4 bg-slate-950 select-none">
                   {/* Glowing user avatar ring */}
                   <div className="relative">
                     <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-xl scale-75 animate-pulse" />
@@ -290,15 +434,15 @@ export default function GreenRoomPage() {
                       <Avatar name={displayName || 'U'} src={selectedAvatarUrl} size="lg" className="border border-slate-750" />
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest">Camera is off</span>
+                  <span className="text-[10px] text-slate-500 font-black uppercase tracking-widest font-mono">Camera is off</span>
                 </div>
               )}
 
               {/* Dynamic volume mic levels indicator */}
-              <AudioMeter active={micOn} />
+              <AudioMeter active={micOn} level={micLevel} />
 
               {/* HD Preview tag */}
-              <div className="absolute top-4 left-4 backdrop-blur-xl bg-slate-900/60 border border-slate-800/80 px-3 py-1 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1.5 select-none">
+              <div className="absolute top-4 left-4 backdrop-blur-xl bg-slate-905/60 border border-slate-800/80 px-3 py-1 rounded-full text-[9px] uppercase font-black tracking-widest flex items-center gap-1.5 select-none">
                 <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_6px_#00f0ff]" />
                 HD Preview
               </div>
@@ -313,7 +457,7 @@ export default function GreenRoomPage() {
                 className={cn(
                   "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 border cursor-pointer",
                   micOn
-                    ? "bg-cyan-500 text-slate-950 border-transparent shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.03]"
+                    ? "bg-cyan-500 text-slate-955 border-transparent shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.03]"
                     : "bg-slate-900 border-slate-850 text-rose-400 hover:bg-slate-850 hover:text-rose-350"
                 )}
                 title={micOn ? "Mute Microphone" : "Unmute Microphone"}
@@ -327,7 +471,7 @@ export default function GreenRoomPage() {
                 className={cn(
                   "w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 border cursor-pointer",
                   cameraOn
-                    ? "bg-cyan-500 text-slate-950 border-transparent shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.03]"
+                    ? "bg-cyan-500 text-slate-955 border-transparent shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.03]"
                     : "bg-slate-900 border-slate-850 text-rose-400 hover:bg-slate-850 hover:text-rose-350"
                 )}
                 title={cameraOn ? "Disable Camera" : "Enable Camera"}
@@ -338,7 +482,7 @@ export default function GreenRoomPage() {
               {/* Device properties sliders modal toggle */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-850 text-slate-400 flex items-center justify-center hover:bg-slate-850 hover:text-slate-200 transition-all cursor-pointer"
+                className="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-850 text-slate-400 flex items-center justify-center hover:bg-slate-850 hover:text-slate-205 transition-all cursor-pointer"
                 title="Device Settings"
               >
                 <Sliders className="w-5 h-5" />
@@ -347,7 +491,7 @@ export default function GreenRoomPage() {
 
             {/* Background filters row selector */}
             <div className="flex flex-col gap-2.5">
-              <span className="text-[9px] font-black uppercase tracking-widest text-slate-550 text-center">
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 text-center">
                 Filter Background Effect
               </span>
               <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -374,13 +518,13 @@ export default function GreenRoomPage() {
             </div>
           </div>
 
-          {/* RIGHT SECTION: Join options, Display name input, presetes */}
+          {/* RIGHT SECTION: Join options, Display name input, presets */}
           <div className="lg:col-span-5 bg-gradient-to-br from-slate-900/30 to-slate-955 border border-slate-900 p-8 rounded-3xl flex flex-col gap-6 shadow-2xl relative overflow-hidden w-full">
             <div className="absolute -top-24 -right-24 w-60 h-64 bg-cyan-500/5 blur-[90px] rounded-full pointer-events-none" />
             
             <div className="space-y-1 select-none">
               <h2 className="text-base font-black text-cyan-400 uppercase tracking-widest font-outfit">Join Session</h2>
-              <p className="text-xs text-slate-500 leading-relaxed">Configure your caller identity details prior to entering.</p>
+              <p className="text-xs text-slate-505 leading-relaxed">Configure your caller identity details prior to entering.</p>
             </div>
 
             {/* Display Name Input */}
@@ -401,7 +545,7 @@ export default function GreenRoomPage() {
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Identity Avatar</label>
                 <button 
                   onClick={() => setSelectedAvatarUrl(PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)])}
-                  className="text-cyan-450 hover:text-cyan-350 text-[10px] font-bold uppercase tracking-wider transition-all"
+                  className="text-cyan-455 hover:text-cyan-350 text-[10px] font-bold uppercase tracking-wider transition-all"
                 >
                   Shuffle
                 </button>
@@ -430,10 +574,10 @@ export default function GreenRoomPage() {
             {/* Share link snippet card */}
             <div className="flex flex-col gap-2 bg-slate-950/60 border border-slate-900 rounded-xl p-4 mt-1 select-none">
               <div className="flex justify-between items-center">
-                <span className="text-[9px] font-black text-slate-550 uppercase tracking-widest">Share Room Link</span>
+                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Share Room Link</span>
                 <button
                   onClick={handleCopyLink}
-                  className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
+                  className="text-slate-400 hover:text-slate-205 transition-colors cursor-pointer flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider"
                 >
                   {copied ? (
                     <>
@@ -454,11 +598,11 @@ export default function GreenRoomPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="mt-4 pt-4 border-t border-slate-900 space-y-3">
+            <div className="mt-4 pt-4 border-t border-slate-905 space-y-3">
               <button
                 onClick={() => handleJoinCall()}
                 disabled={joining || !displayName.trim()}
-                className="w-full py-4 bg-gradient-to-r from-cyan-600 via-cyan-500 to-indigo-500 hover:from-cyan-550 hover:to-indigo-455 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                className="w-full py-4 bg-gradient-to-r from-cyan-600 via-cyan-505 to-indigo-500 hover:from-cyan-550 hover:to-indigo-455 disabled:opacity-50 text-slate-955 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
               >
                 <span>{joining ? 'Entering Room...' : 'Join Now'}</span>
               </button>
@@ -486,7 +630,7 @@ export default function GreenRoomPage() {
           />
 
           {/* Panel */}
-          <aside className="absolute right-0 top-0 h-screen w-80 bg-slate-905 border-l border-slate-900 z-40 flex flex-col shadow-2xl animate-fadeIn font-outfit select-none">
+          <aside className="absolute right-0 top-0 h-screen w-80 bg-[#0c101a] border-l border-slate-900 z-40 flex flex-col shadow-2xl animate-fadeIn font-outfit select-none">
             {/* Header */}
             <div className="h-16 flex items-center justify-between px-5 border-b border-slate-900 shrink-0">
               <div className="flex items-center gap-2.5">
@@ -509,9 +653,9 @@ export default function GreenRoomPage() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-2">Video Inputs</span>
                 <CustomDropdown
                   label="Camera Device"
-                  value={selectedCamera}
+                  value={activeCameraLabel}
                   options={cameras}
-                  onChange={setSelectedCamera}
+                  onChange={setSelectedCameraId}
                 />
               </div>
 
@@ -522,15 +666,15 @@ export default function GreenRoomPage() {
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Audio Inputs/Outputs</span>
                 <CustomDropdown
                   label="Microphone input source"
-                  value={selectedMic}
+                  value={activeMicLabel}
                   options={microphones}
-                  onChange={setSelectedMic}
+                  onChange={setSelectedMicId}
                 />
                 <CustomDropdown
                   label="Speaker audio output"
-                  value={selectedSpeaker}
+                  value={activeSpeakerLabel}
                   options={speakers}
-                  onChange={setSelectedSpeaker}
+                  onChange={setSelectedSpeakerId}
                 />
               </div>
 
@@ -540,9 +684,10 @@ export default function GreenRoomPage() {
               <div className="flex items-center justify-between select-none">
                 <div className="flex flex-col gap-0.5 text-left leading-tight">
                   <span className="text-xs font-bold text-slate-200">Noise Suppression</span>
-                  <span className="text-[9px] text-slate-550">Filter environmental background echoes</span>
+                  <span className="text-[9px] text-slate-505">Filter environmental background echoes</span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setNoiseCancellation(!noiseCancellation)}
                   className={cn(
                     "relative w-11 h-6 rounded-full transition-colors duration-250 cursor-pointer border-transparent",
@@ -563,7 +708,7 @@ export default function GreenRoomPage() {
             <div className="p-5 border-t border-slate-900 shrink-0">
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-widest transition-colors cursor-pointer"
+                className="w-full py-3.5 bg-cyan-600 hover:bg-cyan-500 text-slate-955 font-black rounded-xl text-xs uppercase tracking-widest transition-colors cursor-pointer"
               >
                 Apply Devices
               </button>
