@@ -74,7 +74,7 @@ function ContactSkeleton() {
   return (
     <div className="flex flex-col gap-2 p-4">
       {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex items-center gap-3 bg-[#252540] rounded-2xl p-3">
+        <div key={i} className="flex items-center gap-3 bg-[#191f31] rounded-2xl p-3">
           <div className="w-10 h-10 rounded-xl bg-white/5 animate-pulse shrink-0" />
           <div className="flex-1 flex flex-col gap-2">
             <div className="h-3 rounded bg-white/5 animate-pulse w-1/2" />
@@ -103,7 +103,7 @@ function EmptyState({
 }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 py-20 px-6">
-      <div className="w-20 h-20 rounded-3xl bg-[#252540] border border-white/[0.06] flex items-center justify-center shadow-inner">
+      <div className="w-20 h-20 rounded-3xl bg-[#191f31] border border-white/[0.06] flex items-center justify-center shadow-inner">
         <Icon size={36} className="text-slate-600" />
       </div>
       <div className="text-center">
@@ -214,7 +214,7 @@ function ContactsPanel() {
             {filtered.map((contact) => (
               <div
                 key={contact.id}
-                className="flex items-center gap-3 bg-[#252540] border border-white/[0.06] rounded-2xl px-4 py-3 hover:bg-[#2a2a4a] transition-colors group"
+                className="flex items-center gap-3 bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 py-3 hover:bg-[#2a2a4a] transition-colors group"
               >
                 <Avatar name={contact.name} src={contact.avatarUrl} size="sm" />
                 <div className="flex-1 min-w-0">
@@ -230,7 +230,7 @@ function ContactsPanel() {
                   <button className="p-2 rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-white/5 transition-colors cursor-pointer">
                     <Phone size={15} />
                   </button>
-                  <button className="p-2 rounded-xl text-slate-400 hover:text-[#818cf8] hover:bg-white/5 transition-colors cursor-pointer">
+                  <button className="p-2 rounded-xl text-slate-400 hover:text-[#10B981] hover:bg-white/5 transition-colors cursor-pointer">
                     <Video size={15} />
                   </button>
                 </div>
@@ -296,7 +296,7 @@ function DialPadPanel() {
             <button
               key={digit}
               onClick={() => pressKey(digit)}
-              className="flex flex-col items-center justify-center bg-[#252540] hover:bg-[#2a2a4a] border border-white/[0.06] rounded-2xl py-4 transition-colors cursor-pointer select-none active:scale-95 active:bg-[#5B5FC7]/20"
+              className="flex flex-col items-center justify-center bg-[#191f31] hover:bg-[#2a2a4a] border border-white/[0.06] rounded-2xl py-4 transition-colors cursor-pointer select-none active:scale-95 active:bg-[#10B981]/20"
             >
               <span className="text-xl font-semibold text-slate-100 leading-none">
                 {digit}
@@ -369,9 +369,9 @@ export default function PhonePage() {
   };
 
   return (
-    <div className="flex h-full bg-[#1e1e35]">
+    <div className="flex h-full bg-[#111827]">
       {/* ── Left Sub-Panel ─────────────────────────────────────────────────────── */}
-      <div className="w-[260px] shrink-0 bg-[#1a1a2e] border-r border-white/[0.06] flex flex-col">
+      <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col">
         {/* Header */}
         <div className="px-4 pt-5 pb-4">
           <span className="text-xs font-black uppercase tracking-wider text-slate-500">
@@ -405,13 +405,13 @@ export default function PhonePage() {
                 onClick={() => setActiveTab(id)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                    ? 'bg-[#10B981]/20 text-[#10B981]'
                     : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04]'
                 }`}
               >
                 <Icon
                   size={16}
-                  className={isActive ? 'text-[#818cf8]' : 'text-slate-500'}
+                  className={isActive ? 'text-[#10B981]' : 'text-slate-500'}
                 />
                 {label}
               </button>
@@ -423,7 +423,7 @@ export default function PhonePage() {
         <div className="px-3 pb-5 pt-3">
           <button
             onClick={handleMakeCall}
-            className="w-full bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-4 py-2.5 text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-indigo-900/30"
+            className="w-full bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2.5 text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-indigo-900/30"
           >
             <Phone size={15} />
             Make a call

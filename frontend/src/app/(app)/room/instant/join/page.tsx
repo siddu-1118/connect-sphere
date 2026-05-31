@@ -46,7 +46,7 @@ export default function InstantMeetPage() {
           <p className="text-xs text-slate-450 leading-relaxed">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="w-full py-3 bg-[#5B5FC7] hover:bg-[#474aac] text-white text-xs font-semibold rounded-full shadow transition-all cursor-pointer"
+            className="w-full py-3 bg-[#10B981] hover:bg-[#474aac] text-white text-xs font-semibold rounded-full shadow transition-all cursor-pointer"
           >
             Retry Connection
           </button>

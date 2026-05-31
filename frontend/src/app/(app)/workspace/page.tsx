@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Plus,
   ChevronRight,
@@ -23,6 +24,11 @@ import {
   AlertCircle,
   Zap,
   CheckCircle2,
+  Heart,
+  Coffee,
+  HelpCircle,
+  Activity,
+  Map,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
@@ -126,17 +132,17 @@ function NoTeamSelected() {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-5 select-none">
       <div className="relative">
-        <div className="absolute inset-0 -m-8 rounded-full bg-[#5B5FC7]/5 blur-3xl" />
+        <div className="absolute inset-0 -m-8 rounded-full bg-[#10B981]/5 blur-3xl" />
         <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
           {/* Background circles */}
-          <circle cx="60" cy="60" r="50" fill="#252540" />
-          <circle cx="60" cy="60" r="50" stroke="#5B5FC7" strokeWidth="1" strokeOpacity="0.2" />
+          <circle cx="60" cy="60" r="50" fill="#191f31" />
+          <circle cx="60" cy="60" r="50" stroke="#10B981" strokeWidth="1" strokeOpacity="0.2" />
           {/* Channel hash */}
-          <text x="60" y="72" textAnchor="middle" fontSize="42" fill="#5B5FC7" fillOpacity="0.3" fontWeight="900" fontFamily="Inter, sans-serif">#</text>
+          <text x="60" y="72" textAnchor="middle" fontSize="42" fill="#10B981" fillOpacity="0.3" fontWeight="900" fontFamily="Inter, sans-serif">#</text>
           {/* Sparkle */}
           <line x1="96" y1="22" x2="96" y2="32" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
           <line x1="91" y1="27" x2="101" y2="27" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="26" cy="88" r="3" fill="#818cf8" fillOpacity="0.5" />
+          <circle cx="26" cy="88" r="3" fill="#10B981" fillOpacity="0.5" />
           <circle cx="90" cy="92" r="2" fill="#22d3ee" fillOpacity="0.4" />
         </svg>
       </div>
@@ -151,8 +157,8 @@ function NoTeamSelected() {
 function NoTeams({ onCreateTeam }: { onCreateTeam: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-4 px-4 py-10 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-[#5B5FC7]/15 flex items-center justify-center">
-        <Users className="w-7 h-7 text-[#818cf8]" />
+      <div className="w-14 h-14 rounded-2xl bg-[#10B981]/15 flex items-center justify-center">
+        <Users className="w-7 h-7 text-[#10B981]" />
       </div>
       <div>
         <p className="text-slate-300 font-semibold text-sm">No teams yet</p>
@@ -160,7 +166,7 @@ function NoTeams({ onCreateTeam }: { onCreateTeam: () => void }) {
       </div>
       <button
         onClick={onCreateTeam}
-        className="bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors"
+        className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors"
       >
         Create your first team
       </button>
@@ -171,8 +177,8 @@ function NoTeams({ onCreateTeam }: { onCreateTeam: () => void }) {
 function NoMessages({ channelName }: { channelName: string }) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-4 py-16 select-none">
-      <div className="w-16 h-16 rounded-2xl bg-[#5B5FC7]/15 flex items-center justify-center">
-        <MessageSquare className="w-8 h-8 text-[#818cf8]" />
+      <div className="w-16 h-16 rounded-2xl bg-[#10B981]/15 flex items-center justify-center">
+        <MessageSquare className="w-8 h-8 text-[#10B981]" />
       </div>
       <div className="text-center">
         <p className="text-slate-300 font-semibold text-sm">Start the conversation in #{channelName}</p>
@@ -305,10 +311,10 @@ function MessageItem({ message }: { message: Message }) {
               <button
                 key={emoji}
                 onClick={() => addReaction(emoji)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#5B5FC7]/15 border border-[#5B5FC7]/25 text-[11px] text-slate-300 hover:bg-[#5B5FC7]/25 cursor-pointer transition-colors"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/25 text-[11px] text-slate-300 hover:bg-[#10B981]/25 cursor-pointer transition-colors"
               >
                 <span>{emoji}</span>
-                <span className="text-[#818cf8] font-medium">{count}</span>
+                <span className="text-[#10B981] font-medium">{count}</span>
               </button>
             ))}
           </div>
@@ -414,7 +420,7 @@ function ComposeBox({
 
   return (
     <div className="shrink-0 px-5 pb-5 pt-2">
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl overflow-hidden">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl overflow-hidden">
         {/* Formatting toolbar */}
         <div className="flex items-center gap-0.5 px-3 pt-2.5 pb-1.5 border-b border-white/[0.04]">
           <button
@@ -488,7 +494,7 @@ function ComposeBox({
               disabled={!text.trim() || sending}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all cursor-pointer
                 ${text.trim() && !sending
-                  ? 'bg-[#5B5FC7] hover:bg-[#4f52b2] text-white'
+                  ? 'bg-[#10B981] hover:bg-[#059669] text-white'
                   : 'bg-white/5 text-slate-600 cursor-not-allowed'
                 }`}
             >
@@ -518,7 +524,7 @@ function Modal({
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       {/* Panel */}
-      <div className="relative bg-[#252540] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div className="relative bg-[#191f31] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-slate-100 font-bold text-base">{title}</h2>
           <button
@@ -576,7 +582,7 @@ function NewTeamModal({
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             placeholder="e.g. Engineering, Design, Marketing"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
           />
         </div>
         <div>
@@ -587,7 +593,7 @@ function NewTeamModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="What's this team about?"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
           />
         </div>
         {error && (
@@ -606,7 +612,7 @@ function NewTeamModal({
           <button
             onClick={handleCreate}
             disabled={loading}
-            className="bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
+            className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
           >
             {loading ? 'Creating…' : 'Create Team'}
           </button>
@@ -655,7 +661,7 @@ function AddChannelModal({
           <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
             Channel Name
           </label>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 focus-within:border-[#5B5FC7]/50 transition-colors">
+          <div className="flex items-center gap-2 bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 focus-within:border-[#10B981]/50 transition-colors">
             <Hash className="w-4 h-4 text-slate-600 shrink-0" />
             <input
               autoFocus
@@ -684,7 +690,7 @@ function AddChannelModal({
           <button
             onClick={handleCreate}
             disabled={loading}
-            className="bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
+            className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
           >
             {loading ? 'Adding…' : 'Add Channel'}
           </button>
@@ -724,8 +730,8 @@ function TeamRow({
           className={`w-3.5 h-3.5 text-slate-600 shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
         />
         {/* Avatar initials */}
-        <div className="w-6 h-6 rounded-md bg-[#5B5FC7]/30 flex items-center justify-center shrink-0">
-          <span className="text-[9px] font-black text-[#818cf8]">{getInitials(team.name)}</span>
+        <div className="w-6 h-6 rounded-md bg-[#10B981]/30 flex items-center justify-center shrink-0">
+          <span className="text-[9px] font-black text-[#10B981]">{getInitials(team.name)}</span>
         </div>
         <span className="text-slate-300 text-[13px] font-medium truncate flex-1">{team.name}</span>
         {/* Add channel button (appears on hover) */}
@@ -743,13 +749,13 @@ function TeamRow({
         <div className="ml-5 mt-0.5 mb-1">
           {loadingChannels ? (
             <div className="flex items-center gap-2 px-3 py-2">
-              <div className="w-3 h-3 rounded-full border border-[#5B5FC7]/50 border-t-transparent animate-spin" />
+              <div className="w-3 h-3 rounded-full border border-[#10B981]/50 border-t-transparent animate-spin" />
               <span className="text-slate-600 text-xs">Loading…</span>
             </div>
           ) : channels.length === 0 ? (
             <button
               onClick={() => onAddChannel(team)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-slate-600 hover:text-[#818cf8] cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-slate-600 hover:text-[#10B981] cursor-pointer transition-colors"
             >
               <Plus className="w-3 h-3" />
               Add a channel
@@ -763,13 +769,13 @@ function TeamRow({
                   onClick={() => onSelectChannel(channel)}
                   className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors
                     ${isActive
-                      ? 'bg-[#5B5FC7]/15 text-[#818cf8]'
+                      ? 'bg-[#10B981]/15 text-[#10B981]'
                       : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
                     }`}
                 >
                   {/* Active left accent bar */}
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[#818cf8] rounded-full" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[#10B981] rounded-full" />
                   )}
                   <Hash className="w-3.5 h-3.5 shrink-0" />
                   <span className="text-[13px] font-medium truncate">{channel.name}</span>
@@ -785,8 +791,47 @@ function TeamRow({
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+interface KudosItem {
+  id: number;
+  sender: string;
+  time: string;
+  target: string;
+  text: string;
+  likes: number;
+  liked: boolean;
+  avatarUrl: string | null;
+}
+
 export default function WorkspacePage() {
   const { user } = useAuth();
+  const router = useRouter();
+
+  // Redesign states
+  const [workspaceTab, setWorkspaceTab] = useState<'map' | 'chats'>('map');
+  const [selectedRoom, setSelectedRoom] = useState<'boardroom' | 'coffee' | 'zen' | 'engineering' | null>(null);
+  const [kudos, setKudos] = useState<KudosItem[]>([
+    {
+      id: 1,
+      sender: 'Sarah Connor',
+      time: '2h ago',
+      target: '@Marcus',
+      text: 'Amazing job on the isometric render engine! The performance is buttery smooth. 🚀',
+      likes: 12,
+      liked: false,
+      avatarUrl: null
+    },
+    {
+      id: 2,
+      sender: 'Alex Rivera',
+      time: '5h ago',
+      target: '@Elena',
+      text: "Thanks for hopping into the 'Cafe' to help me debug that CSS glitch. You saved my afternoon! ☕️",
+      likes: 4,
+      liked: false,
+      avatarUrl: null
+    }
+  ]);
+  const [newKudosText, setNewKudosText] = useState('');
 
   // Teams & channels state
   const [teams, setTeams] = useState<Team[]>([]);
@@ -898,147 +943,480 @@ export default function WorkspacePage() {
   const TABS: ChannelTab[] = ['Posts', 'Files', 'Notes'];
 
   return (
-    <div className="flex h-full bg-[#1e1e35] overflow-hidden">
-      {/* ── Left Sub-Panel ── */}
-      <div className="w-[260px] shrink-0 bg-[#1a1a2e] border-r border-white/[0.06] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="h-14 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.06]">
-          <span className="text-xs font-black uppercase tracking-wider text-slate-500">Teams</span>
+    <div className="flex flex-col h-full bg-[#0B0F17] overflow-hidden">
+      {/* ── Tabs Header ── */}
+      <div className="h-14 bg-[#0c1324] border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+            <span className="material-symbols-outlined text-[18px]">grid_view</span>
+          </div>
+          <span className="text-sm font-bold text-slate-100 font-outfit">Virtual Workspace</span>
+        </div>
+
+        {/* Tab switch buttons */}
+        <div className="flex items-center gap-1 bg-white/[0.04] rounded-xl p-1">
           <button
-            onClick={() => setShowNewTeam(true)}
-            className="flex items-center gap-1 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-2 py-1.5 text-[11px] font-medium cursor-pointer transition-colors"
-            title="New Team"
+            onClick={() => setWorkspaceTab('map')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              workspaceTab === 'map'
+                ? 'bg-[#10B981]/20 text-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
+            }`}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New</span>
+            <Map className="w-3.5 h-3.5" />
+            <span>Workspace Map</span>
+          </button>
+          <button
+            onClick={() => setWorkspaceTab('chats')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              workspaceTab === 'chats'
+                ? 'bg-[#10B981]/20 text-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Team Chats</span>
           </button>
         </div>
 
-        {/* Teams list */}
-        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-          {loadingTeams ? (
-            <div className="flex flex-col gap-2 p-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-white/5 animate-pulse" />
-                  <div className="h-3 rounded-full bg-white/5 animate-pulse flex-1" />
-                </div>
-              ))}
-            </div>
-          ) : teams.length === 0 ? (
-            <NoTeams onCreateTeam={() => setShowNewTeam(true)} />
-          ) : (
-            teams.map((team) => (
-              <TeamRow
-                key={team.id}
-                team={team}
-                channels={channelsByTeam[team.id] ?? []}
-                selectedChannelId={selectedChannel?.id ?? null}
-                onSelectChannel={handleSelectChannel}
-                onAddChannel={(t) => setAddChannelForTeam(t)}
-                loadingChannels={loadingChannels[team.id] ?? false}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="shrink-0 px-4 py-3 border-t border-white/[0.06]">
-          <button
-            onClick={() => setShowNewTeam(true)}
-            className="text-[12px] text-slate-500 hover:text-[#818cf8] cursor-pointer transition-colors w-full text-left"
-          >
-            + Join or create a team
-          </button>
+        {/* Right decoration */}
+        <div className="flex items-center gap-2">
+          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-mono flex items-center gap-1.5 border border-primary/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary status-pulse" />
+            Encrypted Workspace
+          </span>
         </div>
       </div>
 
-      {/* ── Main Content Area ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {!selectedChannel ? (
-          <NoTeamSelected />
-        ) : (
-          <>
-            {/* Channel header */}
-            <div className="h-14 flex items-center gap-3 px-5 bg-[#1a1a2e] border-b border-white/[0.06] shrink-0">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Hash className="w-4 h-4 text-slate-500 shrink-0" />
-                <span className="text-slate-100 font-semibold text-sm truncate">{selectedChannel.name}</span>
-                {selectedTeam && (
-                  <>
-                    <span className="text-slate-700 text-xs hidden sm:block">·</span>
-                    <span className="text-slate-600 text-xs truncate hidden sm:block">{selectedTeam.name}</span>
-                  </>
+      {/* ── Main Workspace Body ── */}
+      <div className="flex-1 flex overflow-hidden">
+        {workspaceTab === 'chats' ? (
+          <div className="flex h-full w-full bg-[#111827] overflow-hidden">
+            {/* ── Left Sub-Panel ── */}
+            <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="h-14 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.06]">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Teams</span>
+                <button
+                  onClick={() => setShowNewTeam(true)}
+                  className="flex items-center gap-1 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-2 py-1.5 text-[11px] font-medium cursor-pointer transition-colors"
+                  title="New Team"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New</span>
+                </button>
+              </div>
+
+              {/* Teams list */}
+              <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+                {loadingTeams ? (
+                  <div className="flex flex-col gap-2 p-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-white/5 animate-pulse" />
+                        <div className="h-3 rounded-full bg-white/5 animate-pulse flex-1" />
+                      </div>
+                    ))}
+                  </div>
+                ) : teams.length === 0 ? (
+                  <NoTeams onCreateTeam={() => setShowNewTeam(true)} />
+                ) : (
+                  teams.map((team) => (
+                    <TeamRow
+                      key={team.id}
+                      team={team}
+                      channels={channelsByTeam[team.id] ?? []}
+                      selectedChannelId={selectedChannel?.id ?? null}
+                      onSelectChannel={handleSelectChannel}
+                      onAddChannel={(t) => setAddChannelForTeam(t)}
+                      loadingChannels={loadingChannels[team.id] ?? false}
+                    />
+                  ))
                 )}
               </div>
-              {/* Tab bar */}
-              <div className="flex items-center gap-0.5">
-                {TABS.map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer transition-colors
-                      ${activeTab === tab
-                        ? 'bg-[#5B5FC7]/15 text-[#818cf8]'
-                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
-                      }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
+
+              {/* Footer */}
+              <div className="shrink-0 px-4 py-3 border-t border-white/[0.06]">
+                <button
+                  onClick={() => setShowNewTeam(true)}
+                  className="text-[12px] text-slate-500 hover:text-[#10B981] cursor-pointer transition-colors w-full text-left"
+                >
+                  + Join or create a team
+                </button>
               </div>
             </div>
 
-            {/* Tab content */}
-            {activeTab === 'Posts' && (
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                {/* Messages area */}
-                <div className="flex-1 overflow-y-auto py-4">
-                  {loadingMessages ? (
-                    <div className="flex flex-col gap-4 px-5 py-2">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="flex gap-3">
-                          <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse shrink-0" />
-                          <div className="flex-1 flex flex-col gap-2">
-                            <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
-                            <div className="h-3 w-48 rounded-full bg-white/5 animate-pulse" />
-                          </div>
-                        </div>
+            {/* ── Main Content Area ── */}
+            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+              {!selectedChannel ? (
+                <NoTeamSelected />
+              ) : (
+                <>
+                  {/* Channel header */}
+                  <div className="h-14 flex items-center gap-3 px-5 bg-[#0B0F17] border-b border-white/[0.06] shrink-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <Hash className="w-4 h-4 text-slate-500 shrink-0" />
+                      <span className="text-slate-100 font-semibold text-sm truncate">{selectedChannel.name}</span>
+                      {selectedTeam && (
+                        <>
+                          <span className="text-slate-700 text-xs hidden sm:block">·</span>
+                          <span className="text-slate-600 text-xs truncate hidden sm:block">{selectedTeam.name}</span>
+                        </>
+                      )}
+                    </div>
+                    {/* Tab bar */}
+                    <div className="flex items-center gap-0.5">
+                      {TABS.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer transition-colors
+                            ${activeTab === tab
+                              ? 'bg-[#10B981]/15 text-[#10B981]'
+                              : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
+                            }`}
+                        >
+                          {tab}
+                        </button>
                       ))}
                     </div>
-                  ) : messages.length === 0 ? (
-                    <NoMessages channelName={selectedChannel.name} />
-                  ) : (
-                    <>
-                      {messages.map((msg) => (
-                        <MessageItem key={msg.id} message={msg} />
-                      ))}
-                      <div ref={messagesEndRef} />
-                    </>
+                  </div>
+
+                  {/* Tab content */}
+                  {activeTab === 'Posts' && (
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                      {/* Messages area */}
+                      <div className="flex-1 overflow-y-auto py-4">
+                        {loadingMessages ? (
+                          <div className="flex flex-col gap-4 px-5 py-2">
+                            {[1, 2, 3].map((i) => (
+                              <div key={i} className="flex gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse shrink-0" />
+                                <div className="flex-1 flex flex-col gap-2">
+                                  <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
+                                  <div className="h-3 w-48 rounded-full bg-white/5 animate-pulse" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : messages.length === 0 ? (
+                          <NoMessages channelName={selectedChannel.name} />
+                        ) : (
+                          <>
+                            {messages.map((msg) => (
+                              <MessageItem key={msg.id} message={msg} />
+                            ))}
+                            <div ref={messagesEndRef} />
+                          </>
+                        )}
+                      </div>
+
+                      {/* Compose box */}
+                      <ComposeBox
+                        channelId={selectedChannel.id}
+                        channelName={selectedChannel.name}
+                        onMessageSent={handleMessageSent}
+                      />
+                    </div>
                   )}
+
+                  {activeTab === 'Files' && (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <FilesEmptyState />
+                    </div>
+                  )}
+
+                  {activeTab === 'Notes' && (
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                      <NotesEmptyState />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* ── REDESIGNED VIRTUAL OFFICE FLOOR PLAN MAP ── */
+          <div className="flex h-full w-full bg-[#111827] overflow-hidden">
+            {/* Rooms List Panel */}
+            <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col overflow-hidden">
+              <div className="h-14 flex items-center px-4 border-b border-white/[0.06]">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Workspace Rooms</span>
+              </div>
+              <div className="flex-grow overflow-y-auto p-3 space-y-2">
+                {[
+                  { id: 'boardroom', name: 'Boardroom', desc: 'Quarterly Review', active: true, count: 2, tag: '#sprint-planning' },
+                  { id: 'coffee', name: 'Coffee Lounge', desc: 'Casual Chat', active: false, count: 0, tag: '#watercooler' },
+                  { id: 'zen', name: 'Zen Zone', desc: 'Focus Mode', active: false, count: 0, tag: '#silent-zone' },
+                  { id: 'engineering', name: 'Engineering Hub', desc: 'Live Coding Standup', active: true, count: 7, tag: '#engineering' }
+                ].map((room) => {
+                  const isSelected = selectedRoom === room.id;
+                  return (
+                    <button
+                      key={room.id}
+                      onClick={() => setSelectedRoom(room.id as any)}
+                      className={`w-full p-3 rounded-xl text-left border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#10B981]/10 border-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.06)]'
+                          : 'bg-white/5 border-white/[0.06] hover:border-white/10 hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-sm font-semibold ${isSelected ? 'text-[#10B981]' : 'text-slate-200'}`}>
+                          {room.name}
+                        </span>
+                        {room.active && (
+                          <span className="flex items-center gap-1 text-[9px] bg-[#10B981]/25 text-[#10B981] font-bold px-1.5 py-0.5 rounded-md">
+                            <span className="w-1 h-1 rounded-full bg-[#10B981] status-pulse" />
+                            Live
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 truncate">{room.desc}</p>
+                      <div className="flex items-center justify-between mt-2.5">
+                        <span className="text-[10px] text-slate-650 font-medium font-mono">{room.tag}</span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          <Users className="w-3 h-3 text-slate-500" />
+                          {room.count} online
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="p-4 border-t border-white/[0.06]">
+                <button
+                  onClick={() => router.push('/room/instant/join')}
+                  className="w-full py-2 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer text-center"
+                >
+                  Host Instant Meeting
+                </button>
+              </div>
+            </div>
+
+            {/* Interactive office map view */}
+            <div className="flex-1 flex flex-col min-w-0 p-6 overflow-y-auto">
+              <div className="mb-5 flex items-center justify-between shrink-0">
+                <div>
+                  <h1 className="text-lg font-bold text-slate-100 font-outfit">HQ Floor Plan</h1>
+                  <p className="text-xs text-slate-500 mt-0.5">Click any room to view details and join the session</p>
                 </div>
-
-                {/* Compose box */}
-                <ComposeBox
-                  channelId={selectedChannel.id}
-                  channelName={selectedChannel.name}
-                  onMessageSent={handleMessageSent}
-                />
+                <div className="flex items-center gap-2 bg-[#191f31] border border-white/5 px-3 py-1.5 rounded-full text-xs text-slate-400">
+                  <span className="w-2 h-2 rounded-full bg-[#10B981] status-pulse" />
+                  <span>9 online in workspace</span>
+                </div>
               </div>
-            )}
 
-            {activeTab === 'Files' && (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <FilesEmptyState />
-              </div>
-            )}
+              {/* Map surface grid */}
+              <div className="flex-grow glass-card rounded-2xl relative min-h-[360px] border border-white/5 shadow-2xl flex items-center justify-center p-4">
+                {/* Radial grid background */}
+                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#10b981 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+                
+                {/* Rooms Grid */}
+                <div className="w-full h-full max-w-lg aspect-[4/3] grid grid-cols-2 grid-rows-3 gap-4 relative z-10">
+                  {/* Boardroom */}
+                  <button
+                    onClick={() => setSelectedRoom('boardroom')}
+                    className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
+                      selectedRoom === 'boardroom'
+                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Boardroom</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex -space-x-1.5">
+                        <div className="w-6 h-6 rounded-full bg-slate-700 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-white">JD</div>
+                        <div className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981]">SC</div>
+                      </div>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                    </div>
+                  </button>
 
-            {activeTab === 'Notes' && (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <NotesEmptyState />
+                  {/* Coffee Lounge */}
+                  <button
+                    onClick={() => setSelectedRoom('coffee')}
+                    className={`rounded-xl relative p-4 flex flex-col justify-between group row-span-2 transition-all text-left ${
+                      selectedRoom === 'coffee'
+                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Coffee Lounge</span>
+                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
+                      <Coffee className="w-4 h-4" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-600">Empty</span>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                    </div>
+                  </button>
+
+                  {/* Zen Zone */}
+                  <button
+                    onClick={() => setSelectedRoom('zen')}
+                    className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
+                      selectedRoom === 'zen'
+                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                    }`}
+                  >
+                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Zen Zone</span>
+                    <span className="text-xs text-slate-600">Silent focus</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-650">Empty</span>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                    </div>
+                  </button>
+
+                  {/* Engineering Hub */}
+                  <button
+                    onClick={() => setSelectedRoom('engineering')}
+                    className={`rounded-xl relative p-4 flex flex-col justify-between group col-span-2 transition-all text-left ${
+                      selectedRoom === 'engineering'
+                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Engineering Hub</span>
+                      <span className="flex items-center gap-1 text-[9px] text-[#10B981] font-bold">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                        Live Standup
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex -space-x-1.5">
+                          <div className="w-6 h-6 rounded-full bg-slate-700 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-white">AR</div>
+                          <div className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981]">EL</div>
+                          <div className="w-6 h-6 rounded-full bg-cyan-600/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-cyan-400">MC</div>
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-bold">+4</span>
+                      </div>
+                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                    </div>
+                  </button>
+                </div>
               </div>
-            )}
-          </>
+
+              {/* Room details card */}
+              {selectedRoom && (
+                <div className="mt-4 bg-[#191f31] border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
+                      {selectedRoom === 'boardroom' && 'Boardroom Review'}
+                      {selectedRoom === 'coffee' && 'Coffee Break Lounge'}
+                      {selectedRoom === 'zen' && 'Zen Quiet Room'}
+                      {selectedRoom === 'engineering' && 'Engineering Team Space'}
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {selectedRoom === 'boardroom' && 'Quarterly Sprint Planning & KPI Reviews (2 online)'}
+                      {selectedRoom === 'coffee' && 'Grab a coffee, listen to music, or chat informally (empty)'}
+                      {selectedRoom === 'zen' && 'No audio focus workspace. Silent study and chill (empty)'}
+                      {selectedRoom === 'engineering' && 'Active live coding, sync meetings, and standups (7 online)'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => router.push(`/meet/${selectedRoom}`)}
+                    className="px-5 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-xl transition-all cursor-pointer self-stretch md:self-auto text-center"
+                  >
+                    Join Session
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Recognition Wall Sidebar */}
+            <div className="w-[340px] shrink-0 bg-[#0B0F17] border-l border-white/[0.06] flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-white/[0.06]">
+                <h2 className="text-sm font-bold text-slate-100 font-outfit">Recognition Wall</h2>
+                <p className="text-[11px] text-slate-500 mt-0.5">Celebrate team wins together</p>
+              </div>
+
+              {/* Kudos feed */}
+              <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                {kudos.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-[#191f31] border border-[#10B981]/10 rounded-2xl p-4 hover:border-[#10B981]/30 transition-all flex flex-col gap-3 group animate-fadeIn"
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar name={item.sender} src={item.avatarUrl} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 justify-between">
+                          <span className="text-xs font-semibold text-slate-200 truncate">{item.sender}</span>
+                          <span className="text-[9px] text-slate-500 shrink-0">{item.time}</span>
+                        </div>
+                        <p className="text-[10px] font-bold text-[#10B981] mt-0.5">Kudos to {item.target}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed font-body">{item.text}</p>
+                    <div className="flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
+                      <button
+                        onClick={() => {
+                          setKudos((prev) =>
+                            prev.map((k) =>
+                              k.id === item.id
+                                ? { ...k, liked: !k.liked, likes: k.liked ? k.likes - 1 : k.likes + 1 }
+                                : k
+                            )
+                          );
+                        }}
+                        className={`flex items-center gap-1.5 text-xs transition-colors cursor-pointer ${
+                          item.liked ? 'text-[#10B981]' : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        <Heart className={`w-3.5 h-3.5 ${item.liked ? 'fill-[#10B981]' : ''}`} />
+                        <span className="font-semibold text-[11px]">{item.likes}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Kudos creation input */}
+              <div className="p-4 border-t border-white/[0.06] bg-[#0B0F17] shrink-0">
+                <div className="flex flex-col gap-2">
+                  <textarea
+                    value={newKudosText}
+                    onChange={(e) => setNewKudosText(e.target.value)}
+                    placeholder="Give kudos (e.g. Kudos to @Marcus for the code sync!)"
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-650 outline-none focus:border-[#10B981]/50 resize-none transition-colors leading-relaxed"
+                  />
+                  <button
+                    onClick={() => {
+                      const trimmed = newKudosText.trim();
+                      if (!trimmed) return;
+                      // Detect target handle or use @Team
+                      const targetMatch = trimmed.match(/@[a-zA-Z0-9]+/);
+                      const target = targetMatch ? targetMatch[0] : '@Everyone';
+                      
+                      setKudos((prev) => [
+                        {
+                          id: Date.now(),
+                          sender: user?.name ?? 'Guest',
+                          time: 'Just now',
+                          target,
+                          text: trimmed,
+                          likes: 1,
+                          liked: true,
+                          avatarUrl: user?.avatarUrl ?? null
+                        },
+                        ...prev
+                      ]);
+                      setNewKudosText('');
+                    }}
+                    disabled={!newKudosText.trim()}
+                    className="py-2 bg-[#10B981] hover:bg-[#059669] disabled:bg-white/5 disabled:text-slate-600 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:cursor-not-allowed text-center"
+                  >
+                    Post Kudos
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

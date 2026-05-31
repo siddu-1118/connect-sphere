@@ -6,20 +6,16 @@ import {
   Video,
   Plus,
   Calendar,
-  Monitor,
   Users,
   Clock,
   ChevronRight,
-  MessageSquare,
-  FileText,
-  Bell,
-  Star,
-  Hash,
   ArrowRight,
-  Mic,
-  PhoneCall,
-  LayoutGrid,
+  Shield,
   Zap,
+  Search,
+  Wifi,
+  FileText,
+  Folder,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import api from '@/lib/api';
@@ -72,34 +68,35 @@ function NewMeetingModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e1e35] border border-white/[0.08] rounded-2xl w-full max-w-md p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-slate-100 mb-5">Schedule a Meeting</h2>
-        <div className="space-y-4">
+      <div className="bg-[#111827] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+        <h2 className="text-lg font-bold text-slate-100 mb-5 font-outfit">Schedule a Sync</h2>
+        <div className="space-y-4 font-outfit">
           <div>
-            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5 block">Meeting Title</label>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">Meeting Title</label>
             <input
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Enter meeting title…"
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-[#5B5FC7]/60 focus:bg-white/[0.07] transition-all"
+              className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all"
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1.5 block">Date & Time</label>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">Date & Time</label>
             <input
               type="datetime-local"
               value={scheduledAt}
               onChange={e => setScheduledAt(e.target.value)}
-              className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-[#5B5FC7]/60 focus:bg-white/[0.07] transition-all [color-scheme:dark]"
+              className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 outline-none focus:border-primary/50 focus:bg-white/[0.05] transition-all [color-scheme:dark]"
             />
           </div>
         </div>
-        <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/[0.08] text-sm text-slate-400 hover:bg-white/[0.05] transition-all">Cancel</button>
+        <div className="flex gap-3 mt-6 font-outfit">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-sm text-slate-400 hover:bg-white/[0.03] transition-all">Cancel</button>
           <button
             onClick={submit}
             disabled={loading || !title.trim()}
-            className="flex-1 py-2.5 rounded-xl bg-[#5B5FC7] hover:bg-[#6c70e0] text-sm text-white font-semibold disabled:opacity-50 transition-all"
+            className="flex-1 py-2.5 rounded-xl bg-primary hover:bg-[#059669] text-sm text-slate-900 font-bold disabled:opacity-50 transition-all emerald-glow shadow-md"
           >
             {loading ? 'Creating…' : 'Schedule'}
           </button>
@@ -117,6 +114,7 @@ export default function DashboardPage() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loadingMeetings, setLoadingMeetings] = useState(true);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [joinCodeInput, setJoinCodeInput] = useState('');
 
   const fetchMeetings = useCallback(async () => {
     setLoadingMeetings(true);
@@ -148,314 +146,304 @@ export default function DashboardPage() {
     router.push(`/meet/preview/${code}`);
   };
 
-  /* ── Quick Actions (Zoom-style) ── */
-  const quickActions = [
-    {
-      icon: Video,
-      label: 'New Meeting',
-      desc: 'Start an instant meeting',
-      color: '#FF6B35',
-      bg: 'from-[#FF6B35]/20 to-[#FF6B35]/5',
-      border: 'border-[#FF6B35]/20',
-      action: startInstantMeeting,
-    },
-    {
-      icon: Plus,
-      label: 'Join',
-      desc: 'Enter a meeting ID',
-      color: '#2D8CFF',
-      bg: 'from-[#2D8CFF]/20 to-[#2D8CFF]/5',
-      border: 'border-[#2D8CFF]/20',
-      action: () => router.push('/meet/join'),
-    },
-    {
-      icon: Calendar,
-      label: 'Schedule',
-      desc: 'Plan a future meeting',
-      color: '#5B5FC7',
-      bg: 'from-[#5B5FC7]/20 to-[#5B5FC7]/5',
-      border: 'border-[#5B5FC7]/20',
-      action: () => setShowScheduleModal(true),
-    },
-    {
-      icon: Monitor,
-      label: 'Share Screen',
-      desc: 'Present your display',
-      color: '#10B981',
-      bg: 'from-[#10B981]/20 to-[#10B981]/5',
-      border: 'border-[#10B981]/20',
-      action: startInstantMeeting,
-    },
-  ];
+  const handleJoinByCode = () => {
+    if (!joinCodeInput.trim()) return;
+    let code = joinCodeInput.trim().replace(/[^a-zA-Z0-9]/g, '');
+    router.push(`/meet/preview/${code}`);
+  };
+
+  // Format code input with dashes
+  const handleInputChange = (val: string) => {
+    let clean = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (clean.length > 3 && clean.length <= 6) {
+      clean = clean.slice(0, 3) + '-' + clean.slice(3);
+    } else if (clean.length > 6) {
+      clean = clean.slice(0, 3) + '-' + clean.slice(3, 6) + '-' + clean.slice(6, 9);
+    }
+    setJoinCodeInput(clean.slice(0, 11));
+  };
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e35] overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#0b0f17] text-slate-200 overflow-hidden font-outfit relative">
+      
+      {/* Background Glow Decors */}
+      <div className="fixed top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
+      <div className="fixed bottom-[-5%] left-[20%] w-[300px] h-[300px] bg-secondary/5 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
 
-      {/* ── Top header bar (Teams-style) ── */}
-      <div className="shrink-0 h-14 bg-[#1a1a2e] border-b border-white/[0.06] flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <LayoutGrid className="w-4 h-4 text-slate-500" />
-          <span className="text-sm font-semibold text-slate-300">Home</span>
+      {/* TopAppBar */}
+      <header className="h-16 shrink-0 flex items-center justify-between px-6 bg-surface-dim/70 backdrop-blur-md border-b border-white/5 shadow-sm z-10">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="glass-panel flex items-center gap-3 px-4 py-2 rounded-full w-full max-w-md cyan-glow transition-all">
+            <Search className="w-4 h-4 text-slate-400" />
+            <input 
+              className="bg-transparent border-none focus:ring-0 text-sm text-slate-200 w-full outline-none placeholder:text-slate-500" 
+              placeholder="Search workspace..." 
+              type="text"
+            />
+          </div>
         </div>
-        <button
-          onClick={() => setShowScheduleModal(true)}
-          className="flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#6c70e0] text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-[#5B5FC7]/20"
-        >
-          <Calendar className="w-3.5 h-3.5" />
-          New Meeting
-        </button>
-      </div>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setShowScheduleModal(true)}
+            className="flex items-center gap-1.5 px-4.5 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-full font-bold text-xs transition-all tracking-wide"
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Schedule Sync
+          </button>
+          <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/25">
+            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" />
+          </div>
+        </div>
+      </header>
 
-      <div className="flex-1 p-6 space-y-6 max-w-5xl w-full mx-auto">
-
-        {/* ── Greeting Banner (Teams-style) ── */}
-        <div className="relative bg-gradient-to-br from-[#252540] to-[#1a1a35] border border-white/[0.06] rounded-2xl px-8 py-6 overflow-hidden">
-          {/* decorative glow */}
-          <div className="absolute -top-8 -right-8 w-48 h-48 bg-[#5B5FC7]/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-6 right-24 w-32 h-32 bg-[#2D8CFF]/10 rounded-full blur-2xl pointer-events-none" />
-
-          <div className="relative flex items-center justify-between">
+      {/* Dashboard Body */}
+      <main className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          
+          {/* Greeting message */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 glass-panel rounded-2xl relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
             <div>
-              <p className="text-xs font-semibold text-[#818cf8] uppercase tracking-widest mb-1">
+              <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
                 {new Date().toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })}
-              </p>
-              <h1 className="text-2xl font-bold text-slate-100">
-                {greeting()}, {user?.name?.split(' ')[0] ?? 'there'} 👋
+              </span>
+              <h1 className="text-2xl font-bold text-slate-100 tracking-tight mt-1">
+                {greeting()}, {user?.name?.split(' ')[0] ?? 'Explorer'} 👋
               </h1>
-              <p className="text-sm text-slate-500 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 {meetings.length > 0
-                  ? `You have ${meetings.length} upcoming meeting${meetings.length > 1 ? 's' : ''}.`
-                  : 'Your schedule is clear today. Enjoy!'}
+                  ? `You have ${meetings.length} upcoming sync session${meetings.length > 1 ? 's' : ''} scheduled.`
+                  : 'Your collaborative roadmap is clear. Enjoy the focus flow!'}
               </p>
             </div>
-            <Avatar name={user?.name ?? 'U'} size="lg" />
-          </div>
-        </div>
-
-        {/* ── Quick Actions (Zoom-style 4 cards) ── */}
-        <div>
-          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Quick Actions</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {quickActions.map(({ icon: Icon, label, desc, color, bg, border, action }) => (
-              <button
-                key={label}
-                onClick={action}
-                className={`group flex flex-col items-start gap-3 p-5 bg-gradient-to-br ${bg} border ${border} rounded-2xl text-left hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 cursor-pointer`}
-              >
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ background: `${color}22` }}
-                >
-                  <Icon className="w-5 h-5" style={{ color }} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-100 group-hover:text-white transition-colors">{label}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{desc}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ── Two column: Upcoming Meetings + Recent Activity ── */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-
-          {/* Upcoming Meetings (Teams-style) — 3 cols */}
-          <div className="lg:col-span-3 bg-[#1a1a2e] border border-white/[0.06] rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[#818cf8]" />
-                <span className="text-sm font-semibold text-slate-200">Upcoming Meetings</span>
+            <div className="shrink-0 flex items-center gap-3 bg-white/[0.03] border border-white/5 rounded-2xl p-3 px-4">
+              <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="md" />
+              <div className="text-left font-outfit">
+                <p className="text-xs font-bold text-slate-200">{user?.name ?? 'Felix Henderson'}</p>
+                <p className="text-[10px] text-primary flex items-center gap-1 font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  Active status
+                </p>
               </div>
-              <button
-                onClick={() => router.push('/calendar')}
-                className="flex items-center gap-1 text-[11px] text-[#818cf8] hover:text-white transition-colors"
+            </div>
+          </div>
+
+          {/* Section 1: Meet Launcher Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Instant Meet card */}
+            <div className="md:col-span-1 glass-panel rounded-2xl p-6 flex flex-col justify-between hover:border-primary/20 transition-all group">
+              <div>
+                <h2 className="text-lg font-bold text-slate-100 mb-1.5">Instant Sync</h2>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">Start an unscheduled immersive session with your workspace team immediately.</p>
+              </div>
+              <button 
+                onClick={startInstantMeeting}
+                className="w-full h-12 bg-primary hover:bg-[#059669] text-slate-900 font-bold text-xs rounded-xl flex items-center justify-center gap-2 emerald-glow transition-all active:scale-[0.98]"
               >
-                View calendar <ChevronRight className="w-3 h-3" />
+                <Video className="w-4 h-4 text-slate-900" />
+                Start Instant Meet
               </button>
             </div>
 
-            <div className="divide-y divide-white/[0.04]">
-              {loadingMeetings ? (
-                /* skeleton */
-                Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
-                    <div className="w-10 h-10 rounded-xl bg-white/[0.06] shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-white/[0.06] rounded-full w-3/4" />
-                      <div className="h-2.5 bg-white/[0.04] rounded-full w-1/2" />
-                    </div>
-                    <div className="w-14 h-7 bg-white/[0.06] rounded-lg" />
-                  </div>
-                ))
-              ) : meetings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                  {/* Illustrated calendar SVG */}
-                  <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mb-4 opacity-60">
-                    <rect x="8" y="12" width="48" height="44" rx="6" fill="#252540" stroke="#5B5FC7" strokeWidth="1.5" />
-                    <rect x="8" y="12" width="48" height="14" rx="6" fill="#5B5FC7" opacity="0.3" />
-                    <line x1="22" y1="8" x2="22" y2="18" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round" />
-                    <line x1="42" y1="8" x2="42" y2="18" stroke="#818cf8" strokeWidth="2.5" strokeLinecap="round" />
-                    <circle cx="22" cy="38" r="3" fill="#5B5FC7" opacity="0.5" />
-                    <circle cx="32" cy="38" r="3" fill="#5B5FC7" opacity="0.5" />
-                    <circle cx="42" cy="38" r="3" fill="#10B981" />
-                    <circle cx="22" cy="48" r="3" fill="#5B5FC7" opacity="0.5" />
-                    <circle cx="32" cy="48" r="3" fill="#5B5FC7" opacity="0.5" />
-                  </svg>
-                  <p className="text-sm font-semibold text-slate-300">Your schedule is clear ✨</p>
-                  <p className="text-xs text-slate-600 mt-1">Scheduled meetings will appear here.</p>
-                  <button
-                    onClick={() => setShowScheduleModal(true)}
-                    className="mt-4 flex items-center gap-1.5 text-xs text-[#818cf8] hover:text-white border border-[#5B5FC7]/30 hover:border-[#5B5FC7]/60 px-4 py-2 rounded-lg transition-all"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Schedule a meeting
-                  </button>
+            {/* Join Room card */}
+            <div className="md:col-span-2 glass-panel rounded-2xl p-6 flex flex-col justify-between hover:border-secondary/20 transition-all">
+              <div>
+                <h2 className="text-lg font-bold text-slate-100 mb-1.5">Join a Room</h2>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">Enter a 9-digit meeting code or personal room ID to join the digital call canvas.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 glass-panel bg-white/[0.02] border-white/10 rounded-xl px-4 py-2.5 cyan-glow transition-all">
+                  <input 
+                    value={joinCodeInput}
+                    onChange={e => handleInputChange(e.target.value)}
+                    className="bg-transparent border-none focus:ring-0 text-base font-bold text-primary w-full outline-none placeholder:text-slate-600 uppercase tracking-wider" 
+                    placeholder="Ex: ABC-123-XYZ" 
+                    type="text"
+                  />
                 </div>
-              ) : (
-                meetings.slice(0, 5).map(meeting => {
-                  const soon = isWithinMinutes(meeting.scheduledAt, 10);
-                  return (
-                    <div
-                      key={meeting.id}
-                      className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.03] transition-colors group"
-                    >
-                      {/* Time block */}
-                      <div className="shrink-0 w-12 text-center">
-                        <p className="text-[10px] font-bold text-[#818cf8] uppercase">{formatDate(meeting.scheduledAt)}</p>
-                        <p className="text-[13px] font-bold text-slate-200 mt-0.5">{formatTime(meeting.scheduledAt)}</p>
+                <button 
+                  onClick={handleJoinByCode}
+                  disabled={!joinCodeInput.trim()}
+                  className="h-12 px-8 bg-secondary hover:bg-secondary/80 disabled:opacity-40 text-slate-900 font-bold text-xs rounded-xl transition-all shadow-md active:scale-[0.98]"
+                >
+                  Join Room
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Bento schedule + recent activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* Upcoming schedule (Timeline) */}
+            <div className="lg:col-span-5 glass-panel rounded-2xl flex flex-col">
+              <div className="p-5 border-b border-white/5 flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-100">Upcoming Sync Schedule</h3>
+                <button 
+                  onClick={() => router.push('/calendar')}
+                  className="text-primary hover:underline text-xs font-semibold"
+                >
+                  View Calendar
+                </button>
+              </div>
+              <div className="flex-1 p-6 space-y-6">
+                {loadingMeetings ? (
+                  Array.from({ length: 2 }).map((_, i) => (
+                    <div key={i} className="flex gap-4 animate-pulse">
+                      <div className="w-12 h-10 bg-white/[0.04] rounded-xl shrink-0" />
+                      <div className="w-[2px] bg-white/[0.04] my-1" />
+                      <div className="flex-1 space-y-2 py-0.5">
+                        <div className="h-3.5 bg-white/[0.04] rounded w-3/4" />
+                        <div className="h-2.5 bg-white/[0.03] rounded w-1/2" />
                       </div>
-                      {/* Left accent */}
-                      <div className="w-0.5 h-10 rounded-full shrink-0" style={{ background: soon ? '#FF6B35' : '#5B5FC7' }} />
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-100 truncate">{meeting.title}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          {meeting.participantCount != null && (
-                            <span className="flex items-center gap-1 text-[11px] text-slate-500">
-                              <Users className="w-3 h-3" /> {meeting.participantCount}
-                            </span>
-                          )}
-                          {soon && (
-                            <span className="flex items-center gap-1 text-[10px] font-bold text-[#FF6B35] bg-[#FF6B35]/10 px-2 py-0.5 rounded-full">
-                              <Zap className="w-2.5 h-2.5" /> Starting soon
-                            </span>
-                          )}
+                    </div>
+                  ))
+                ) : meetings.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <svg width="48" height="48" viewBox="0 0 64 64" fill="none" className="mb-3 opacity-30">
+                      <rect x="8" y="12" width="48" height="44" rx="6" fill="#111827" stroke="#10B981" strokeWidth="1.5" />
+                      <rect x="8" y="12" width="48" height="14" rx="6" fill="#10B981" opacity="0.15" />
+                      <line x1="22" y1="8" x2="22" y2="18" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+                      <line x1="42" y1="8" x2="42" y2="18" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-xs font-bold text-slate-300">Your schedule is clear ✨</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Scheduled sessions will render here.</p>
+                  </div>
+                ) : (
+                  meetings.slice(0, 3).map((meeting, idx) => {
+                    const soon = isWithinMinutes(meeting.scheduledAt, 10);
+                    return (
+                      <div key={meeting.id} className="flex gap-4 group cursor-pointer" onClick={() => router.push(`/meet/preview/${meeting.meetingCode ?? meeting.id}`)}>
+                        <div className="flex flex-col items-center shrink-0 w-12 text-center">
+                          <span className="text-[9px] font-bold text-primary uppercase tracking-wide">{formatDate(meeting.scheduledAt)}</span>
+                          <span className="text-[13px] font-bold text-slate-100 mt-0.5">{formatTime(meeting.scheduledAt)}</span>
+                        </div>
+                        <div className="w-[2px] shrink-0 bg-white/15 my-1 group-hover:bg-primary transition-colors"></div>
+                        <div className="flex-1 pb-1">
+                          <h4 className="text-sm font-semibold text-slate-200 group-hover:text-primary transition-colors truncate">{meeting.title}</h4>
+                          <p className="text-[10px] text-slate-500 flex items-center gap-1.5 mt-1">
+                            {soon ? (
+                              <span className="flex items-center gap-1 text-[10px] font-bold text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded-full">
+                                <Zap className="w-2.5 h-2.5 animate-pulse" /> Starting soon
+                              </span>
+                            ) : (
+                              <span>Synced Room</span>
+                            )}
+                          </p>
                         </div>
                       </div>
-                      {/* Join button */}
-                      <button
-                        onClick={() => router.push(`/meet/preview/${meeting.meetingCode ?? meeting.id}`)}
-                        className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
-                          soon
-                            ? 'bg-[#2D8CFF] hover:bg-[#1a7ae8] text-white shadow-lg shadow-[#2D8CFF]/20'
-                            : 'bg-white/[0.06] hover:bg-white/[0.10] text-slate-300 opacity-0 group-hover:opacity-100'
-                        }`}
-                      >
-                        {soon ? 'Join Now' : 'Join'}
-                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Recent activity grid */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="glass-panel rounded-2xl p-5 flex flex-col h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-bold text-slate-100">Workspace Channels & Links</h3>
+                  <span className="text-[10px] text-slate-500 font-semibold tracking-wider uppercase">Quick Access</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+                  
+                  {/* Notes Card */}
+                  <div 
+                    onClick={() => router.push('/notes')}
+                    className="glass-panel bg-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition-all cursor-pointer group border-white/5 border flex flex-col justify-between"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Notes</span>
                     </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Right column — Teams Quick Access — 2 cols */}
-          <div className="lg:col-span-2 space-y-4">
-
-            {/* Personal meeting room card (Zoom-style) */}
-            <div className="bg-gradient-to-br from-[#252540] to-[#1e1e38] border border-white/[0.06] rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-[#FF6B35]/15 flex items-center justify-center">
-                  <Video className="w-4 h-4 text-[#FF6B35]" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-200">My Personal Room</p>
-                  <p className="text-[10px] text-slate-500 font-mono">{user?.name?.toLowerCase().replace(/\s+/g, '.') ?? 'my-room'}</p>
-                </div>
-              </div>
-              <button
-                onClick={startInstantMeeting}
-                className="w-full py-2 rounded-xl bg-[#FF6B35] hover:bg-[#e85d2a] text-white text-xs font-bold flex items-center justify-center gap-2 transition-all"
-              >
-                <Video className="w-3.5 h-3.5" /> Start Meeting
-              </button>
-            </div>
-
-            {/* Teams-style quick links */}
-            <div className="bg-[#1a1a2e] border border-white/[0.06] rounded-2xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/[0.06]">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Quick Access</span>
-              </div>
-              {[
-                { icon: MessageSquare, label: 'Direct Messages', sub: 'Chat with teammates', route: '/chat', color: '#5B5FC7' },
-                { icon: Hash, label: 'Teams & Channels', sub: 'Browse workspaces', route: '/workspace', color: '#818cf8' },
-                { icon: PhoneCall, label: 'Make a Call', sub: 'Audio or video call', route: '/phone', color: '#10B981' },
-                { icon: FileText, label: 'Recent Files', sub: 'Docs & attachments', route: '/files', color: '#F59E0B' },
-                { icon: Star, label: 'Favorites', sub: 'Pinned conversations', route: '/chat', color: '#EC4899' },
-              ].map(({ icon: Icon, label, sub, route, color }) => (
-                <button
-                  key={label}
-                  onClick={() => router.push(route)}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition-colors text-left group"
-                >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
-                    <Icon className="w-3.5 h-3.5" style={{ color }} />
+                    <div className="mt-4">
+                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-[#06B6D4] transition-colors">Product Roadmap V2</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">Low latency audio modular architecture sync notes...</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-200 truncate">{label}</p>
-                    <p className="text-[10px] text-slate-600 truncate">{sub}</p>
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
 
-        {/* ── Teams-style: What to try ── */}
-        <div>
-          <h2 className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3">Explore AeroMeet</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              {
-                icon: Mic,
-                title: 'AI Noise Cancellation',
-                desc: 'Crystal-clear audio in any environment.',
-                color: '#5B5FC7',
-              },
-              {
-                icon: Users,
-                title: 'Breakout Rooms',
-                desc: 'Split meetings into smaller groups.',
-                color: '#2D8CFF',
-              },
-              {
-                icon: Bell,
-                title: 'Smart Notifications',
-                desc: 'Get notified for what matters most.',
-                color: '#10B981',
-              },
-            ].map(({ icon: Icon, title, desc, color }) => (
-              <div
-                key={title}
-                className="flex items-start gap-3 p-4 bg-[#1a1a2e] border border-white/[0.06] rounded-xl"
-              >
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${color}18` }}>
-                  <Icon className="w-4 h-4" style={{ color }} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-200">{title}</p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{desc}</p>
+                  {/* Folder Card */}
+                  <div 
+                    onClick={() => router.push('/files')}
+                    className="glass-panel bg-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition-all cursor-pointer group border-white/5 border flex flex-col justify-between"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <Folder className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Files</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-primary transition-colors">Assets & Layouts</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">12 design zips • Shared with facilitating teams</p>
+                    </div>
+                  </div>
+
+                  {/* Teams Card */}
+                  <div 
+                    onClick={() => router.push('/workspace')}
+                    className="glass-panel bg-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition-all cursor-pointer group border-white/5 border flex flex-col justify-between"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Spaces</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-primary transition-colors">Interactive Spaces</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">Jump into 2D isometric virtual room maps...</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Chat */}
+                  <div 
+                    onClick={() => router.push('/chat')}
+                    className="glass-panel bg-white/[0.02] p-4 rounded-xl hover:bg-white/[0.04] transition-all cursor-pointer group border-white/5 border flex flex-col justify-between"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">Directs</span>
+                    </div>
+                    <div className="mt-4">
+                      <h4 className="text-xs font-bold text-slate-200 group-hover:text-[#06B6D4] transition-colors">Collaborator Chat</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-1">Direct message sync channels with workspace peers</p>
+                    </div>
+                  </div>
+
                 </div>
               </div>
-            ))}
+            </div>
+
           </div>
+
+          {/* System status stats bar */}
+          <div className="glass-panel rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border border-white/5">
+            <div className="flex items-center gap-5">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary status-pulse"></span>
+                <span className="text-[11px] font-bold text-slate-300">All Systems Nominal</span>
+              </div>
+              <div className="hidden sm:block h-4 w-[1px] bg-white/10"></div>
+              <div className="flex items-center gap-1.5 text-slate-400">
+                <Wifi className="w-4 h-4" />
+                <span className="text-[11px]">Secure Cryptographic Sync</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">Region: Global US-EAST</span>
+              <Shield className="w-3.5 h-3.5 text-primary" />
+            </div>
+          </div>
+
         </div>
+      </main>
 
-      </div>
-
-      {/* ── Schedule Modal ── */}
+      {/* Schedule Modal */}
       {showScheduleModal && (
         <NewMeetingModal
           onClose={() => setShowScheduleModal(false)}

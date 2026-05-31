@@ -108,15 +108,15 @@ export default function NotesPage() {
     html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-slate-200 mt-3 mb-1 tracking-tight">$1</h3>');
 
     // Blockquotes
-    html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-purple-500 bg-purple-500/5 px-4 py-2 rounded-r-xl italic text-slate-400 my-4">$1</blockquote>');
+    html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[#10B981] bg-[#10B981]/5 px-4 py-2 rounded-r-xl italic text-slate-400 my-4">$1</blockquote>');
 
     // Code Blocks
-    html = html.replace(/\`\`\`([\s\S]*?)\`\`\`/gim, '<pre class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-mono text-purple-300 my-4 overflow-x-auto"><code>$1</code></pre>');
-    html = html.replace(/\`([^\`]+)\`/gim, '<code class="bg-slate-900 border border-slate-850 text-indigo-400 px-1.5 py-0.5 rounded font-mono text-xs">$1</code>');
+    html = html.replace(/\`\`\`([\s\S]*?)\`\`\`/gim, '<pre class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-mono text-cyan-300 my-4 overflow-x-auto"><code>$1</code></pre>');
+    html = html.replace(/\`([^\`]+)\`/gim, '<code class="bg-slate-900 border border-slate-850 text-cyan-400 px-1.5 py-0.5 rounded font-mono text-xs">$1</code>');
 
     // Checkboxes
-    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-400 my-1"><input type="checkbox" checked disabled class="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-0" /> <span class="line-through">$1</span></div>');
-    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-300 my-1"><input type="checkbox" disabled class="rounded border-slate-800 bg-slate-950 text-blue-500 focus:ring-0" /> <span>$1</span></div>');
+    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-400 my-1"><input type="checkbox" checked disabled class="rounded border-slate-800 bg-slate-950 text-[#10B981] focus:ring-0" /> <span class="line-through">$1</span></div>');
+    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-300 my-1"><input type="checkbox" disabled class="rounded border-slate-800 bg-slate-950 text-[#10B981] focus:ring-0" /> <span>$1</span></div>');
 
     // Lists
     html = html.replace(/^- (.*$)/gim, '<li class="list-disc list-inside text-xs text-slate-300 ml-2 my-1">$1</li>');
@@ -188,7 +188,7 @@ export default function NotesPage() {
         <div>
           <div className="p-4 border-b border-slate-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+              <div className="w-7 h-7 rounded-lg bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-primary">
                 <FileText className="w-4.5 h-4.5" />
               </div>
               <span className="text-xs font-black uppercase tracking-widest text-white">Documents</span>
@@ -216,7 +216,7 @@ export default function NotesPage() {
                     onClick={() => selectNote(note)}
                     className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all ${
                       isSelected 
-                        ? 'bg-gradient-to-tr from-blue-600/10 to-purple-600/10 border border-blue-500/20 text-white' 
+                        ? 'bg-gradient-to-tr from-[#10B981]/15 to-[#06B6D4]/15 border border-[#10B981]/20 text-white' 
                         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
                     }`}
                   >
@@ -236,13 +236,13 @@ export default function NotesPage() {
 
         <div className="p-4 border-t border-slate-900 bg-slate-950/20">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> Collaborative Spaces
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Collaborative Spaces
           </span>
         </div>
       </div>
 
       {/* 2. Right Editor Workspace */}
-      <div className="flex-1 flex flex-col justify-between h-full bg-[#070913]/35">
+      <div className="flex-1 flex flex-col justify-between h-full bg-[#0B0F17]/35">
         {selectedNote ? (
           <>
             {/* Header bar */}
@@ -260,7 +260,7 @@ export default function NotesPage() {
                   <button
                     onClick={() => setActiveTab('edit')}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
-                      activeTab === 'edit' ? 'bg-gradient-to-tr from-blue-600 to-purple-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      activeTab === 'edit' ? 'bg-gradient-to-tr from-[#10B981] to-[#06B6D4] text-white' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Write
@@ -268,7 +268,7 @@ export default function NotesPage() {
                   <button
                     onClick={() => setActiveTab('preview')}
                     className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
-                      activeTab === 'preview' ? 'bg-gradient-to-tr from-blue-600 to-purple-600 text-white' : 'text-slate-400 hover:text-slate-200'
+                      activeTab === 'preview' ? 'bg-gradient-to-tr from-[#10B981] to-[#06B6D4] text-white' : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" /> Render

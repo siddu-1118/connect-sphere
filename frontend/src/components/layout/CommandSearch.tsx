@@ -105,13 +105,13 @@ export function CommandSearch({ isOpen, onClose }: CommandSearchProps) {
                   <button
                     key={cmd.name}
                     onClick={() => handleSelect(cmd.href)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs text-slate-600 dark:text-slate-300 hover:bg-[#5B5FC7]/10 hover:text-[#5B5FC7] dark:hover:text-white transition-all group"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-xs text-slate-600 dark:text-slate-300 hover:bg-[#10B981]/10 hover:text-[#10B981] dark:hover:text-white transition-all group"
                   >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-slate-500 group-hover:bg-[#5B5FC7] group-hover:text-white transition-all shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-950 flex items-center justify-center text-slate-500 group-hover:bg-[#10B981] group-hover:text-white transition-all shrink-0">
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold text-[#242424] dark:text-slate-100 group-hover:text-[#5B5FC7] dark:group-hover:text-[#7b7fd7]">
+                      <div className="font-bold text-[#242424] dark:text-slate-100 group-hover:text-[#10B981] dark:group-hover:text-[#10B981]">
                         {cmd.name}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate mt-0.5">

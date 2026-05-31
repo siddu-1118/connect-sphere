@@ -24,17 +24,17 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
         {onMenuToggle && (
           <button
             onClick={onMenuToggle}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-[#5B5FC7] hover:bg-slate-100 dark:hover:bg-white/5 active:scale-95 transition-all lg:hidden"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-[#10B981] hover:bg-slate-100 dark:hover:bg-white/5 active:scale-95 transition-all lg:hidden"
             aria-label="Toggle Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#5B5FC7] to-[#7b7fd7] flex items-center justify-center shadow-lg shadow-[#5B5FC7]/20 group-hover:scale-105 transition-all">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#10B981] flex items-center justify-center shadow-lg shadow-[#10B981]/20 group-hover:scale-105 transition-all">
             <Layers className="w-5 h-5 text-white" />
           </div>
-          <span className="text-lg font-black tracking-tighter text-[#5B5FC7] dark:text-white bg-clip-text hidden sm:inline">
+          <span className="text-lg font-black tracking-tighter text-[#10B981] dark:text-white bg-clip-text hidden sm:inline">
             AeroMeet
           </span>
         </Link>
@@ -59,7 +59,7 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
       {/* Mobile Search Icon Button */}
       <button
         onClick={onSearchClick}
-        className="p-2 rounded-lg text-slate-400 hover:text-[#5B5FC7] hover:bg-slate-100 dark:hover:bg-white/5 md:hidden active:scale-95"
+        className="p-2 rounded-lg text-slate-400 hover:text-[#10B981] hover:bg-slate-100 dark:hover:bg-white/5 md:hidden active:scale-95"
         aria-label="Search"
       >
         <Search className="w-5 h-5" />
@@ -70,7 +70,7 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
         {/* Theme Toggle Switch */}
         <button
           onClick={toggleTheme}
-          className="p-2 rounded-lg text-slate-400 hover:text-[#5B5FC7] hover:bg-slate-100 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
+          className="p-2 rounded-lg text-slate-400 hover:text-[#10B981] hover:bg-slate-100 dark:hover:bg-white/5 active:scale-95 transition-all cursor-pointer"
           aria-label="Toggle Theme"
         >
           {theme === 'dark' ? (
@@ -83,14 +83,14 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
         {user && (
           <div className="flex items-center gap-3">
             <span className="hidden lg:inline text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Welcome, <span className="text-[#5B5FC7] dark:text-slate-200 font-bold">{user.name.split(' ')[0]}</span>
+              Welcome, <span className="text-[#10B981] dark:text-slate-200 font-bold">{user.name.split(' ')[0]}</span>
             </span>
             <Link href="/settings" aria-label="Go to settings">
               <Avatar
                 name={user.name}
                 src={user.avatarUrl}
                 size="sm"
-                className="hover:ring-2 hover:ring-[#5B5FC7]/50 hover:scale-102 transition-all cursor-pointer border border-[#E0E0E0] dark:border-slate-800"
+                className="hover:ring-2 hover:ring-[#10B981]/50 hover:scale-102 transition-all cursor-pointer border border-[#E0E0E0] dark:border-slate-800"
               />
             </Link>
           </div>

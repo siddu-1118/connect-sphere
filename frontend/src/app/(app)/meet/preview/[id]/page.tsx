@@ -6,16 +6,18 @@ import {
   ArrowLeft,
   Mic,
   MicOff,
-  Video,
+  Video as VideoIcon,
   VideoOff,
-  Settings,
+  Settings as SettingsIcon,
   Monitor,
   Copy,
   Check,
   X,
   ChevronDown,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import api from '@/lib/api';
 import Avatar from '@/components/ui/Avatar';
 
 /* ─────────────────────────── types ─────────────────────────── */
@@ -28,10 +30,14 @@ interface CustomDropdownProps {
   onChange: (val: string) => void;
 }
 
-interface AudioDevice {
-  deviceId: string;
-  label: string;
-}
+const PRESET_AVATARS = [
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80',
+  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
+  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
+  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&h=150&q=80',
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80'
+];
 
 /* ─────────────────────── custom dropdown ───────────────────── */
 function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps) {
@@ -47,12 +53,12 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
   }, []);
 
   return (
-    <div className="flex flex-col gap-1" ref={ref}>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+    <div className="flex flex-col gap-1.5" ref={ref}>
+      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
       <div className="relative">
         <button
           onClick={() => setOpen(!open)}
-          className="w-full flex items-center justify-between bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none hover:border-white/10 transition-colors cursor-pointer"
+          className="w-full flex items-center justify-between bg-white/[0.02] border border-white/10 rounded-xl px-4 py-3 text-sm text-slate-200 outline-none hover:border-white/15 transition-colors cursor-pointer"
         >
           <span className="truncate text-left">{value || 'Select device'}</span>
           <ChevronDown
@@ -60,15 +66,15 @@ function CustomDropdown({ label, value, options, onChange }: CustomDropdownProps
           />
         </button>
         {open && (
-          <div className="absolute z-50 top-full mt-1 w-full bg-[#1e1e35] border border-white/[0.06] rounded-xl shadow-2xl overflow-hidden">
+          <div className="absolute z-50 top-full mt-1.5 w-full bg-[#111827] border border-white/10 rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto">
             {options.map((opt) => (
               <button
                 key={opt}
                 onClick={() => { onChange(opt); setOpen(false); }}
-                className={`w-full text-left px-3 py-2.5 text-sm transition-colors cursor-pointer ${
+                className={`w-full text-left px-4 py-3 text-sm transition-colors cursor-pointer ${
                   opt === value
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
-                    : 'text-slate-300 hover:bg-white/[0.04]'
+                    ? 'bg-primary/10 text-primary font-bold'
+                    : 'text-slate-350 hover:bg-white/[0.04]'
                 }`}
               >
                 {opt}
@@ -103,14 +109,14 @@ function AudioMeter({ active }: { active: boolean }) {
   }, [active]);
 
   return (
-    <div className="absolute bottom-3 left-3 flex items-end gap-0.5 z-10">
+    <div className="absolute bottom-4 left-4 flex items-end gap-1 z-10 bg-black/30 px-2.5 py-1.5 rounded-full border border-white/5 backdrop-blur-md">
       {levels.map((lvl, i) => (
         <div
           key={i}
           className="w-1 rounded-full transition-all duration-100"
           style={{
-            height: `${Math.max(4, lvl * 20)}px`,
-            backgroundColor: active ? '#2D8CFF' : '#475569',
+            height: `${Math.max(4, lvl * 18)}px`,
+            backgroundColor: active ? '#10B981' : '#4b5563',
             opacity: active ? 0.9 : 0.4,
           }}
         />
@@ -133,9 +139,11 @@ export default function GreenRoomPage() {
   const [activeEffect, setActiveEffect] = useState<BackgroundEffect>('none');
   const [blurLevel, setBlurLevel] = useState(0);
   const [displayName, setDisplayName] = useState('');
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(PRESET_AVATARS[0]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [noiseCancellation, setNoiseCancellation] = useState(true);
+  const [joining, setJoining] = useState(false);
 
   /* ── media ── */
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -149,9 +157,10 @@ export default function GreenRoomPage() {
   const [selectedMic, setSelectedMic] = useState('Default Microphone');
   const [selectedSpeaker, setSelectedSpeaker] = useState('Default Speaker');
 
-  /* ── populate name from auth ── */
+  /* ── populate name + avatar from auth ── */
   useEffect(() => {
     if (user?.name) setDisplayName(user.name);
+    if (user?.avatarUrl) setSelectedAvatarUrl(user.avatarUrl);
   }, [user]);
 
   /* ── enumerate devices ── */
@@ -197,8 +206,7 @@ export default function GreenRoomPage() {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameraOn, micOn]);
+  }, [startStream]);
 
   /* ── video track toggle ── */
   useEffect(() => {
@@ -224,8 +232,20 @@ export default function GreenRoomPage() {
   };
 
   /* ── join ── */
-  const handleJoin = (videoOverride?: boolean) => {
+  const handleJoin = async (videoOverride?: boolean) => {
     const vid = videoOverride !== undefined ? videoOverride : cameraOn;
+    setJoining(true);
+    
+    // Save updated display name and selected avatar URL to backend before redirecting
+    try {
+      await api.put('/users/profile', {
+        name: displayName || user?.name || 'Explorer',
+        avatarUrl: selectedAvatarUrl,
+      });
+    } catch (e) {
+      console.error('Failed to sync profile before join', e);
+    }
+    
     streamRef.current?.getTracks().forEach((t) => t.stop());
     router.push(
       `/meet/${meetingId}?video=${vid}&audio=${micOn}&blur=${blurLevel}&effect=${activeEffect}`
@@ -246,45 +266,43 @@ export default function GreenRoomPage() {
     { id: 'dark-studio', label: 'Dark Studio' },
   ];
 
-  const userName = user?.name ?? 'Guest';
-
   return (
-    <div className="min-h-screen bg-[#1a1a2e] flex flex-col">
+    <div className="min-h-screen bg-[#0b0f17] flex flex-col font-outfit text-slate-200">
+      
       {/* ── header ── */}
-      <header className="h-14 bg-[#141422] border-b border-white/[0.06] flex items-center justify-between px-4 shrink-0 z-20">
+      <header className="h-16 bg-[#0f131c] border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-20 shadow-sm">
         <button
           onClick={() => router.push('/dashboard')}
           className="flex items-center gap-2 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">Back</span>
+          <span className="text-sm font-semibold">Back</span>
         </button>
 
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Meeting</span>
-          <code className="text-sm font-mono text-[#818cf8] bg-[#5B5FC7]/10 px-3 py-1 rounded-lg tracking-widest border border-[#5B5FC7]/20">
-            {meetingId}
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Sync Room</span>
+          <code className="text-sm font-mono text-secondary-glow bg-secondary/10 px-4 py-1.5 rounded-lg tracking-widest border border-secondary/25 shadow-sm">
+            {meetingId.toUpperCase()}
           </code>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <span className="text-sm text-slate-300">{userName}</span>
-          <Avatar name={userName} src={user?.avatarUrl ?? null} size="sm" />
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-semibold text-slate-300">{displayName || user?.name || 'Explorer'}</span>
+          <div className="w-8 h-8 rounded-full border border-primary/20 overflow-hidden">
+            <Avatar name={displayName || 'U'} src={selectedAvatarUrl} size="sm" />
+          </div>
         </div>
       </header>
 
       {/* ── main content ── */}
       <main className="flex-1 flex items-center justify-center p-6">
-        <div className="flex gap-12 max-w-4xl w-full mx-auto items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl w-full mx-auto items-center">
 
           {/* ── left column: video preview ── */}
-          <div className="flex-1 max-w-lg flex flex-col gap-4">
-            {/* video container */}
+          <div className="flex flex-col gap-6">
             <div
-              className={`relative aspect-video bg-[#0d0d1a] rounded-3xl border overflow-hidden shadow-2xl transition-all duration-300 ${
-                micOn
-                  ? 'border-[#2D8CFF]/30 ring-2 ring-[#2D8CFF]/20'
-                  : 'border-white/10'
+              className={`relative aspect-video bg-black/60 rounded-2xl border overflow-hidden shadow-2xl transition-all duration-300 ${
+                micOn ? 'border-primary/30 ring-2 ring-primary/10' : 'border-white/5'
               }`}
             >
               {cameraOn ? (
@@ -298,72 +316,72 @@ export default function GreenRoomPage() {
                 />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-                  <Avatar name={userName} src={user?.avatarUrl ?? null} size="xl" />
-                  <span className="text-xs text-slate-500 font-medium">Camera off</span>
+                  <div className="w-20 h-20 rounded-full border border-white/5 overflow-hidden">
+                    <Avatar name={displayName || 'U'} src={selectedAvatarUrl} size="lg" />
+                  </div>
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Video off</span>
                 </div>
               )}
 
               {/* audio meter */}
               <AudioMeter active={micOn} />
 
-              {/* name tag */}
-              <div className="absolute bottom-2 right-3 bg-black/50 rounded-lg px-2 py-0.5">
-                <span className="text-[11px] text-white font-medium">{userName} (You)</span>
+              {/* HD Preview Label */}
+              <div className="absolute top-4 left-4 glass-panel px-3 py-1 rounded-full text-[10px] uppercase font-bold tracking-widest flex items-center gap-2 border border-white/5">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse"></span>
+                HD Preview
               </div>
             </div>
 
-            {/* device controls */}
-            <div className="flex items-center justify-center gap-3">
-              {/* mic */}
+            {/* Device Controls */}
+            <div className="flex items-center justify-center gap-3 font-outfit">
+              {/* Mic toggle */}
               <button
                 onClick={() => setMicOn(!micOn)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer border ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border ${
                   micOn
-                    ? 'bg-[#252540] border-white/[0.06] text-slate-200 hover:bg-[#2a2a4a]'
-                    : 'bg-red-600 border-red-500 text-white hover:bg-red-700'
+                    ? 'bg-primary text-slate-900 border-transparent shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105'
+                    : 'bg-[#1e2028] border-white/10 text-red-400 hover:bg-white/[0.03]'
                 }`}
               >
-                {micOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-                <span>{micOn ? 'Mute' : 'Unmute'}</span>
+                {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
               </button>
 
-              {/* camera */}
+              {/* Video toggle */}
               <button
                 onClick={() => setCameraOn(!cameraOn)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 cursor-pointer border ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all border ${
                   cameraOn
-                    ? 'bg-[#252540] border-white/[0.06] text-slate-200 hover:bg-[#2a2a4a]'
-                    : 'bg-red-600 border-red-500 text-white hover:bg-red-700'
+                    ? 'bg-primary text-slate-900 border-transparent shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:scale-105'
+                    : 'bg-[#1e2028] border-white/10 text-red-400 hover:bg-white/[0.03]'
                 }`}
               >
-                {cameraOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
-                <span>{cameraOn ? 'Stop Video' : 'Start Video'}</span>
+                {cameraOn ? <VideoIcon className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
               </button>
 
-              {/* settings */}
+              {/* Settings toggle */}
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-[#252540] border border-white/[0.06] text-slate-200 hover:bg-[#2a2a4a] transition-all duration-200 cursor-pointer"
+                className="w-12 h-12 rounded-full bg-[#1e2028] border border-white/10 text-slate-300 flex items-center justify-center hover:bg-white/[0.03] transition-all"
               >
-                <Settings className="w-4 h-4" />
-                <span>Settings</span>
+                <SettingsIcon className="w-5 h-5" />
               </button>
             </div>
 
-            {/* background effects */}
-            <div className="flex flex-col gap-2">
-              <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 text-center">
-                Background
+            {/* Background effects */}
+            <div className="flex flex-col gap-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 text-center">
+                Filter Background Effect
               </span>
-              <div className="flex items-center justify-center gap-2 flex-wrap">
+              <div className="flex items-center justify-center gap-2.5 flex-wrap">
                 {effectOptions.map(({ id, label }) => (
                   <button
                     key={id}
                     onClick={() => handleEffectChange(id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 cursor-pointer border ${
+                    className={`px-4.5 py-2 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer border ${
                       activeEffect === id
-                        ? 'bg-[#5B5FC7]/20 border-[#5B5FC7]/40 text-[#818cf8]'
-                        : 'bg-white/5 border-white/[0.06] text-slate-400 hover:text-slate-200 hover:bg-white/[0.08]'
+                        ? 'bg-primary/10 border-primary/40 text-primary shadow-sm shadow-primary/5'
+                        : 'bg-white/[0.02] border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
                     }`}
                   >
                     {label}
@@ -373,75 +391,102 @@ export default function GreenRoomPage() {
             </div>
           </div>
 
-          {/* ── right column: join panel ── */}
-          <div className="w-80 bg-[#252540] rounded-3xl p-8 border border-white/[0.06] shadow-2xl flex flex-col gap-5 shrink-0">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-xl font-bold text-slate-100">Ready to join?</h1>
-              <p className="text-xs text-slate-500">Configure your audio and video, then join.</p>
+          {/* ── right column: join setup panel ── */}
+          <div className="glass-panel p-8 lg:p-10 rounded-2xl flex flex-col gap-6 shadow-2xl relative overflow-hidden border border-white/10">
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 blur-[100px] rounded-full pointer-events-none"></div>
+            
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-primary tracking-tight font-outfit">Joining the Sync</h2>
+              <p className="text-xs text-slate-400">Configure your appearance parameters before entering.</p>
             </div>
 
-            {/* meeting ID */}
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Meeting ID</span>
-              <div className="flex items-center gap-2 bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5">
-                <code className="flex-1 font-mono text-sm text-[#818cf8] tracking-widest">{meetingId}</code>
-                <button
-                  onClick={handleCopy}
-                  className="text-slate-500 hover:text-slate-200 transition-colors cursor-pointer p-0.5"
-                >
-                  {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
-            {/* name field */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Your name
-              </label>
+            {/* Name Input */}
+            <div className="space-y-2 font-outfit">
+              <label className="text-xs font-bold text-slate-350">What's your name?</label>
               <input
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Enter your name..."
-                className="bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+                placeholder="Enter display name..."
+                className="w-full bg-[#0b0f17]/50 border border-white/10 rounded-xl py-3.5 px-4 text-sm text-slate-200 placeholder:text-slate-600 outline-none focus:border-secondary transition-all"
               />
             </div>
 
-            <div className="flex-1" />
+            {/* Avatar presets grid */}
+            <div className="space-y-3 font-outfit">
+              <div className="flex justify-between items-end">
+                <label className="text-xs font-bold text-slate-350">Pick an identity</label>
+                <button 
+                  onClick={() => setSelectedAvatarUrl(PRESET_AVATARS[Math.floor(Math.random() * PRESET_AVATARS.length)])}
+                  className="text-secondary text-xs hover:underline transition-all font-semibold"
+                >
+                  Shuffle
+                </button>
+              </div>
+              <div className="grid grid-cols-6 gap-2.5">
+                {PRESET_AVATARS.map((url, i) => {
+                  const isSelected = selectedAvatarUrl === url;
+                  return (
+                    <div 
+                      key={i}
+                      onClick={() => setSelectedAvatarUrl(url)}
+                      className={`aspect-square rounded-xl cursor-pointer overflow-hidden transition-all hover:scale-105 ${
+                        isSelected 
+                          ? 'border-2 border-primary ring-4 ring-primary/20 scale-105' 
+                          : 'border border-white/10 hover:border-secondary'
+                      }`}
+                    >
+                      <img alt={`Preset ${i}`} className="w-full h-full bg-slate-900 object-cover" src={url} />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
-            {/* join button */}
-            <div className="flex flex-col gap-2">
+            {/* Copy sync room ID info */}
+            <div className="flex flex-col gap-2 bg-black/10 border border-white/5 rounded-xl p-3.5 mt-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Share Room Link</span>
+                <button
+                  onClick={handleCopy}
+                  className="text-slate-400 hover:text-slate-200 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-green-400" />
+                      <span className="text-green-400">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Copy Code</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <code className="text-xs font-mono text-slate-350 tracking-wider select-all select-none">{meetingId.toUpperCase()}</code>
+            </div>
+
+            {/* Join button */}
+            <div className="mt-4 pt-4 border-t border-white/5 space-y-3">
               <button
                 onClick={() => handleJoin()}
-                className="w-full flex items-center justify-center gap-2.5 py-4 bg-[#2D8CFF] hover:bg-[#1a7ae8] text-white font-bold rounded-2xl shadow-lg transition-all duration-200 cursor-pointer"
-                style={{ boxShadow: '0 8px 30px rgba(45,140,255,0.35)' }}
+                disabled={joining || !displayName.trim()}
+                className="w-full py-4 bg-primary hover:bg-[#059669] disabled:opacity-50 text-slate-950 font-bold text-sm rounded-xl shadow-lg emerald-glow active:scale-[0.98] transition-all flex items-center justify-center gap-2"
               >
-                <Video className="w-5 h-5" />
-                <span>Join Now</span>
+                <span>{joining ? 'Entering Room...' : 'Enter Call'}</span>
               </button>
 
               <button
                 onClick={() => handleJoin(false)}
-                className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer py-1"
+                disabled={joining || !displayName.trim()}
+                className="w-full text-center text-xs text-slate-500 hover:text-slate-300 transition-colors py-1 block cursor-pointer"
               >
-                Join without video
+                Enter without video
               </button>
             </div>
-
-            {/* divider */}
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/[0.06]" />
-              <span className="text-xs text-slate-600 font-medium">or</span>
-              <div className="flex-1 h-px bg-white/[0.06]" />
-            </div>
-
-            {/* present only */}
-            <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.06] text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer">
-              <Monitor className="w-4 h-4" />
-              <span>Present Only</span>
-            </button>
           </div>
+
         </div>
       </main>
 
@@ -449,7 +494,7 @@ export default function GreenRoomPage() {
       <>
         {/* backdrop */}
         <div
-          className={`fixed inset-0 bg-black/40 z-30 transition-opacity duration-300 ${
+          className={`fixed inset-0 bg-black/60 z-35 transition-opacity duration-300 ${
             settingsOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
           }`}
           onClick={() => setSettingsOpen(false)}
@@ -457,15 +502,15 @@ export default function GreenRoomPage() {
 
         {/* panel */}
         <aside
-          className={`fixed right-0 top-0 h-screen w-80 bg-[#1a1a2e] border-l border-white/[0.06] z-40 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out ${
+          className={`fixed right-0 top-0 h-screen w-80 bg-[#111827] border-l border-white/10 z-40 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out font-outfit ${
             settingsOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
           {/* panel header */}
-          <div className="h-14 flex items-center justify-between px-5 border-b border-white/[0.06] shrink-0">
+          <div className="h-16 flex items-center justify-between px-5 border-b border-white/5 shrink-0">
             <div className="flex items-center gap-2.5">
-              <Settings className="w-4 h-4 text-[#818cf8]" />
-              <span className="text-sm font-semibold text-slate-100">Audio &amp; Video</span>
+              <SettingsIcon className="w-4 h-4 text-primary" />
+              <span className="text-sm font-bold text-slate-100">Audio &amp; Video Devices</span>
             </div>
             <button
               onClick={() => setSettingsOpen(false)}
@@ -478,52 +523,49 @@ export default function GreenRoomPage() {
           {/* panel content */}
           <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500 mb-2">
-                Video
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                Video Inputs
               </span>
               <CustomDropdown
-                label="Camera"
+                label="Camera Input"
                 value={selectedCamera}
                 options={cameras}
                 onChange={setSelectedCamera}
               />
             </div>
 
-            <div className="h-px bg-white/[0.06]" />
+            <div className="h-px bg-white/5" />
 
             <div className="flex flex-col gap-4">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-500">
-                Audio
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Audio Inputs/Outputs
               </span>
               <CustomDropdown
-                label="Microphone"
+                label="Microphone Source"
                 value={selectedMic}
                 options={microphones}
                 onChange={setSelectedMic}
               />
               <CustomDropdown
-                label="Speaker"
+                label="Speaker Output"
                 value={selectedSpeaker}
                 options={speakers}
                 onChange={setSelectedSpeaker}
               />
-              <button className="w-full flex items-center justify-center gap-2 py-2.5 border border-white/[0.06] text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer">
-                <span>Test Speaker</span>
-              </button>
             </div>
 
-            <div className="h-px bg-white/[0.06]" />
+            <div className="h-px bg-white/5" />
 
             {/* noise cancellation toggle */}
             <div className="flex items-center justify-between">
               <div className="flex flex-col gap-0.5">
-                <span className="text-sm text-slate-200 font-medium">Noise cancellation</span>
-                <span className="text-[11px] text-slate-500">Filter background noise</span>
+                <span className="text-xs font-bold text-slate-200">Noise Suppression</span>
+                <span className="text-[10px] text-slate-500">Filter environmental background noise</span>
               </div>
               <button
                 onClick={() => setNoiseCancellation(!noiseCancellation)}
                 className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${
-                  noiseCancellation ? 'bg-[#5B5FC7]' : 'bg-white/10'
+                  noiseCancellation ? 'bg-primary' : 'bg-white/10'
                 }`}
               >
                 <span
@@ -535,12 +577,12 @@ export default function GreenRoomPage() {
             </div>
           </div>
 
-          <div className="p-5 border-t border-white/[0.06] shrink-0">
+          <div className="p-5 border-t border-white/5 shrink-0">
             <button
               onClick={() => setSettingsOpen(false)}
-              className="w-full py-2.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer"
+              className="w-full py-3 bg-primary hover:bg-[#059669] text-slate-950 font-bold rounded-xl text-sm transition-colors cursor-pointer"
             >
-              Done
+              Apply Settings
             </button>
           </div>
         </aside>

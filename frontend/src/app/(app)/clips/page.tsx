@@ -41,8 +41,8 @@ export default function ClipsPage() {
       {/* Top Banner Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-900 pb-5">
         <div>
-          <div className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-blue-400 mb-2">
-            <Sparkles className="w-3 h-3 text-blue-400" /> Cloud Media Hub
+          <div className="inline-flex items-center gap-1 bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-2">
+            <Sparkles className="w-3 h-3 text-emerald-400" /> Cloud Media Hub
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight leading-none">
             Workspace Screenshare Clips
@@ -75,7 +75,7 @@ export default function ClipsPage() {
                 <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293710_1px,transparent_1px),linear-gradient(to_bottom,#1f293710_1px,transparent_1px)] bg-[size:1.5rem_1.5rem]" />
                 
                 <div className="w-12 h-12 rounded-full bg-slate-950/80 hover:bg-slate-950 border border-white/10 flex items-center justify-center text-white shadow-2xl transition-transform group-hover:scale-110">
-                  <Play className="w-5 h-5 fill-current ml-0.5 text-blue-400" />
+                  <Play className="w-5 h-5 fill-current ml-0.5 text-emerald-400" />
                 </div>
 
                 <div className="absolute bottom-3 right-3 bg-slate-950/80 backdrop-blur-md border border-white/5 rounded-xl px-2.5 py-1 text-[10px] font-bold font-mono text-white">
@@ -86,7 +86,7 @@ export default function ClipsPage() {
               <div className="p-5 space-y-4">
                 <div>
                   <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 mb-1">Screenshare Clip</h3>
-                  <h4 className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors leading-snug">
+                  <h4 className="text-sm font-bold text-white group-hover:text-[#10B981] transition-colors leading-snug">
                     {clip.title}
                   </h4>
                 </div>
@@ -127,7 +127,7 @@ export default function ClipsPage() {
               <div className={`flex-1 w-full bg-gradient-to-tr ${activeClip.thumbnailGradient} relative flex items-center justify-center overflow-hidden`}>
                 {playingVideo ? (
                   <div className="absolute inset-0 bg-slate-950 flex flex-col items-center justify-center gap-3">
-                    <div className="w-10 h-10 border-2 border-slate-800 border-t-blue-500 rounded-full animate-spin" />
+                    <div className="w-10 h-10 border-2 border-slate-800 border-t-emerald-500 rounded-full animate-spin" />
                     <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black">Loading video segments...</span>
                     
                     <button 
@@ -142,7 +142,7 @@ export default function ClipsPage() {
                     <div className="absolute inset-0 bg-black/40" />
                     <button 
                       onClick={() => setPlayingVideo(true)}
-                      className="w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-500 text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-105 relative z-10 cursor-pointer"
+                      className="w-16 h-16 rounded-full bg-[#10B981] hover:bg-[#059669] text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-105 relative z-10 cursor-pointer"
                     >
                       <Play className="w-6 h-6 fill-current ml-1" />
                     </button>
@@ -178,7 +178,7 @@ export default function ClipsPage() {
                 <Button 
                   onClick={() => alert('Clip download initiated.')}
                   variant="primary" 
-                  className="w-full py-3 text-xs font-black uppercase tracking-wider bg-blue-600 hover:bg-blue-500 flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-blue-500/10"
+                  className="w-full py-3 text-xs font-black uppercase tracking-wider bg-[#10B981] hover:bg-[#059669] flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10"
                 >
                   <Download className="w-4 h-4" /> Download Raw Clip
                 </Button>

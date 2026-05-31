@@ -22,7 +22,7 @@ interface DrawingElement {
 
 export default function WhiteboardPage() {
   const [tool, setTool] = useState<'select' | 'pencil' | 'rect' | 'circle' | 'text' | 'sticky'>('pencil');
-  const [color, setColor] = useState('#3b82f6');
+  const [color, setColor] = useState('#10B981');
   const [lineWidth, setLineWidth] = useState(4);
   const [zoom, setZoom] = useState(100);
   const [elements, setElements] = useState<DrawingElement[]>([]);
@@ -234,7 +234,7 @@ export default function WhiteboardPage() {
       {/* Top Controls Overlay bar */}
       <div className="p-4 border-b border-slate-900/60 bg-slate-950/60 flex items-center justify-between z-10 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-purple-600/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shadow-inner">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
             <Layers className="w-4.5 h-4.5" />
           </div>
           <div>
@@ -323,7 +323,7 @@ export default function WhiteboardPage() {
                   style={{ 
                     left: el.x, 
                     top: el.y, 
-                    backgroundColor: el.color === '#3b82f6' ? '#fbbf24' : el.color // Fallback sticky color
+                    backgroundColor: el.color === '#10B981' ? '#fbbf24' : el.color // Fallback sticky color
                   }}
                 >
                   <p className="leading-snug">{el.text}</p>
@@ -353,7 +353,7 @@ export default function WhiteboardPage() {
                 onClick={() => setTool(toolItem.id as any)}
                 className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
                   isSelected 
-                    ? 'bg-gradient-to-tr from-blue-600 to-purple-600 text-white shadow-md' 
+                    ? 'bg-gradient-to-tr from-[#10B981] to-[#06B6D4] text-white shadow-md' 
                     : 'text-slate-400 hover:text-white hover:bg-white/5'
                 }`}
                 title={toolItem.label}
@@ -380,7 +380,7 @@ export default function WhiteboardPage() {
           <Palette className="w-4 h-4 text-slate-500 shrink-0" />
           
           {/* Colors */}
-          {['#3b82f6', '#10b981', '#ef4444', '#a855f7', '#fbbf24', '#f8fafc'].map(col => {
+          {['#10B981', '#06B6D4', '#ef4444', '#a855f7', '#fbbf24', '#f8fafc'].map(col => {
             const isSelected = color === col;
             return (
               <button
@@ -405,7 +405,7 @@ export default function WhiteboardPage() {
               max="15" 
               value={lineWidth}
               onChange={e => setLineWidth(parseInt(e.target.value))}
-              className="w-16 h-1 bg-slate-850 rounded-full appearance-none cursor-pointer accent-blue-500" 
+              className="w-16 h-1 bg-slate-850 rounded-full appearance-none cursor-pointer accent-[#10B981]" 
             />
             <span className="text-[10px] font-mono text-slate-400 w-4 font-bold">{lineWidth}</span>
           </div>

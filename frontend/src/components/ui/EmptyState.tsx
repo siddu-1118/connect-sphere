@@ -26,12 +26,12 @@ export default function EmptyState({
       {/* Concentric Halo Accents */}
       <div className="relative mb-6 flex items-center justify-center">
         {/* Outer Halo */}
-        <div className="absolute w-24 h-24 rounded-full bg-[#5B5FC7]/5 border border-[#5B5FC7]/10 animate-pulse" />
+        <div className="absolute w-24 h-24 rounded-full bg-[#10B981]/5 border border-[#10B981]/10 animate-pulse" />
         {/* Inner Halo */}
-        <div className="absolute w-16 h-16 rounded-full bg-[#5B5FC7]/10 border border-[#5B5FC7]/20" />
+        <div className="absolute w-16 h-16 rounded-full bg-[#10B981]/10 border border-[#10B981]/20" />
         
         {/* Core Icon Button */}
-        <div className="relative w-12 h-12 rounded-xl bg-gradient-to-tr from-[#5B5FC7] to-[#7b7fd7] flex items-center justify-center text-white shadow-xl shadow-[#5B5FC7]/25">
+        <div className="relative w-12 h-12 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#10B981] flex items-center justify-center text-white shadow-xl shadow-[#10B981]/25">
           <Icon className="w-6 h-6 text-white" />
         </div>
       </div>
@@ -49,7 +49,7 @@ export default function EmptyState({
       {actionLabel && onActionClick && (
         <Button
           onClick={onActionClick}
-          className="bg-[#5B5FC7] hover:bg-[#4d51a9] text-white text-xs font-black uppercase tracking-wider px-5 py-2.5 rounded-lg shadow-lg shadow-[#5B5FC7]/20 border border-[#5B5FC7]/10 active:scale-[0.98] transition-all"
+          className="bg-[#10B981] hover:bg-[#4d51a9] text-white text-xs font-black uppercase tracking-wider px-5 py-2.5 rounded-lg shadow-lg shadow-[#10B981]/20 border border-[#10B981]/10 active:scale-[0.98] transition-all"
         >
           {actionLabel}
         </Button>

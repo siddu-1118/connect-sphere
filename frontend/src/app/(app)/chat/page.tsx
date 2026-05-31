@@ -80,7 +80,7 @@ function PresenceDot({ presence }: { presence: 'online' | 'away' | 'offline' }) 
       : 'bg-slate-500';
   return (
     <span
-      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#1a1a2e] ${color}`}
+      className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-[#0B0F17] ${color}`}
     />
   );
 }
@@ -155,7 +155,7 @@ function NewChatModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl w-[420px] max-h-[520px] flex flex-col shadow-2xl">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl w-[420px] max-h-[520px] flex flex-col shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
           <span className="text-sm font-semibold text-slate-100">New Direct Message</span>
@@ -256,8 +256,8 @@ function MessageBubble({
         <div
           className={`relative px-3.5 py-2.5 text-[13px] leading-relaxed break-words ${
             isOwn
-              ? 'bg-[#5B5FC7] text-white rounded-2xl rounded-br-sm'
-              : 'bg-[#252540] text-slate-100 rounded-2xl rounded-bl-sm'
+              ? 'bg-[#10B981] text-white rounded-2xl rounded-br-sm'
+              : 'bg-[#191f31] text-slate-100 rounded-2xl rounded-bl-sm'
           }`}
         >
           {msg.content}
@@ -469,9 +469,9 @@ export default function ChatPage() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full bg-[#1e1e35]">
+    <div className="flex h-full bg-[#111827]">
       {/* ── Left Panel ─────────────────────────────────────────────────────────── */}
-      <div className="w-[260px] shrink-0 bg-[#1a1a2e] border-r border-white/[0.06] flex flex-col">
+      <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-5 pb-3">
           <span className="text-xs font-black uppercase tracking-wider text-slate-500">
@@ -510,7 +510,7 @@ export default function ChatPage() {
               <p className="text-xs text-slate-600 mt-1">Start chatting with someone!</p>
               <button
                 onClick={() => setShowNewChat(true)}
-                className="mt-4 text-xs bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
+                className="mt-4 text-xs bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
               >
                 New Message
               </button>
@@ -525,13 +525,13 @@ export default function ChatPage() {
                     onClick={() => selectConversation(conv)}
                     className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-xl transition-all cursor-pointer text-left group relative ${
                       isActive
-                        ? 'bg-[#5B5FC7]/15'
+                        ? 'bg-[#10B981]/15'
                         : 'hover:bg-white/[0.04]'
                     }`}
                   >
                     {/* Active accent bar */}
                     {isActive && (
-                      <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#818cf8] rounded-full" />
+                      <div className="absolute left-0 top-2 bottom-2 w-0.5 bg-[#10B981] rounded-full" />
                     )}
 
                     {/* Avatar + presence */}
@@ -545,7 +545,7 @@ export default function ChatPage() {
                       <div className="flex items-center justify-between">
                         <span
                           className={`text-sm font-medium truncate ${
-                            isActive ? 'text-[#818cf8]' : 'text-slate-100'
+                            isActive ? 'text-[#10B981]' : 'text-slate-100'
                           }`}
                         >
                           {conv.name}
@@ -561,7 +561,7 @@ export default function ChatPage() {
                           {conv.lastMessage ?? 'No messages yet'}
                         </span>
                         {conv.unreadCount > 0 && (
-                          <span className="ml-1 shrink-0 min-w-[18px] h-[18px] bg-[#5B5FC7] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                          <span className="ml-1 shrink-0 min-w-[18px] h-[18px] bg-[#10B981] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                             {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
                           </span>
                         )}
@@ -580,7 +580,7 @@ export default function ChatPage() {
         {!activeConvo ? (
           /* No conversation selected */
           <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <div className="w-20 h-20 rounded-3xl bg-[#252540] border border-white/[0.06] flex items-center justify-center">
+            <div className="w-20 h-20 rounded-3xl bg-[#191f31] border border-white/[0.06] flex items-center justify-center">
               <MessageSquare size={36} className="text-slate-600" />
             </div>
             <div className="text-center">
@@ -593,7 +593,7 @@ export default function ChatPage() {
             </div>
             <button
               onClick={() => setShowNewChat(true)}
-              className="bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer"
+              className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer"
             >
               Start a conversation
             </button>
@@ -601,7 +601,7 @@ export default function ChatPage() {
         ) : (
           <>
             {/* ── Conversation Header ───────────────────────────────────────── */}
-            <div className="h-12 border-b border-white/[0.06] flex items-center px-4 gap-3 shrink-0 bg-[#1e1e35]">
+            <div className="h-12 border-b border-white/[0.06] flex items-center px-4 gap-3 shrink-0 bg-[#111827]">
               <div className="relative shrink-0">
                 <Avatar name={activeConvo.name} src={activeConvo.avatarUrl} size="sm" />
                 <PresenceDot presence={activeConvo.presence} />
@@ -635,7 +635,7 @@ export default function ChatPage() {
                 <MessageSkeleton />
               ) : messages.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-16 gap-3">
-                  <div className="w-16 h-16 rounded-2xl bg-[#252540] border border-white/[0.06] flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-2xl bg-[#191f31] border border-white/[0.06] flex items-center justify-center">
                     <MessageSquare size={28} className="text-slate-600" />
                   </div>
                   <p className="text-sm text-slate-400">
@@ -660,7 +660,7 @@ export default function ChatPage() {
             </div>
 
             {/* ── Compose Area ──────────────────────────────────────────────── */}
-            <div className="border-t border-white/[0.06] bg-[#1a1a2e] px-4 py-3 shrink-0">
+            <div className="border-t border-white/[0.06] bg-[#0B0F17] px-4 py-3 shrink-0">
               {/* Formatting bar */}
               <div className="flex items-center gap-1 mb-2">
                 <button className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-colors cursor-pointer">
@@ -703,7 +703,7 @@ export default function ChatPage() {
                 <button
                   onClick={sendMessage}
                   disabled={!draft.trim() || sending}
-                  className="shrink-0 w-9 h-9 rounded-xl bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors cursor-pointer"
+                  className="shrink-0 w-9 h-9 rounded-xl bg-[#10B981] hover:bg-[#059669] disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <Send size={15} />
                 </button>

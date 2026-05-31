@@ -100,7 +100,7 @@ function ViewTab({
       onClick={onClick}
       className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
         active
-          ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+          ? 'bg-[#10B981]/20 text-[#10B981]'
           : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]'
       }`}
     >
@@ -111,7 +111,7 @@ function ViewTab({
 
 function MeetingChip({ title }: { title: string }) {
   return (
-    <div className="mt-0.5 px-1.5 py-0.5 rounded bg-[#5B5FC7]/40 text-[#818cf8] text-[10px] font-medium truncate leading-tight cursor-pointer hover:bg-[#5B5FC7]/60 transition-colors">
+    <div className="mt-0.5 px-1.5 py-0.5 rounded bg-[#10B981]/40 text-[#10B981] text-[10px] font-medium truncate leading-tight cursor-pointer hover:bg-[#10B981]/60 transition-colors">
       {title}
     </div>
   );
@@ -121,7 +121,7 @@ function UpcomingCard({ meeting }: { meeting: Meeting }) {
   const near = meeting.scheduledAt ? isWithin10Minutes(meeting.scheduledAt) : false;
 
   return (
-    <div className="bg-[#252540] border border-white/[0.06] rounded-xl p-3 mb-2 hover:bg-[#2a2a4a] transition-colors cursor-pointer group">
+    <div className="bg-[#191f31] border border-white/[0.06] rounded-xl p-3 mb-2 hover:bg-[#2a2a4a] transition-colors cursor-pointer group">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-100 truncate">{meeting.title}</p>
@@ -138,7 +138,7 @@ function UpcomingCard({ meeting }: { meeting: Meeting }) {
           <a
             href={`/room/${meeting.code}`}
             onClick={(e) => e.stopPropagation()}
-            className="shrink-0 bg-[#2D8CFF] hover:bg-[#1a7ae8] text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors"
+            className="shrink-0 bg-[#06B6D4] hover:bg-[#0891b2] text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors"
           >
             Join
           </a>
@@ -199,12 +199,12 @@ function NewMeetingModal({
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
     >
-      <div className="bg-[#1a1a2e] border border-white/[0.06] rounded-2xl w-full max-w-md mx-4 shadow-2xl">
+      <div className="bg-[#0B0F17] border border-white/[0.06] rounded-2xl w-full max-w-md mx-4 shadow-2xl">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#5B5FC7]/20 flex items-center justify-center">
-              <Video className="w-4 h-4 text-[#818cf8]" />
+            <div className="w-8 h-8 rounded-lg bg-[#10B981]/20 flex items-center justify-center">
+              <Video className="w-4 h-4 text-[#10B981]" />
             </div>
             <h2 className="text-base font-bold text-slate-100">New Meeting</h2>
           </div>
@@ -228,7 +228,7 @@ function NewMeetingModal({
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Weekly Sync"
-              className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+              className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
               autoFocus
             />
           </div>
@@ -242,7 +242,7 @@ function NewMeetingModal({
               type="datetime-local"
               value={form.scheduledAt}
               onChange={(e) => setForm((f) => ({ ...f, scheduledAt: e.target.value }))}
-              className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-[#5B5FC7]/50 transition-colors appearance-none [color-scheme:dark]"
+              className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 outline-none focus:border-[#10B981]/50 transition-colors appearance-none [color-scheme:dark]"
             />
           </div>
 
@@ -258,7 +258,7 @@ function NewMeetingModal({
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 placeholder="Add a meeting agenda or notes..."
                 rows={3}
-                className="w-full bg-white/5 border border-white/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors resize-none"
+                className="w-full bg-white/5 border border-white/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors resize-none"
               />
             </div>
           </div>
@@ -281,7 +281,7 @@ function NewMeetingModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-4 py-2.5 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
+              className="flex-1 bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-4 py-2.5 text-sm transition-colors cursor-pointer flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -304,8 +304,8 @@ function NewMeetingModal({
 function ComingSoonView({ view }: { view: 'week' | 'day' }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center p-8">
-      <div className="w-16 h-16 rounded-2xl bg-[#5B5FC7]/10 border border-[#5B5FC7]/20 flex items-center justify-center">
-        <CalendarIcon className="w-8 h-8 text-[#818cf8]/60" />
+      <div className="w-16 h-16 rounded-2xl bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center">
+        <CalendarIcon className="w-8 h-8 text-[#10B981]/60" />
       </div>
       <p className="text-sm font-semibold text-slate-300">
         {view === 'week' ? 'Week' : 'Day'} view coming soon
@@ -322,8 +322,8 @@ function ComingSoonView({ view }: { view: 'week' | 'day' }) {
 function EmptyUpcoming() {
   return (
     <div className="flex flex-col items-center justify-center py-8 px-4 text-center gap-2">
-      <div className="w-10 h-10 rounded-xl bg-[#252540] border border-white/[0.06] flex items-center justify-center mb-1">
-        <Sparkles className="w-5 h-5 text-[#818cf8]/50" />
+      <div className="w-10 h-10 rounded-xl bg-[#191f31] border border-white/[0.06] flex items-center justify-center mb-1">
+        <Sparkles className="w-5 h-5 text-[#10B981]/50" />
       </div>
       <p className="text-sm font-medium text-slate-400">Your schedule is clear ✨</p>
       <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -390,9 +390,9 @@ export default function CalendarPage() {
   // ────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-full bg-[#1e1e35]">
+    <div className="flex flex-col h-full bg-[#111827]">
       {/* ── Header ── */}
-      <div className="h-14 bg-[#1a1a2e] border-b border-white/[0.06] flex items-center px-4 gap-4 shrink-0">
+      <div className="h-14 bg-[#0B0F17] border-b border-white/[0.06] flex items-center px-4 gap-4 shrink-0">
         {/* Left: Month navigation */}
         <div className="flex items-center gap-1">
           <button
@@ -431,7 +431,7 @@ export default function CalendarPage() {
         {/* Right: New Meeting */}
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-1.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl px-3 py-1.5 text-sm transition-colors cursor-pointer shrink-0"
+          className="flex items-center gap-1.5 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-3 py-1.5 text-sm transition-colors cursor-pointer shrink-0"
         >
           <Plus className="w-4 h-4" />
           New Meeting
@@ -447,7 +447,7 @@ export default function CalendarPage() {
           ) : (
             <>
               {/* Day headers */}
-              <div className="grid grid-cols-7 border-b border-white/[0.04] bg-[#1a1a2e] shrink-0">
+              <div className="grid grid-cols-7 border-b border-white/[0.04] bg-[#0B0F17] shrink-0">
                 {DAYS_OF_WEEK.map((d) => (
                   <div
                     key={d}
@@ -466,7 +466,7 @@ export default function CalendarPage() {
                       return (
                         <div
                           key={`empty-${idx}`}
-                          className="border border-white/[0.04] bg-[#1a1a2e]/30"
+                          className="border border-white/[0.04] bg-[#0B0F17]/30"
                         />
                       );
                     }
@@ -483,7 +483,7 @@ export default function CalendarPage() {
                         onClick={() => setSelectedDate(cellDate)}
                         className={`border border-white/[0.04] p-1.5 cursor-pointer transition-colors overflow-hidden ${
                           isSelected
-                            ? 'bg-[#5B5FC7]/10'
+                            ? 'bg-[#10B981]/10'
                             : 'hover:bg-white/[0.03]'
                         }`}
                       >
@@ -492,7 +492,7 @@ export default function CalendarPage() {
                           <span
                             className={`text-xs font-semibold leading-none ${
                               isToday
-                                ? 'w-6 h-6 flex items-center justify-center bg-[#5B5FC7] text-white rounded-full'
+                                ? 'w-6 h-6 flex items-center justify-center bg-[#10B981] text-white rounded-full'
                                 : isPast
                                 ? 'text-slate-600'
                                 : 'text-slate-300'
@@ -523,7 +523,7 @@ export default function CalendarPage() {
         </div>
 
         {/* ── Right: Upcoming Sidebar ── */}
-        <div className="w-72 bg-[#1a1a2e] border-l border-white/[0.06] flex flex-col shrink-0">
+        <div className="w-72 bg-[#0B0F17] border-l border-white/[0.06] flex flex-col shrink-0">
           {/* Sidebar header */}
           <div className="px-4 pt-4 pb-2 shrink-0">
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">

@@ -144,7 +144,7 @@ function EmojiPopover({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#252540] border border-white/[0.06] rounded-2xl p-3 shadow-2xl z-50"
+      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#191f31] border border-white/[0.06] rounded-2xl p-3 shadow-2xl z-50"
     >
       <div className="grid grid-cols-4 gap-2">
         {EMOJI_LIST.map((emoji) => (
@@ -191,7 +191,7 @@ function MoreMenu({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#252540] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl z-50 min-w-[180px]"
+      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-[#191f31] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl z-50 min-w-[180px]"
     >
       {items.map(({ label, icon: Icon, action }) => (
         <button
@@ -244,7 +244,7 @@ function MobileMoreMenu({
   return (
     <div
       ref={ref}
-      className="absolute bottom-full mb-3 right-0 bg-[#252540] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl z-50 min-w-[200px]"
+      className="absolute bottom-full mb-3 right-0 bg-[#191f31] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl z-50 min-w-[200px]"
     >
       {/* Screen Share */}
       <button
@@ -292,7 +292,7 @@ function MobileMoreMenu({
 function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-[#252540] border border-white/[0.06] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
           <h2 className="text-base font-bold text-slate-100">Breakout Rooms</h2>
           <button
@@ -305,8 +305,8 @@ function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
 
         <div className="p-6 flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center gap-3 py-10">
-            <div className="w-14 h-14 bg-[#5B5FC7]/10 rounded-2xl flex items-center justify-center border border-[#5B5FC7]/20">
-              <Users className="w-6 h-6 text-[#818cf8]" />
+            <div className="w-14 h-14 bg-[#10B981]/10 rounded-2xl flex items-center justify-center border border-[#10B981]/20">
+              <Users className="w-6 h-6 text-[#10B981]" />
             </div>
             <p className="text-sm font-semibold text-slate-300">No breakout rooms created</p>
             <p className="text-xs text-slate-500 text-center max-w-[200px]">
@@ -315,7 +315,7 @@ function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="flex gap-3">
-            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer">
+            <button className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer">
               <Plus className="w-4 h-4" />
               Create Rooms
             </button>
@@ -356,9 +356,9 @@ function ParticipantsPanel({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-[#818cf8]" />
+          <Users className="w-4 h-4 text-[#10B981]" />
           <span className="text-sm font-semibold text-slate-100">Participants</span>
-          <span className="bg-[#5B5FC7]/20 text-[#818cf8] text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+          <span className="bg-[#10B981]/20 text-[#10B981] text-[10px] font-bold px-1.5 py-0.5 rounded-md">
             {participants.length + 1}
           </span>
         </div>
@@ -396,7 +396,7 @@ function ParticipantsPanel({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-200 font-medium truncate">{userName}</span>
-              <span className="text-[9px] bg-[#5B5FC7]/20 text-[#818cf8] px-1.5 py-0.5 rounded font-bold">Host</span>
+              <span className="text-[9px] bg-[#10B981]/20 text-[#10B981] px-1.5 py-0.5 rounded font-bold">Host</span>
               <span className="text-[9px] text-slate-600">(You)</span>
             </div>
           </div>
@@ -444,7 +444,7 @@ function ParticipantsPanel({
             navigator.clipboard.writeText(link);
             alert('Meeting link copied to clipboard!');
           }}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#5B5FC7] hover:bg-[#4f52b2] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer border border-transparent"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer border border-transparent"
         >
           <UserPlus className="w-4 h-4" />
           Copy Meet Link
@@ -484,7 +484,7 @@ function ChatPanel({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-[#818cf8]" />
+          <MessageSquare className="w-4 h-4 text-[#10B981]" />
           <span className="text-sm font-semibold text-slate-100">Meeting Chat</span>
         </div>
         <button
@@ -533,7 +533,7 @@ function ChatPanel({
           <button
             onClick={handleSend}
             disabled={!draft.trim()}
-            className="shrink-0 text-[#5B5FC7] hover:text-[#818cf8] disabled:text-slate-700 transition-colors cursor-pointer disabled:cursor-not-allowed p-1"
+            className="shrink-0 text-[#10B981] hover:text-[#10B981] disabled:text-slate-700 transition-colors cursor-pointer disabled:cursor-not-allowed p-1"
           >
             <Send className="w-4 h-4" />
           </button>
@@ -565,7 +565,7 @@ function QAPanel({
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
-          <HelpCircle className="w-4 h-4 text-[#818cf8]" />
+          <HelpCircle className="w-4 h-4 text-[#10B981]" />
           <span className="text-sm font-semibold text-slate-100">Q&amp;A</span>
         </div>
         <button
@@ -584,12 +584,12 @@ function QAPanel({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Type your question here..."
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 resize-none transition-colors"
+            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 resize-none transition-colors"
           />
           <button
             onClick={() => { if (draft.trim()) { onAsk(draft.trim()); setDraft(''); } }}
             disabled={!draft.trim()}
-            className="self-end px-4 py-2 bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:bg-white/5 disabled:text-slate-600 text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+            className="self-end px-4 py-2 bg-[#10B981] hover:bg-[#059669] disabled:bg-white/5 disabled:text-slate-600 text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
           >
             Submit
           </button>
@@ -612,7 +612,7 @@ function QAPanel({
               <button
                 onClick={() => onUpvote(q.id)}
                 className={`flex flex-col items-center gap-0.5 shrink-0 px-2 py-1.5 rounded-lg transition-colors cursor-pointer ${
-                  q.upvoted ? 'text-[#818cf8] bg-[#5B5FC7]/20' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                  q.upvoted ? 'text-[#10B981] bg-[#10B981]/20' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                 }`}
               >
                 <ChevronUp className="w-3.5 h-3.5" />
@@ -638,7 +638,7 @@ function PollsPanel({ onClose }: { onClose: () => void }) {
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06] shrink-0">
         <div className="flex items-center gap-2">
-          <BarChart3 className="w-4 h-4 text-[#818cf8]" />
+          <BarChart3 className="w-4 h-4 text-[#10B981]" />
           <span className="text-sm font-semibold text-slate-100">Polls</span>
         </div>
         <button
@@ -692,8 +692,8 @@ function LocalVideoTile({
 
   return (
     <div
-      className={`relative bg-[#252540] rounded-2xl overflow-hidden border transition-all duration-200 ${
-        isActive ? 'ring-2 ring-[#2D8CFF] ring-offset-1 ring-offset-[#1a1a2e] border-transparent' : 'border-white/[0.06]'
+      className={`relative bg-[#191f31] rounded-2xl overflow-hidden border transition-all duration-200 ${
+        isActive ? 'ring-2 ring-[#06B6D4] ring-offset-1 ring-offset-[#0B0F17] border-transparent' : 'border-white/[0.06]'
       } aspect-video`}
     >
       {stream && (
@@ -707,7 +707,7 @@ function LocalVideoTile({
         />
       )}
       {(!cameraOn || !stream) && (
-        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1e1e35] z-0">
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#111827] z-0">
           <Avatar name={userName} src={avatarUrl} size="lg" />
         </div>
       )}
@@ -742,7 +742,7 @@ function RemoteVideoTile({
   const cameraOn = !participant.isCameraOff;
 
   return (
-    <div className="relative bg-[#252540] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video">
+    <div className="relative bg-[#191f31] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video">
       {stream && (
         <video
           ref={videoRef}
@@ -752,7 +752,7 @@ function RemoteVideoTile({
         />
       )}
       {(!cameraOn || !stream) && (
-        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#1e1e35] z-0">
+        <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-[#111827] z-0">
           <Avatar name={participant.userName} size="lg" />
         </div>
       )}
@@ -771,7 +771,7 @@ function RemoteVideoTile({
    ═══════════════════════════════════════════════════════════════ */
 function WaitingTile() {
   return (
-    <div className="relative bg-[#1e1e35] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video flex flex-col items-center justify-center gap-3">
+    <div className="relative bg-[#111827] rounded-2xl overflow-hidden border border-white/[0.06] aspect-video flex flex-col items-center justify-center gap-3">
       <div className="w-10 h-10 bg-white/5 rounded-2xl flex items-center justify-center border border-white/[0.06]">
         <Users className="w-5 h-5 text-slate-700" />
       </div>
@@ -919,10 +919,10 @@ function MeetingRoomInner() {
   }, []);
 
   return (
-    <div className="h-screen bg-[#1a1a2e] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0B0F17] flex flex-col overflow-hidden">
 
       {/* ── top bar ── */}
-      <div className="h-12 bg-[#141422]/90 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.04] z-10">
+      <div className="h-12 bg-[#0c1324]/90 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.04] z-10">
         {/* left */}
         <div className="flex items-center gap-3 min-w-0">
           <code className="font-mono text-xs text-slate-400 tracking-widest truncate">{meetingId}</code>
@@ -1074,7 +1074,7 @@ function MeetingRoomInner() {
 
           {/* ── bottom controls bar ── */}
           {/* ── bottom controls bar ── */}
-          <div className="h-16 bg-[#141422]/95 backdrop-blur border-t border-white/[0.04] shrink-0 z-10">
+          <div className="h-16 bg-[#0c1324]/95 backdrop-blur border-t border-white/[0.04] shrink-0 z-10">
             {/* Desktop Layout */}
             <div className="hidden md:flex h-full items-center justify-between px-4 relative w-full">
               {/* left group */}
@@ -1171,7 +1171,7 @@ function MeetingRoomInner() {
                   onClick={() => togglePanel('participants')}
                   className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                     activePanel === 'participants'
-                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      ? 'bg-[#10B981]/20 text-[#10B981]'
                       : 'bg-white/10 hover:bg-white/15 text-slate-300'
                   }`}
                 >
@@ -1184,14 +1184,14 @@ function MeetingRoomInner() {
                   onClick={() => togglePanel('chat')}
                   className={`relative flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                     activePanel === 'chat'
-                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      ? 'bg-[#10B981]/20 text-[#10B981]'
                       : 'bg-white/10 hover:bg-white/15 text-slate-300'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   <span>Chat</span>
                   {unreadChat > 0 && (
-                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#5B5FC7] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#10B981] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                       {unreadChat}
                     </span>
                   )}
@@ -1202,7 +1202,7 @@ function MeetingRoomInner() {
                   onClick={() => togglePanel('qa')}
                   className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
                     activePanel === 'qa'
-                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      ? 'bg-[#10B981]/20 text-[#10B981]'
                       : 'bg-white/10 hover:bg-white/15 text-slate-300'
                   }`}
                 >
@@ -1219,7 +1219,7 @@ function MeetingRoomInner() {
                     {viewMode === 'gallery' ? <Grid className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
                   </button>
                   {showViewMenu && (
-                    <div className="absolute bottom-full mb-2 right-0 bg-[#252540] border border-white/[0.06] rounded-xl overflow-hidden shadow-2xl z-50 min-w-[140px]">
+                    <div className="absolute bottom-full mb-2 right-0 bg-[#191f31] border border-white/[0.06] rounded-xl overflow-hidden shadow-2xl z-50 min-w-[140px]">
                       {([['gallery', 'Gallery View', Grid], ['speaker', 'Speaker View', LayoutList]] as const).map(
                         ([mode, label, Icon]) => (
                           <button
@@ -1227,7 +1227,7 @@ function MeetingRoomInner() {
                             onClick={() => { setViewMode(mode); setShowViewMenu(false); }}
                             className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors cursor-pointer border-0 ${
                               viewMode === mode
-                                ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                                ? 'bg-[#10B981]/20 text-[#10B981]'
                                 : 'text-slate-300 hover:bg-white/[0.04]'
                             }`}
                           >
@@ -1282,13 +1282,13 @@ function MeetingRoomInner() {
                 onClick={() => togglePanel('chat')}
                 className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'chat'
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                    ? 'bg-[#10B981]/20 text-[#10B981]'
                     : 'bg-white/10 text-slate-300'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
                 {unreadChat > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#5B5FC7] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#10B981] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                     {unreadChat}
                   </span>
                 )}
@@ -1299,7 +1299,7 @@ function MeetingRoomInner() {
                 onClick={() => togglePanel('participants')}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'participants'
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                    ? 'bg-[#10B981]/20 text-[#10B981]'
                     : 'bg-white/10 text-slate-300'
                 }`}
               >
@@ -1342,7 +1342,7 @@ function MeetingRoomInner() {
 
         {/* ── right side panel ── */}
         <div
-          className={`bg-[#1a1a2e] flex flex-col transition-all duration-300 overflow-hidden ${
+          className={`bg-[#0B0F17] flex flex-col transition-all duration-300 overflow-hidden ${
             activePanel
               ? 'fixed inset-x-0 bottom-16 top-12 z-20 md:relative md:inset-auto md:w-72 md:xl:w-80 md:flex-shrink-0 md:border-l md:border-white/[0.06]'
               : 'w-0 border-0'
@@ -1391,9 +1391,9 @@ export default function MeetingRoomPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen bg-[#1a1a2e] flex items-center justify-center">
+        <div className="h-screen bg-[#0B0F17] flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 border-2 border-[#5B5FC7]/30 border-t-[#5B5FC7] rounded-full animate-spin" />
+            <div className="w-12 h-12 border-2 border-[#10B981]/30 border-t-[#10B981] rounded-full animate-spin" />
             <span className="text-sm text-slate-500">Joining meeting…</span>
           </div>
         </div>

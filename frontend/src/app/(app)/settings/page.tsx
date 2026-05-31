@@ -51,7 +51,7 @@ function ToggleSwitch({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0 focus:outline-none ${
-        checked ? 'bg-[#5B5FC7]' : 'bg-slate-700'
+        checked ? 'bg-[#10B981]' : 'bg-slate-700'
       }`}
       style={{ height: '22px', width: '40px' }}
     >
@@ -119,7 +119,7 @@ function SettingsSelect({
               }}
               className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer ${
                 opt.value === value
-                  ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                  ? 'bg-[#10B981]/20 text-[#10B981]'
                   : 'text-slate-300 hover:bg-white/[0.04] hover:text-slate-100'
               }`}
             >
@@ -212,11 +212,11 @@ function BlurSlider({
         className="relative flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer group"
       >
         <div
-          className="absolute inset-y-0 left-0 bg-[#5B5FC7] rounded-full"
+          className="absolute inset-y-0 left-0 bg-[#10B981] rounded-full"
           style={{ width: `${pct}%` }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-[#5B5FC7] group-hover:scale-110 transition-transform cursor-grab active:cursor-grabbing"
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-[#10B981] group-hover:scale-110 transition-transform cursor-grab active:cursor-grabbing"
           style={{ left: `calc(${pct}% - 8px)` }}
         />
       </div>
@@ -253,7 +253,7 @@ function GeneralPanel() {
   return (
     <div>
       <SectionHeader title="General" />
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
         <SettingsRow label="App Language" description="Choose your preferred interface language.">
           <SettingsSelect
             value={language}
@@ -342,7 +342,7 @@ function ProfilePanel() {
       <SectionHeader title="Profile" />
 
       {/* Avatar section */}
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-6 mb-4 flex flex-col gap-4">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-6 mb-4 flex flex-col gap-4">
         <div className="flex items-center gap-5">
           <Avatar name={displayName || 'You'} src={avatarUrl} size="xl" />
           <div>
@@ -370,7 +370,7 @@ function ProfilePanel() {
                   key={preset.url}
                   onClick={() => setAvatarUrl(preset.url)}
                   className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all p-0.5 bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 ${
-                    avatarUrl === preset.url ? 'border-[#5B5FC7]' : 'border-transparent hover:border-white/20'
+                    avatarUrl === preset.url ? 'border-[#10B981]' : 'border-transparent hover:border-white/20'
                   }`}
                   title={preset.name}
                 >
@@ -381,7 +381,7 @@ function ProfilePanel() {
               <button
                 onClick={() => setAvatarUrl('')}
                 className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 text-[10px] font-bold transition-all bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 text-slate-400 ${
-                  !avatarUrl ? 'border-[#5B5FC7] text-white' : 'border-transparent hover:border-white/20'
+                  !avatarUrl ? 'border-[#10B981] text-white' : 'border-transparent hover:border-white/20'
                 }`}
                 title="Clear avatar"
               >
@@ -397,7 +397,7 @@ function ProfilePanel() {
                 type="text"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+                className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
                 placeholder="https://example.com/avatar.png"
               />
             </div>
@@ -406,7 +406,7 @@ function ProfilePanel() {
       </div>
 
       {/* Form fields */}
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
         <div className="py-4">
           <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
             Display Name
@@ -415,7 +415,7 @@ function ProfilePanel() {
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
             placeholder="Your display name"
           />
         </div>
@@ -442,7 +442,7 @@ function ProfilePanel() {
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             placeholder="e.g. Available, In a meeting…"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#5B5FC7]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
           />
         </div>
       </div>
@@ -457,7 +457,7 @@ function ProfilePanel() {
         <button
           onClick={handleSave}
           disabled={saving || !displayName.trim()}
-          className="bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer flex items-center gap-2"
+          className="bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer flex items-center gap-2"
         >
           {saving ? (
             <>
@@ -531,7 +531,7 @@ function NotificationsPanel() {
   return (
     <div>
       <SectionHeader title="Notifications" />
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
         {rows.map(({ key, label, description }) => (
           <SettingsRow key={key} label={label} description={description}>
             <ToggleSwitch checked={settings[key]} onChange={() => toggle(key)} />
@@ -574,7 +574,7 @@ function AudioVideoPanel() {
     <div className="space-y-6">
       <div>
         <SectionHeader title="Audio & Video" />
-        <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
           <SettingsRow label="Microphone">
             <div className="flex items-center gap-2">
               <Mic className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -598,7 +598,7 @@ function AudioVideoPanel() {
 
       <div>
         <SectionHeader title="Audio Enhancement" />
-        <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
           <SettingsRow
             label="Noise Cancellation"
             description="Reduce background sounds like fans and keyboard noise."
@@ -648,8 +648,8 @@ function BackgroundPanel() {
               onClick={() => setBgMode(m.id)}
               className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border cursor-pointer transition-all ${
                 bgMode === m.id
-                  ? 'bg-[#5B5FC7]/20 border-[#5B5FC7]/40 text-[#818cf8]'
-                  : 'bg-[#252540] border-white/[0.06] text-slate-400 hover:bg-[#2a2a4a] hover:border-white/10'
+                  ? 'bg-[#10B981]/20 border-[#10B981]/40 text-[#10B981]'
+                  : 'bg-[#191f31] border-white/[0.06] text-slate-400 hover:bg-[#2a2a4a] hover:border-white/10'
               }`}
             >
               <span className="text-xl">{m.icon}</span>
@@ -659,7 +659,7 @@ function BackgroundPanel() {
         </div>
 
         {bgMode === 'blur' && (
-          <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-4">
+          <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
             <p className="text-sm font-medium text-slate-200 mb-3">Blur Intensity</p>
             <BlurSlider value={blurLevel} onChange={setBlurLevel} />
             <p className="text-xs text-slate-600 mt-2">
@@ -669,13 +669,13 @@ function BackgroundPanel() {
         )}
 
         {bgMode === 'virtual' && (
-          <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-4">
+          <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
             <p className="text-sm font-medium text-slate-200 mb-3">Virtual Backgrounds</p>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="aspect-video rounded-lg bg-gradient-to-br from-[#1a1a2e] to-[#252540] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:border-[#5B5FC7]/40 transition-colors"
+                  className="aspect-video rounded-lg bg-gradient-to-br from-[#0B0F17] to-[#191f31] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:border-[#10B981]/40 transition-colors"
                 >
                   <span className="text-[10px] text-slate-600">Background {i}</span>
                 </div>
@@ -703,7 +703,7 @@ function PrivacyPanel() {
     <div className="space-y-6">
       <div>
         <SectionHeader title="Privacy" />
-        <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
           <SettingsRow
             label="Show Read Receipts"
             description="Let others know when you've read their messages."
@@ -725,9 +725,9 @@ function PrivacyPanel() {
         </div>
       </div>
 
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-4">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
         <div className="flex items-start gap-3">
-          <Shield className="w-5 h-5 text-[#818cf8] shrink-0 mt-0.5" />
+          <Shield className="w-5 h-5 text-[#10B981] shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-semibold text-slate-200 mb-1">Data Sharing</p>
             <p className="text-xs text-slate-500 leading-relaxed">
@@ -752,7 +752,7 @@ function AccessibilityPanel() {
   return (
     <div>
       <SectionHeader title="Accessibility" />
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
         <SettingsRow
           label="Always Show Captions"
           description="Display live captions during meetings and calls."
@@ -804,9 +804,9 @@ function AboutPanel() {
       <SectionHeader title="About" />
 
       {/* Logo + version */}
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl p-6 flex flex-col items-center gap-3">
-        <div className="w-16 h-16 rounded-2xl bg-[#5B5FC7]/20 border border-[#5B5FC7]/30 flex items-center justify-center">
-          <span className="text-2xl font-black text-[#818cf8]">AM</span>
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-6 flex flex-col items-center gap-3">
+        <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 border border-[#10B981]/30 flex items-center justify-center">
+          <span className="text-2xl font-black text-[#10B981]">AM</span>
         </div>
         <div className="text-center">
           <p className="text-base font-bold text-slate-100">AeroMeet</p>
@@ -817,7 +817,7 @@ function AboutPanel() {
         <button
           onClick={handleCheckUpdates}
           disabled={checking}
-          className="flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4f52b2] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2 text-sm transition-colors cursor-pointer mt-1"
+          className="flex items-center gap-2 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2 text-sm transition-colors cursor-pointer mt-1"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
           {checking ? 'Checking…' : 'Check for Updates'}
@@ -832,7 +832,7 @@ function AboutPanel() {
       </div>
 
       {/* Legal links */}
-      <div className="bg-[#252540] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
         {[
           { label: 'Terms of Service', href: '#' },
           { label: 'Privacy Policy', href: '#' },
@@ -841,10 +841,10 @@ function AboutPanel() {
           <a
             key={label}
             href={href}
-            className="flex items-center justify-between py-3 text-sm text-slate-300 hover:text-[#818cf8] transition-colors cursor-pointer group"
+            className="flex items-center justify-between py-3 text-sm text-slate-300 hover:text-[#10B981] transition-colors cursor-pointer group"
           >
             <span>{label}</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-[#818cf8] transition-colors" />
+            <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-[#10B981] transition-colors" />
           </a>
         ))}
       </div>
@@ -878,9 +878,9 @@ export default function SettingsPage() {
   const [active, setActive] = useState<SettingsCategory>('general');
 
   return (
-    <div className="flex h-full bg-[#1e1e35]">
+    <div className="flex h-full bg-[#111827]">
       {/* ── Left nav ── */}
-      <nav className="w-56 bg-[#1a1a2e] border-r border-white/[0.06] flex flex-col py-4 shrink-0">
+      <nav className="w-56 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col py-4 shrink-0">
         <div className="px-4 mb-4">
           <h1 className="text-xs font-black uppercase tracking-wider text-slate-500">Settings</h1>
         </div>
@@ -894,13 +894,13 @@ export default function SettingsPage() {
                 onClick={() => setActive(id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium cursor-pointer transition-all relative ${
                   isActive
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                    ? 'bg-[#10B981]/20 text-[#10B981]'
                     : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04]'
                 }`}
               >
                 {/* Left accent bar */}
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#5B5FC7] rounded-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#10B981] rounded-full" />
                 )}
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{label}</span>

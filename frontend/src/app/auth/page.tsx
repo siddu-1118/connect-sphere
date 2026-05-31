@@ -3,8 +3,8 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { useAuth } from '../../hooks/useAuth';
-import { Compass, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { ShieldAlert, CheckCircle2, Lock, Rocket } from 'lucide-react';
 
 function AuthContent() {
   const router = useRouter();
@@ -17,9 +17,72 @@ function AuthContent() {
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
-      router.push('/');
+      router.push('/dashboard');
     }
   }, [user, router]);
+
+  // Atmospheric Particle Canvas Background
+  useEffect(() => {
+    const canvas = document.getElementById('bg-canvas') as HTMLCanvasElement;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    let animationFrameId: number;
+    let particles: any[] = [];
+    
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    class Particle {
+      x = Math.random() * canvas.width;
+      y = Math.random() * canvas.height;
+      size = Math.random() * 1.5 + 0.5;
+      speedX = (Math.random() - 0.5) * 0.2;
+      speedY = (Math.random() - 0.5) * 0.2;
+      opacity = Math.random() * 0.5;
+
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+
+        if (this.x > canvas.width) this.x = 0;
+        if (this.x < 0) this.x = canvas.width;
+        if (this.y > canvas.height) this.y = 0;
+        if (this.y < 0) this.y = canvas.height;
+      }
+
+      draw() {
+        if (!ctx) return;
+        ctx.fillStyle = `rgba(16, 185, 129, ${this.opacity})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let i = 0; i < 80; i++) {
+      particles.push(new Particle());
+    }
+
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.update();
+        p.draw();
+      });
+      animationFrameId = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', resize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
   const handleGoogleCredentialResponse = async (response: any) => {
     const idToken = response.credential;
@@ -27,7 +90,7 @@ function AuthContent() {
     setError(null);
     try {
       await loginWithGoogle(idToken);
-      setSuccess('Google sign-in successful! Redirecting...');
+      setSuccess('Google sign-in successful! Loading workspace...');
     } catch (err: any) {
       console.error(err);
       setError(err.response?.data?.error || 'Google authentication failed.');
@@ -46,7 +109,7 @@ function AuthContent() {
       (window as any).google.accounts.id.renderButton(
         document.getElementById('google-signin-btn-container'),
         {
-          theme: 'outline',
+          theme: 'filled_black',
           size: 'large',
           text: 'signin_with',
           shape: 'pill',
@@ -65,81 +128,107 @@ function AuthContent() {
     setError(null);
     try {
       await login('aksbasg@gmail.com', 'TestPassword123');
-      setSuccess('Sandbox profile loaded! Redirecting...');
+      setSuccess('Sandbox profile loaded! Loading workspace...');
     } catch (err: any) {
       console.error(err);
-      setError('Sandbox login failed. Make sure backend and database are running.');
+      setError('Sandbox login failed. Please verify that the backend services are running.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#f0f4f9] dark:bg-[#0f1115] flex flex-col items-center justify-center p-4 font-sans select-none relative transition-colors duration-200">
-      
-      {/* Outer Card Container */}
-      <div className="w-full max-w-[450px] bg-white dark:bg-[#1a1c22] border border-[#e0e2e6] dark:border-[#2e3138] rounded-[28px] p-8 md:p-10 shadow-sm relative z-10 flex flex-col">
-        
-        {/* Header Branding */}
-        <div className="flex flex-col items-center text-center mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 flex items-center justify-center text-white shadow shadow-indigo-500/25">
-              <Compass className="w-4.5 h-4.5" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-[#1f1f1f] dark:text-[#e3e3e3]">AeroMeet</span>
-          </div>
+    <div className="min-h-screen bg-[#0B0F17] flex items-center justify-center font-outfit relative overflow-hidden select-none">
+      <canvas id="bg-canvas" className="absolute inset-0 z-0 pointer-events-none"></canvas>
 
-          <h1 className="text-2xl font-normal text-[#1f1f1f] dark:text-[#e3e3e3] tracking-tight">Sign in</h1>
-          <p className="text-sm text-[#5f6368] dark:text-[#9aa0a6] mt-2">to continue to AeroMeet Workspace</p>
+      {/* Atmospheric Glow Spheres */}
+      <div className="absolute top-[-100px] left-[-100px] w-[300px] h-[300px] rounded-full bg-primary/10 blur-[100px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-100px] right-[-100px] w-[300px] h-[300px] rounded-full bg-secondary/10 blur-[100px] pointer-events-none z-0"></div>
+
+      {/* Main Container */}
+      <main className="relative z-10 w-full max-w-[440px] px-6 flex flex-col items-center">
+        
+        {/* Logo Section */}
+        <div className="mb-10 flex flex-col items-center text-center">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center mb-4 shadow-[0_0_25px_rgba(16,185,129,0.25)] border border-primary/30">
+            <Lock className="w-8 h-8 text-slate-900" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-primary glow-text-primary">AeroMeet</h1>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-1.5">Encrypted Collaboration</p>
         </div>
 
-        {/* Alerts */}
-        {error && (
-          <div className="mb-6 px-4 py-3 bg-[#fdeded] dark:bg-[#2c1a1a] border border-[#f5c2c2] dark:border-[#5c2626] text-xs text-[#c62828] dark:text-[#f2b8b8] rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-[#c62828] dark:text-[#f2b8b8]" />
-            <span>{error}</span>
+        {/* Login Card */}
+        <div className="glass-card w-full rounded-2xl p-8 flex flex-col gap-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 relative overflow-hidden">
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
+          
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-slate-100">Welcome Back</h2>
+            <p className="text-xs text-slate-400 mt-1">Sign in to your secure workspace</p>
           </div>
-        )}
 
-        {success && (
-          <div className="mb-6 px-4 py-3 bg-[#e8f5e9] dark:bg-[#1a2c1e] border border-[#a5d6a7] dark:border-[#265c2e] text-xs text-[#2e7d32] dark:text-[#b8f2b8] rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-[#2e7d32] dark:text-[#b8f2b8]" />
-            <span>{success}</span>
-          </div>
-        )}
-
-        {/* Loading Spinner */}
-        {loading && (
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="w-8 h-8 rounded-full border-4 border-t-indigo-500 border-slate-200 dark:border-slate-800 animate-spin" />
-            <p className="text-xs text-[#5f6368] dark:text-[#9aa0a6] mt-3">Authenticating...</p>
-          </div>
-        )}
-
-        {/* Google Sign-In button */}
-        {!loading && (
-          <div className="flex flex-col items-center w-full mt-4">
-            <div id="google-signin-btn-container" className="my-2"></div>
-            
-            {/* Divider */}
-            <div className="w-full flex items-center gap-3 my-6">
-              <div className="h-[1px] bg-[#e0e2e6] dark:bg-[#2e3138] flex-1"></div>
-              <span className="text-[10px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-wider">or</span>
-              <div className="h-[1px] bg-[#e0e2e6] dark:bg-[#2e3138] flex-1"></div>
+          {/* Alerts */}
+          {error && (
+            <div className="px-4 py-3 bg-red-950/40 border border-red-900/50 text-[11px] text-red-200 rounded-xl flex items-center gap-2.5 animate-fadeIn">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-red-400" />
+              <span>{error}</span>
             </div>
+          )}
 
-            {/* Sandbox Profile */}
-            <button
-              type="button"
-              onClick={handleSandboxLogin}
-              className="w-full py-2.5 text-center text-xs font-semibold text-[#5f6368] dark:text-[#9aa0a6] hover:text-[#1a73e8] dark:hover:text-[#8ab4f8] transition-colors rounded-full hover:bg-[#1a73e8]/5 dark:hover:bg-[#8ab4f8]/5 border border-dashed border-slate-300 dark:border-slate-800 cursor-pointer"
-            >
-              Use Sandbox Demo Profile
-            </button>
+          {success && (
+            <div className="px-4 py-3 bg-primary/10 border border-primary/20 text-[11px] text-primary rounded-xl flex items-center gap-2.5 animate-fadeIn">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-primary" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-6">
+              <div className="w-8 h-8 rounded-full border-4 border-t-primary border-white/5 animate-spin" />
+              <p className="text-xs text-slate-400 mt-3.5">Authenticating credentials...</p>
+            </div>
+          )}
+
+          {/* Buttons */}
+          {!loading && (
+            <div className="flex flex-col items-center w-full gap-5">
+              
+              {/* Google Sign-in Wrapper */}
+              <div className="flex justify-center w-full min-h-[44px]">
+                <div id="google-signin-btn-container" className="rounded-lg overflow-hidden border border-white/10 shadow-sm"></div>
+              </div>
+
+              {/* Separator */}
+              <div className="w-full flex items-center gap-4">
+                <div className="h-[1px] bg-white/5 flex-1"></div>
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">or</span>
+                <div className="h-[1px] bg-white/5 flex-1"></div>
+              </div>
+
+              {/* Sandbox Profile Button */}
+              <button
+                type="button"
+                onClick={handleSandboxLogin}
+                className="w-full h-11 bg-transparent hover:bg-primary/5 border border-primary/45 hover:border-primary text-primary font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Rocket className="w-4 h-4" />
+                <span>Use Sandbox Demo Profile</span>
+              </button>
+            </div>
+          )}
+
+          {/* Extra info/footer links */}
+          <div className="flex justify-between items-center mt-2 pt-4 border-t border-white/5">
+            <span className="text-[10px] text-slate-500">SSO Active</span>
+            <span className="text-[10px] text-slate-500">Privacy Policy</span>
           </div>
-        )}
+        </div>
 
-      </div>
+        {/* Footer info */}
+        <footer className="mt-8 text-center opacity-40">
+          <p className="text-[10px] text-slate-350">Enterprise-grade 256-bit AES Encryption Active</p>
+        </footer>
+      </main>
 
       {/* Script to load Google Sign-In SDK */}
       <Script 
@@ -154,8 +243,8 @@ function AuthContent() {
 export default function AuthPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#f0f4f9] dark:bg-[#0f1115] flex items-center justify-center p-4 font-sans">
-        <div className="w-10 h-10 rounded-full border-4 border-t-[#1a73e8] border-[#e0e2e6] animate-spin" />
+      <div className="min-h-screen bg-[#0B0F17] flex items-center justify-center p-4 font-outfit">
+        <div className="w-10 h-10 rounded-full border-4 border-t-primary border-white/5 animate-spin" />
       </div>
     }>
       <AuthContent />
