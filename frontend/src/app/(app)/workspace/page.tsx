@@ -58,6 +58,18 @@ interface Message {
   channelId: string;
 }
 
+interface TeamMember {
+  id: string;
+  role: 'owner' | 'admin' | 'member';
+  joinedAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+  };
+}
+
 type ChannelTab = 'Posts' | 'Files' | 'Notes';
 type Priority = 'Standard' | 'Important' | 'Urgent';
 
@@ -560,8 +572,12 @@ function NewTeamModal({
     setError('');
     try {
       const res = await api.post('/teams', { name: name.trim(), description: description.trim() });
-      onCreated(res.data as Team);
-      onClose();
+      if (res.data?.success && res.data?.team) {
+        onCreated(res.data.team as Team);
+        onClose();
+      } else {
+        setError('Failed to create team. Invalid server response.');
+      }
     } catch {
       setError('Failed to create team. Please try again.');
     } finally {
@@ -645,8 +661,12 @@ function AddChannelModal({
       const res = await api.post(`/teams/${team.id}/channels`, {
         name: name.trim().toLowerCase().replace(/\s+/g, '-'),
       });
-      onCreated(res.data as Channel);
-      onClose();
+      if (res.data?.success && res.data?.channel) {
+        onCreated(res.data.channel as Channel);
+        onClose();
+      } else {
+        setError('Failed to create channel. Invalid server response.');
+      }
     } catch {
       setError('Failed to create channel. Please try again.');
     } finally {
@@ -809,33 +829,13 @@ export default function WorkspacePage() {
   // Redesign states
   const [workspaceTab, setWorkspaceTab] = useState<'map' | 'chats'>('map');
   const [selectedRoom, setSelectedRoom] = useState<'boardroom' | 'coffee' | 'zen' | 'engineering' | null>(null);
-  const [kudos, setKudos] = useState<KudosItem[]>([
-    {
-      id: 1,
-      sender: 'Sarah Connor',
-      time: '2h ago',
-      target: '@Marcus',
-      text: 'Amazing job on the isometric render engine! The performance is buttery smooth. 🚀',
-      likes: 12,
-      liked: false,
-      avatarUrl: null
-    },
-    {
-      id: 2,
-      sender: 'Alex Rivera',
-      time: '5h ago',
-      target: '@Elena',
-      text: "Thanks for hopping into the 'Cafe' to help me debug that CSS glitch. You saved my afternoon! ☕️",
-      likes: 4,
-      liked: false,
-      avatarUrl: null
-    }
-  ]);
+  const [kudos, setKudos] = useState<KudosItem[]>([]);
   const [newKudosText, setNewKudosText] = useState('');
 
   // Teams & channels state
   const [teams, setTeams] = useState<Team[]>([]);
   const [channelsByTeam, setChannelsByTeam] = useState<Record<string, Channel[]>>({});
+  const [membersByTeam, setMembersByTeam] = useState<Record<string, TeamMember[]>>({});
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingChannels, setLoadingChannels] = useState<Record<string, boolean>>({});
 
@@ -855,6 +855,35 @@ export default function WorkspacePage() {
   const [showNewTeam, setShowNewTeam] = useState(false);
   const [addChannelForTeam, setAddChannelForTeam] = useState<Team | null>(null);
 
+  // Load Kudos from localStorage on mount
+  useEffect(() => {
+    const storedKudos = localStorage.getItem('connect_sphere_kudos');
+    if (storedKudos) {
+      try {
+        setKudos(JSON.parse(storedKudos));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Save Kudos to localStorage on change
+  const isFirstMount = useRef(true);
+  useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+    localStorage.setItem('connect_sphere_kudos', JSON.stringify(kudos));
+  }, [kudos]);
+
+  // Auto-select first team when teams are loaded
+  useEffect(() => {
+    if (teams.length > 0 && !selectedTeam) {
+      setSelectedTeam(teams[0]);
+    }
+  }, [teams, selectedTeam]);
+
   // ── Fetch teams on mount ──
   useEffect(() => {
     let cancelled = false;
@@ -863,10 +892,10 @@ export default function WorkspacePage() {
       try {
         const res = await api.get('/teams');
         if (!cancelled) {
-          const data = res.data as Team[];
-          setTeams(data);
-          // Fetch channels for each team
-          data.forEach((team) => fetchChannels(team.id));
+          const teamsList = (res.data?.teams ?? []) as Team[];
+          setTeams(teamsList);
+          // Fetch details for each team
+          teamsList.forEach((team) => fetchTeamDetails(team.id));
         }
       } catch {
         // silently ignore
@@ -879,18 +908,43 @@ export default function WorkspacePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // ── Fetch channels for a team ──
-  const fetchChannels = useCallback(async (teamId: string) => {
+  // ── Fetch channels and members for a team ──
+  const fetchTeamDetails = useCallback(async (teamId: string) => {
     setLoadingChannels((p) => ({ ...p, [teamId]: true }));
     try {
-      const res = await api.get(`/teams/${teamId}/channels`);
-      setChannelsByTeam((p) => ({ ...p, [teamId]: res.data as Channel[] }));
+      const res = await api.get(`/teams/${teamId}`);
+      if (res.data?.success) {
+        setChannelsByTeam((p) => ({ ...p, [teamId]: res.data.channels as Channel[] }));
+        setMembersByTeam((p) => ({ ...p, [teamId]: res.data.members as TeamMember[] }));
+      }
     } catch {
       setChannelsByTeam((p) => ({ ...p, [teamId]: [] }));
+      setMembersByTeam((p) => ({ ...p, [teamId]: [] }));
     } finally {
       setLoadingChannels((p) => ({ ...p, [teamId]: false }));
     }
   }, []);
+
+  // ── Deterministic Room Presence Mapping ──
+  const getRoomMembers = useCallback((roomId: string) => {
+    if (!selectedTeam) return [];
+    const members = membersByTeam[selectedTeam.id] ?? [];
+    // Distribute actual members (excluding current user to avoid displaying them in all rooms)
+    const otherMembers = members.filter((m) => m.user?.id !== user?.id);
+    return otherMembers.filter((m) => {
+      const str = m.user?.id || '';
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      const roomIdx = Math.abs(hash) % 4;
+      const targetRoomIdx = 
+        roomId === 'boardroom' ? 0 : 
+        roomId === 'coffee' ? 1 : 
+        roomId === 'zen' ? 2 : 3;
+      return roomIdx === targetRoomIdx;
+    });
+  }, [selectedTeam, membersByTeam, user]);
 
   // ── Fetch messages when channel changes ──
   useEffect(() => {
@@ -1140,16 +1194,41 @@ export default function WorkspacePage() {
           <div className="flex h-full w-full bg-[#111827] overflow-hidden">
             {/* Rooms List Panel */}
             <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col overflow-hidden">
-              <div className="h-14 flex items-center px-4 border-b border-white/[0.06]">
+              <div className="h-14 flex items-center px-4 border-b border-white/[0.06] shrink-0 justify-between">
                 <span className="text-xs font-black uppercase tracking-wider text-slate-500">Workspace Rooms</span>
               </div>
+              
+              {/* Team Selector Dropdown */}
+              {teams.length > 0 && (
+                <div className="px-3 py-2 border-b border-white/[0.04] shrink-0 bg-[#0c1220]">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Active Team Map</label>
+                  <select
+                    value={selectedTeam?.id ?? ''}
+                    onChange={(e) => {
+                      const t = teams.find((x) => x.id === e.target.value);
+                      if (t) setSelectedTeam(t);
+                    }}
+                    className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-2.5 py-1.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-[#10B981]/50 transition-colors"
+                  >
+                    {teams.map((t) => (
+                      <option key={t.id} value={t.id} className="bg-[#191f31] text-slate-200">
+                        {t.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex-grow overflow-y-auto p-3 space-y-2">
                 {[
-                  { id: 'boardroom', name: 'Boardroom', desc: 'Quarterly Review', active: true, count: 2, tag: '#sprint-planning' },
-                  { id: 'coffee', name: 'Coffee Lounge', desc: 'Casual Chat', active: false, count: 0, tag: '#watercooler' },
-                  { id: 'zen', name: 'Zen Zone', desc: 'Focus Mode', active: false, count: 0, tag: '#silent-zone' },
-                  { id: 'engineering', name: 'Engineering Hub', desc: 'Live Coding Standup', active: true, count: 7, tag: '#engineering' }
+                  { id: 'boardroom', name: 'Boardroom', desc: 'Quarterly Review', tag: '#sprint-planning' },
+                  { id: 'coffee', name: 'Coffee Lounge', desc: 'Casual Chat', tag: '#watercooler' },
+                  { id: 'zen', name: 'Zen Zone', desc: 'Focus Mode', tag: '#silent-zone' },
+                  { id: 'engineering', name: 'Engineering Hub', desc: 'Live Coding Standup', tag: '#engineering' }
                 ].map((room) => {
+                  const roomMembers = getRoomMembers(room.id);
+                  const count = roomMembers.length;
+                  const isActive = count > 0;
                   const isSelected = selectedRoom === room.id;
                   return (
                     <button
@@ -1165,7 +1244,7 @@ export default function WorkspacePage() {
                         <span className={`text-sm font-semibold ${isSelected ? 'text-[#10B981]' : 'text-slate-200'}`}>
                           {room.name}
                         </span>
-                        {room.active && (
+                        {isActive && (
                           <span className="flex items-center gap-1 text-[9px] bg-[#10B981]/25 text-[#10B981] font-bold px-1.5 py-0.5 rounded-md">
                             <span className="w-1 h-1 rounded-full bg-[#10B981] status-pulse" />
                             Live
@@ -1177,14 +1256,14 @@ export default function WorkspacePage() {
                         <span className="text-[10px] text-slate-650 font-medium font-mono">{room.tag}</span>
                         <span className="text-[10px] text-slate-400 flex items-center gap-1">
                           <Users className="w-3 h-3 text-slate-500" />
-                          {room.count} online
+                          {count} online
                         </span>
                       </div>
                     </button>
                   );
                 })}
               </div>
-              <div className="p-4 border-t border-white/[0.06]">
+              <div className="p-4 border-t border-white/[0.06] shrink-0">
                 <button
                   onClick={() => router.push('/room/instant/join')}
                   className="w-full py-2 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer text-center"
@@ -1203,177 +1282,275 @@ export default function WorkspacePage() {
                 </div>
                 <div className="flex items-center gap-2 bg-[#191f31] border border-white/5 px-3 py-1.5 rounded-full text-xs text-slate-400">
                   <span className="w-2 h-2 rounded-full bg-[#10B981] status-pulse" />
-                  <span>9 online in workspace</span>
+                  <span>
+                    {selectedTeam ? (membersByTeam[selectedTeam.id] ?? []).length : 0} online in workspace
+                  </span>
                 </div>
               </div>
-
-              {/* Map surface grid */}
-              <div className="flex-grow glass-card rounded-2xl relative min-h-[360px] border border-white/5 shadow-2xl flex items-center justify-center p-4">
-                {/* Radial grid background */}
-                <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#10b981 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
-                
-                {/* Rooms Grid */}
-                <div className="w-full h-full max-w-lg aspect-[4/3] grid grid-cols-2 grid-rows-3 gap-4 relative z-10">
-                  {/* Boardroom */}
-                  <button
-                    onClick={() => setSelectedRoom('boardroom')}
-                    className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
-                      selectedRoom === 'boardroom'
-                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Boardroom</span>
-                    <div className="flex items-center justify-between">
-                      <div className="flex -space-x-1.5">
-                        <div className="w-6 h-6 rounded-full bg-slate-700 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-white">JD</div>
-                        <div className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981]">SC</div>
-                      </div>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                    </div>
-                  </button>
-
-                  {/* Coffee Lounge */}
-                  <button
-                    onClick={() => setSelectedRoom('coffee')}
-                    className={`rounded-xl relative p-4 flex flex-col justify-between group row-span-2 transition-all text-left ${
-                      selectedRoom === 'coffee'
-                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Coffee Lounge</span>
-                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
-                      <Coffee className="w-4 h-4" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600">Empty</span>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                    </div>
-                  </button>
-
-                  {/* Zen Zone */}
-                  <button
-                    onClick={() => setSelectedRoom('zen')}
-                    className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
-                      selectedRoom === 'zen'
-                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                    }`}
-                  >
-                    <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Zen Zone</span>
-                    <span className="text-xs text-slate-600">Silent focus</span>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-650">Empty</span>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                    </div>
-                  </button>
-
-                  {/* Engineering Hub */}
-                  <button
-                    onClick={() => setSelectedRoom('engineering')}
-                    className={`rounded-xl relative p-4 flex flex-col justify-between group col-span-2 transition-all text-left ${
-                      selectedRoom === 'engineering'
-                        ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                        : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Engineering Hub</span>
-                      <span className="flex items-center gap-1 text-[9px] text-[#10B981] font-bold">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                        Live Standup
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex -space-x-1.5">
-                          <div className="w-6 h-6 rounded-full bg-slate-700 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-white">AR</div>
-                          <div className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981]">EL</div>
-                          <div className="w-6 h-6 rounded-full bg-cyan-600/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-cyan-400">MC</div>
-                        </div>
-                        <span className="text-[10px] text-slate-500 font-bold">+4</span>
-                      </div>
-                      <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Room details card */}
-              {selectedRoom && (
-                <div className="mt-4 bg-[#191f31] border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
-                      {selectedRoom === 'boardroom' && 'Boardroom Review'}
-                      {selectedRoom === 'coffee' && 'Coffee Break Lounge'}
-                      {selectedRoom === 'zen' && 'Zen Quiet Room'}
-                      {selectedRoom === 'engineering' && 'Engineering Team Space'}
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {selectedRoom === 'boardroom' && 'Quarterly Sprint Planning & KPI Reviews (2 online)'}
-                      {selectedRoom === 'coffee' && 'Grab a coffee, listen to music, or chat informally (empty)'}
-                      {selectedRoom === 'zen' && 'No audio focus workspace. Silent study and chill (empty)'}
-                      {selectedRoom === 'engineering' && 'Active live coding, sync meetings, and standups (7 online)'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => router.push(`/meet/${selectedRoom}`)}
-                    className="px-5 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-xl transition-all cursor-pointer self-stretch md:self-auto text-center"
-                  >
-                    Join Session
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Recognition Wall Sidebar */}
-            <div className="w-[340px] shrink-0 bg-[#0B0F17] border-l border-white/[0.06] flex flex-col overflow-hidden">
-              <div className="p-4 border-b border-white/[0.06]">
-                <h2 className="text-sm font-bold text-slate-100 font-outfit">Recognition Wall</h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">Celebrate team wins together</p>
-              </div>
-
-              {/* Kudos feed */}
-              <div className="flex-grow overflow-y-auto p-4 space-y-4">
-                {kudos.map((item) => (
-                  <div
-                    key={item.id}
-                    className="bg-[#191f31] border border-[#10B981]/10 rounded-2xl p-4 hover:border-[#10B981]/30 transition-all flex flex-col gap-3 group animate-fadeIn"
-                  >
-                    <div className="flex items-start gap-3">
-                      <Avatar name={item.sender} src={item.avatarUrl} size="sm" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 justify-between">
-                          <span className="text-xs font-semibold text-slate-200 truncate">{item.sender}</span>
-                          <span className="text-[9px] text-slate-500 shrink-0">{item.time}</span>
-                        </div>
-                        <p className="text-[10px] font-bold text-[#10B981] mt-0.5">Kudos to {item.target}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-slate-400 leading-relaxed font-body">{item.text}</p>
-                    <div className="flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
-                      <button
-                        onClick={() => {
-                          setKudos((prev) =>
-                            prev.map((k) =>
-                              k.id === item.id
-                                ? { ...k, liked: !k.liked, likes: k.liked ? k.likes - 1 : k.likes + 1 }
-                                : k
-                            )
-                          );
-                        }}
-                        className={`flex items-center gap-1.5 text-xs transition-colors cursor-pointer ${
-                          item.liked ? 'text-[#10B981]' : 'text-slate-500 hover:text-slate-300'
-                        }`}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${item.liked ? 'fill-[#10B981]' : ''}`} />
-                        <span className="font-semibold text-[11px]">{item.likes}</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+ 
+               {/* Map surface grid */}
+               <div className="flex-grow glass-card rounded-2xl relative min-h-[360px] border border-white/5 shadow-2xl flex items-center justify-center p-4">
+                 {/* Radial grid background */}
+                 <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#10b981 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
+                 
+                 {/* Rooms Grid */}
+                 <div className="w-full h-full max-w-lg aspect-[4/3] grid grid-cols-2 grid-rows-3 gap-4 relative z-10">
+                   {/* Boardroom */}
+                   <button
+                     onClick={() => setSelectedRoom('boardroom')}
+                     className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
+                       selectedRoom === 'boardroom'
+                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                     }`}
+                   >
+                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Boardroom</span>
+                     <div className="flex items-center justify-between">
+                       {getRoomMembers('boardroom').length > 0 ? (
+                         <div className="flex items-center gap-1">
+                           <div className="flex -space-x-1.5">
+                             {getRoomMembers('boardroom').slice(0, 3).map((m) => (
+                               <div
+                                 key={m.id}
+                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
+                                 title={m.user?.name}
+                               >
+                                 {m.user?.avatarUrl ? (
+                                   // eslint-disable-next-line @next/next/no-img-element
+                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
+                                 ) : (
+                                   getInitials(m.user?.name || '')
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                           {getRoomMembers('boardroom').length > 3 && (
+                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('boardroom').length - 3}</span>
+                           )}
+                         </div>
+                       ) : (
+                         <span className="text-xs text-slate-650 font-medium">Empty</span>
+                       )}
+                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                     </div>
+                   </button>
+ 
+                   {/* Coffee Lounge */}
+                   <button
+                     onClick={() => setSelectedRoom('coffee')}
+                     className={`rounded-xl relative p-4 flex flex-col justify-between group row-span-2 transition-all text-left ${
+                       selectedRoom === 'coffee'
+                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                     }`}
+                   >
+                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Coffee Lounge</span>
+                     <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
+                       <Coffee className="w-4 h-4" />
+                     </div>
+                     <div className="flex items-center justify-between">
+                       {getRoomMembers('coffee').length > 0 ? (
+                         <div className="flex items-center gap-1">
+                           <div className="flex -space-x-1.5">
+                             {getRoomMembers('coffee').slice(0, 3).map((m) => (
+                               <div
+                                 key={m.id}
+                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
+                                 title={m.user?.name}
+                               >
+                                 {m.user?.avatarUrl ? (
+                                   // eslint-disable-next-line @next/next/no-img-element
+                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
+                                 ) : (
+                                   getInitials(m.user?.name || '')
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                           {getRoomMembers('coffee').length > 3 && (
+                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('coffee').length - 3}</span>
+                           )}
+                         </div>
+                       ) : (
+                         <span className="text-xs text-slate-650 font-medium">Empty</span>
+                       )}
+                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                     </div>
+                   </button>
+ 
+                   {/* Zen Zone */}
+                   <button
+                     onClick={() => setSelectedRoom('zen')}
+                     className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
+                       selectedRoom === 'zen'
+                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                     }`}
+                   >
+                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Zen Zone</span>
+                     <span className="text-xs text-slate-600">Silent focus</span>
+                     <div className="flex items-center justify-between">
+                       {getRoomMembers('zen').length > 0 ? (
+                         <div className="flex items-center gap-1">
+                           <div className="flex -space-x-1.5">
+                             {getRoomMembers('zen').slice(0, 3).map((m) => (
+                               <div
+                                 key={m.id}
+                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
+                                 title={m.user?.name}
+                               >
+                                 {m.user?.avatarUrl ? (
+                                   // eslint-disable-next-line @next/next/no-img-element
+                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
+                                 ) : (
+                                   getInitials(m.user?.name || '')
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                           {getRoomMembers('zen').length > 3 && (
+                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('zen').length - 3}</span>
+                           )}
+                         </div>
+                       ) : (
+                         <span className="text-xs text-slate-650 font-medium">Empty</span>
+                       )}
+                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                     </div>
+                   </button>
+ 
+                   {/* Engineering Hub */}
+                   <button
+                     onClick={() => setSelectedRoom('engineering')}
+                     className={`rounded-xl relative p-4 flex flex-col justify-between group col-span-2 transition-all text-left ${
+                       selectedRoom === 'engineering'
+                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
+                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
+                     }`}
+                   >
+                     <div className="flex justify-between items-start">
+                       <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Engineering Hub</span>
+                       {getRoomMembers('engineering').length > 0 && (
+                         <span className="flex items-center gap-1 text-[9px] text-[#10B981] font-bold">
+                           <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                           Live Standup
+                         </span>
+                       )}
+                     </div>
+                     <div className="flex items-center justify-between">
+                       {getRoomMembers('engineering').length > 0 ? (
+                         <div className="flex items-center gap-1.5">
+                           <div className="flex -space-x-1.5">
+                             {getRoomMembers('engineering').slice(0, 3).map((m) => (
+                               <div
+                                 key={m.id}
+                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
+                                 title={m.user?.name}
+                               >
+                                 {m.user?.avatarUrl ? (
+                                   // eslint-disable-next-line @next/next/no-img-element
+                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
+                                 ) : (
+                                   getInitials(m.user?.name || '')
+                                 )}
+                               </div>
+                             ))}
+                           </div>
+                           {getRoomMembers('engineering').length > 3 && (
+                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('engineering').length - 3}</span>
+                           )}
+                         </div>
+                       ) : (
+                         <span className="text-xs text-slate-650 font-medium">Empty</span>
+                       )}
+                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
+                     </div>
+                   </button>
+                 </div>
+               </div>
+ 
+               {/* Room details card */}
+               {selectedRoom && (
+                 <div className="mt-4 bg-[#191f31] border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
+                   <div>
+                     <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
+                       {selectedRoom === 'boardroom' && 'Boardroom Review'}
+                       {selectedRoom === 'coffee' && 'Coffee Break Lounge'}
+                       {selectedRoom === 'zen' && 'Zen Quiet Room'}
+                       {selectedRoom === 'engineering' && 'Engineering Team Space'}
+                     </h3>
+                     <p className="text-xs text-slate-400 mt-1">
+                       {selectedRoom === 'boardroom' && `Quarterly Sprint Planning & KPI Reviews (${getRoomMembers('boardroom').length} online)`}
+                       {selectedRoom === 'coffee' && `Grab a coffee, listen to music, or chat informally (${getRoomMembers('coffee').length} online)`}
+                       {selectedRoom === 'zen' && `No audio focus workspace. Silent study and chill (${getRoomMembers('zen').length} online)`}
+                       {selectedRoom === 'engineering' && `Active live coding, sync meetings, and standups (${getRoomMembers('engineering').length} online)`}
+                     </p>
+                   </div>
+                   <button
+                     onClick={() => router.push(`/meet/${selectedRoom}`)}
+                     className="px-5 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-xl transition-all cursor-pointer self-stretch md:self-auto text-center"
+                   >
+                     Join Session
+                   </button>
+                 </div>
+               )}
+             </div>
+ 
+             {/* Recognition Wall Sidebar */}
+             <div className="w-[340px] shrink-0 bg-[#0B0F17] border-l border-white/[0.06] flex flex-col overflow-hidden">
+               <div className="p-4 border-b border-white/[0.06]">
+                 <h2 className="text-sm font-bold text-slate-100 font-outfit">Recognition Wall</h2>
+                 <p className="text-[11px] text-slate-500 mt-0.5">Celebrate team wins together</p>
+               </div>
+ 
+               {/* Kudos feed */}
+               <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                 {kudos.length === 0 ? (
+                   <div className="flex flex-col items-center justify-center h-48 text-center text-slate-500">
+                     <Heart className="w-8 h-8 text-slate-650 mb-2" />
+                     <p className="text-xs font-semibold text-slate-400">No Kudos Yet</p>
+                     <p className="text-[10px] text-slate-600 mt-1 max-w-[200px]">Be the first to appreciate a team member's hard work!</p>
+                   </div>
+                 ) : (
+                   kudos.map((item) => (
+                     <div
+                       key={item.id}
+                       className="bg-[#191f31] border border-[#10B981]/10 rounded-2xl p-4 hover:border-[#10B981]/30 transition-all flex flex-col gap-3 group animate-fadeIn"
+                     >
+                       <div className="flex items-start gap-3">
+                         <Avatar name={item.sender} src={item.avatarUrl} size="sm" />
+                         <div className="flex-1 min-w-0">
+                           <div className="flex items-center gap-1.5 justify-between">
+                             <span className="text-xs font-semibold text-slate-200 truncate">{item.sender}</span>
+                             <span className="text-[9px] text-slate-500 shrink-0">{item.time}</span>
+                           </div>
+                           <p className="text-[10px] font-bold text-[#10B981] mt-0.5">Kudos to {item.target}</p>
+                         </div>
+                       </div>
+                       <p className="text-xs text-slate-400 leading-relaxed font-body">{item.text}</p>
+                       <div className="flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
+                         <button
+                           onClick={() => {
+                             setKudos((prev) =>
+                               prev.map((k) =>
+                                 k.id === item.id
+                                   ? { ...k, liked: !k.liked, likes: k.liked ? k.likes - 1 : k.likes + 1 }
+                                   : k
+                               )
+                             );
+                           }}
+                           className={`flex items-center gap-1.5 text-xs transition-colors cursor-pointer ${
+                             item.liked ? 'text-[#10B981]' : 'text-slate-500 hover:text-slate-300'
+                           }`}
+                         >
+                           <Heart className={`w-3.5 h-3.5 ${item.liked ? 'fill-[#10B981]' : ''}`} />
+                           <span className="font-semibold text-[11px]">{item.likes}</span>
+                         </button>
+                       </div>
+                     </div>
+                   ))
+                 )}
+               </div>
 
               {/* Kudos creation input */}
               <div className="p-4 border-t border-white/[0.06] bg-[#0B0F17] shrink-0">
