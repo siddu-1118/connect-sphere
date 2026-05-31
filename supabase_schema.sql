@@ -1,12 +1,12 @@
 -- =========================================================================
--- AEROMEET DATABASE SCHEMA & SECURITY POLICIES
+-- AEROMEET DATABASE SCHEMA & SECURITY POLICIES (IDEMPOTENT)
 -- =========================================================================
 
 -- Enable required extensions
 create extension if not exists "uuid-ossp";
 
 -- 1. USERS PROFILE TABLE
-create table public.users (
+create table if not exists public.users (
     id uuid primary key references auth.users on delete cascade,
     email text not null unique,
     display_name text,
@@ -19,7 +19,7 @@ create table public.users (
 alter table public.users enable row level security;
 
 -- 2. WORKSPACES TABLE
-create table public.workspaces (
+create table if not exists public.workspaces (
     id uuid primary key default uuid_generate_v4(),
     name text not null,
     owner_id uuid not null references public.users(id) on delete cascade,
@@ -30,7 +30,7 @@ create table public.workspaces (
 alter table public.workspaces enable row level security;
 
 -- 3. WORKSPACE MEMBERS TABLE (Junction Table)
-create table public.workspace_members (
+create table if not exists public.workspace_members (
     user_id uuid references public.users(id) on delete cascade,
     workspace_id uuid references public.workspaces(id) on delete cascade,
     role text not null default 'member' check (role in ('admin', 'member')),
@@ -42,7 +42,7 @@ create table public.workspace_members (
 alter table public.workspace_members enable row level security;
 
 -- 4. CHANNELS TABLE
-create table public.channels (
+create table if not exists public.channels (
     id uuid primary key default uuid_generate_v4(),
     workspace_id uuid not null references public.workspaces(id) on delete cascade,
     name text not null,
@@ -55,7 +55,7 @@ create table public.channels (
 alter table public.channels enable row level security;
 
 -- 5. MESSAGES TABLE (With Parent Message Id for Threading)
-create table public.messages (
+create table if not exists public.messages (
     id uuid primary key default uuid_generate_v4(),
     channel_id uuid not null references public.channels(id) on delete cascade,
     user_id uuid not null references public.users(id) on delete cascade,
@@ -69,7 +69,7 @@ create table public.messages (
 alter table public.messages enable row level security;
 
 -- 6. MEETINGS TABLE
-create table public.meetings (
+create table if not exists public.meetings (
     id uuid primary key default uuid_generate_v4(),
     host_id uuid not null references public.users(id) on delete cascade,
     title text not null,
@@ -87,7 +87,7 @@ alter table public.meetings enable row level security;
 -- SYSTEM TRIGGERS & CORE PROCEDURES
 -- =========================================================================
 
--- Trigger to copy metadata on auth signup
+-- Trigger function to copy metadata on auth signup
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -98,11 +98,17 @@ begin
         coalesce(new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
         new.raw_user_meta_data->>'avatar_url',
         'online'
-    );
+    )
+    on conflict (id) do update
+    set 
+        display_name = excluded.display_name,
+        avatar_url = excluded.avatar_url;
     return new;
 end;
 $$ language plpgsql security definer;
 
+-- Recreate Auth trigger cleanly
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
     after insert on auth.users
     for each row execute procedure public.handle_new_user();
@@ -113,17 +119,20 @@ create trigger on_auth_user_created
 -- =========================================================================
 
 -- Users Policies:
+drop policy if exists "Allow profile read to all authenticated users" on public.users;
 create policy "Allow profile read to all authenticated users"
     on public.users for select
     to authenticated
     using (true);
 
+drop policy if exists "Allow updates to self profile" on public.users;
 create policy "Allow updates to self profile"
     on public.users for update
     to authenticated
     using (auth.uid() = id);
 
 -- Workspaces Policies:
+drop policy if exists "Allow workspace view to member users" on public.workspaces;
 create policy "Allow workspace view to member users"
     on public.workspaces for select
     to authenticated
@@ -134,17 +143,20 @@ create policy "Allow workspace view to member users"
         )
     );
 
+drop policy if exists "Allow workspace creation to all authenticated users" on public.workspaces;
 create policy "Allow workspace creation to all authenticated users"
     on public.workspaces for insert
     to authenticated
     with check (auth.uid() = owner_id);
 
+drop policy if exists "Allow owner to edit or delete workspace" on public.workspaces;
 create policy "Allow owner to edit or delete workspace"
     on public.workspaces for all
     to authenticated
     using (auth.uid() = owner_id);
 
 -- Workspace Members Policies:
+drop policy if exists "Allow members of same workspace to view member list" on public.workspace_members;
 create policy "Allow members of same workspace to view member list"
     on public.workspace_members for select
     to authenticated
@@ -155,6 +167,7 @@ create policy "Allow members of same workspace to view member list"
         )
     );
 
+drop policy if exists "Allow admins to invite or edit workspace members" on public.workspace_members;
 create policy "Allow admins to invite or edit workspace members"
     on public.workspace_members for all
     to authenticated
@@ -170,6 +183,7 @@ create policy "Allow admins to invite or edit workspace members"
     );
 
 -- Channels Policies:
+drop policy if exists "Allow channel view to workspace members" on public.channels;
 create policy "Allow channel view to workspace members"
     on public.channels for select
     to authenticated
@@ -180,6 +194,7 @@ create policy "Allow channel view to workspace members"
         )
     );
 
+drop policy if exists "Allow channel creation/modification to workspace admins/owners" on public.channels;
 create policy "Allow channel creation/modification to workspace admins/owners"
     on public.channels for all
     to authenticated
@@ -195,6 +210,7 @@ create policy "Allow channel creation/modification to workspace admins/owners"
     );
 
 -- Messages Policies:
+drop policy if exists "Allow message read to workspace members" on public.messages;
 create policy "Allow message read to workspace members"
     on public.messages for select
     to authenticated
@@ -206,6 +222,7 @@ create policy "Allow message read to workspace members"
         )
     );
 
+drop policy if exists "Allow message insertion to workspace members" on public.messages;
 create policy "Allow message insertion to workspace members"
     on public.messages for insert
     to authenticated
@@ -218,22 +235,26 @@ create policy "Allow message insertion to workspace members"
         )
     );
 
+drop policy if exists "Allow message deletion/modification to message sender" on public.messages;
 create policy "Allow message deletion/modification to message sender"
     on public.messages for all
     to authenticated
     using (auth.uid() = user_id);
 
 -- Meetings Policies:
+drop policy if exists "Allow select meetings if authenticated" on public.meetings;
 create policy "Allow select meetings if authenticated"
     on public.meetings for select
     to authenticated
     using (true);
 
+drop policy if exists "Allow insert meetings if authenticated" on public.meetings;
 create policy "Allow insert meetings if authenticated"
     on public.meetings for insert
     to authenticated
     with check (auth.uid() = host_id);
 
+drop policy if exists "Allow all actions to host of meeting" on public.meetings;
 create policy "Allow all actions to host of meeting"
     on public.meetings for all
     to authenticated
