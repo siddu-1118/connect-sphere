@@ -208,6 +208,85 @@ function MoreMenu({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   MOBILE MORE MENU
+   ═══════════════════════════════════════════════════════════════ */
+function MobileMoreMenu({
+  onClose,
+  sharing,
+  startScreenShare,
+  stopScreenShare,
+  togglePanel,
+  showEmojiPicker,
+  setShowEmojiPicker,
+  viewMode,
+  setViewMode,
+}: {
+  onClose: () => void;
+  sharing: boolean;
+  startScreenShare: () => void;
+  stopScreenShare: () => void;
+  togglePanel: (panel: ActivePanel) => void;
+  showEmojiPicker: boolean;
+  setShowEmojiPicker: (show: boolean) => void;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      className="absolute bottom-full mb-3 right-0 bg-[#252540] border border-white/[0.06] rounded-2xl overflow-hidden shadow-2xl z-50 min-w-[200px]"
+    >
+      {/* Screen Share */}
+      <button
+        onClick={() => {
+          if (sharing) stopScreenShare();
+          else startScreenShare();
+          onClose();
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/[0.04] hover:text-slate-100 transition-colors text-left cursor-pointer"
+      >
+        <Monitor className="w-4 h-4 text-slate-500" />
+        <span>{sharing ? 'Stop Sharing' : 'Share Screen'}</span>
+      </button>
+
+      {/* Q&A */}
+      <button
+        onClick={() => {
+          togglePanel('qa');
+          onClose();
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/[0.04] hover:text-slate-100 transition-colors text-left cursor-pointer"
+      >
+        <HelpCircle className="w-4 h-4 text-slate-500" />
+        <span>Q&amp;A</span>
+      </button>
+
+      {/* View Toggle */}
+      <button
+        onClick={() => {
+          setViewMode(viewMode === 'gallery' ? 'speaker' : 'gallery');
+          onClose();
+        }}
+        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:bg-white/[0.04] hover:text-slate-100 transition-colors text-left cursor-pointer"
+      >
+        <Grid className="w-4 h-4 text-slate-500" />
+        <span>{viewMode === 'gallery' ? 'Speaker View' : 'Gallery View'}</span>
+      </button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    BREAKOUT ROOMS MODAL
    ═══════════════════════════════════════════════════════════════ */
 function BreakoutRoomsModal({ onClose }: { onClose: () => void }) {
@@ -994,121 +1073,220 @@ function MeetingRoomInner() {
           )}
 
           {/* ── bottom controls bar ── */}
-          <div className="h-16 bg-[#141422]/95 backdrop-blur border-t border-white/[0.04] flex items-center justify-between px-4 shrink-0 relative">
+          {/* ── bottom controls bar ── */}
+          <div className="h-16 bg-[#141422]/95 backdrop-blur border-t border-white/[0.04] shrink-0 z-10">
+            {/* Desktop Layout */}
+            <div className="hidden md:flex h-full items-center justify-between px-4 relative w-full">
+              {/* left group */}
+              <div className="flex items-center gap-2">
+                <button
+                  title="Security"
+                  className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border border-transparent"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Security</span>
+                </button>
+              </div>
 
-            {/* left group */}
-            <div className="flex items-center gap-2">
-              <button
-                title="Security"
-                className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border border-transparent"
-              >
-                <Shield className="w-4 h-4" />
-                <span className="hidden sm:block">Security</span>
-              </button>
+              {/* center group */}
+              <div className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+                {/* mic */}
+                <button
+                  onClick={toggleMute}
+                  title={micOn ? 'Mute' : 'Unmute'}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                    micOn
+                      ? 'bg-white/10 hover:bg-white/20 text-white'
+                      : 'bg-red-650 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                </button>
+
+                {/* camera */}
+                <button
+                  onClick={toggleCamera}
+                  title={cameraOn ? 'Stop Video' : 'Start Video'}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                    cameraOn
+                      ? 'bg-white/10 hover:bg-white/20 text-white'
+                      : 'bg-red-650 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                </button>
+
+                {/* screen share */}
+                <button
+                  onClick={sharing ? stopScreenShare : startScreenShare}
+                  title={sharing ? 'Stop Sharing' : 'Share Screen'}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                    sharing
+                      ? 'bg-emerald-650 hover:bg-emerald-700 text-white'
+                      : 'bg-white/10 hover:bg-white/20 text-white'
+                  }`}
+                >
+                  <Monitor className="w-5 h-5" />
+                </button>
+
+                {/* reactions */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                    title="Reactions"
+                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
+                  >
+                    <Smile className="w-5 h-5" />
+                  </button>
+                  {showEmojiPicker && (
+                    <EmojiPopover
+                      onSelect={addReaction}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
+                  )}
+                </div>
+
+                {/* more */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    title="More options"
+                    className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
+                  >
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+                  {showMoreMenu && (
+                    <MoreMenu
+                      onBreakout={() => setShowBreakout(true)}
+                      onClose={() => setShowMoreMenu(false)}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* right group */}
+              <div className="flex items-center gap-2">
+                {/* participants */}
+                <button
+                  onClick={() => togglePanel('participants')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
+                    activePanel === 'participants'
+                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>{participants.length + 1}</span>
+                </button>
+
+                {/* chat */}
+                <button
+                  onClick={() => togglePanel('chat')}
+                  className={`relative flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
+                    activePanel === 'chat'
+                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                  }`}
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Chat</span>
+                  {unreadChat > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#5B5FC7] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                      {unreadChat}
+                    </span>
+                  )}
+                </button>
+
+                {/* Q&A */}
+                <button
+                  onClick={() => togglePanel('qa')}
+                  className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
+                    activePanel === 'qa'
+                      ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                      : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                  }`}
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  <span>Q&amp;A</span>
+                </button>
+
+                {/* view toggle */}
+                <div className="relative" ref={viewMenuRef}>
+                  <button
+                    onClick={() => setShowViewMenu(!showViewMenu)}
+                    className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-slate-300 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0"
+                  >
+                    {viewMode === 'gallery' ? <Grid className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
+                  </button>
+                  {showViewMenu && (
+                    <div className="absolute bottom-full mb-2 right-0 bg-[#252540] border border-white/[0.06] rounded-xl overflow-hidden shadow-2xl z-50 min-w-[140px]">
+                      {([['gallery', 'Gallery View', Grid], ['speaker', 'Speaker View', LayoutList]] as const).map(
+                        ([mode, label, Icon]) => (
+                          <button
+                            key={mode}
+                            onClick={() => { setViewMode(mode); setShowViewMenu(false); }}
+                            className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors cursor-pointer border-0 ${
+                              viewMode === mode
+                                ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
+                                : 'text-slate-300 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <Icon className="w-3.5 h-3.5" />
+                            {label}
+                          </button>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* leave */}
+                <button
+                  onClick={handleLeave}
+                  title="Leave meeting"
+                  className="w-12 h-12 rounded-full bg-red-650 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border-0"
+                >
+                  <PhoneOff className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            {/* center group */}
-            <div className="flex items-center gap-3 absolute left-1/2 -translate-x-1/2">
+            {/* Mobile Layout */}
+            <div className="flex md:hidden h-full items-center justify-around px-2 relative w-full">
               {/* mic */}
               <button
                 onClick={toggleMute}
-                title={micOn ? 'Mute' : 'Unmute'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   micOn
-                    ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-red-650 hover:bg-red-700 text-white'
+                    ? 'bg-white/10 text-white'
+                    : 'bg-red-650 text-white'
                 }`}
               >
-                {micOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                {micOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
               </button>
 
               {/* camera */}
               <button
                 onClick={toggleCamera}
-                title={cameraOn ? 'Stop Video' : 'Start Video'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   cameraOn
-                    ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-red-650 hover:bg-red-700 text-white'
+                    ? 'bg-white/10 text-white'
+                    : 'bg-red-650 text-white'
                 }`}
               >
-                {cameraOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+                {cameraOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
               </button>
 
-              {/* screen share */}
-              <button
-                onClick={sharing ? stopScreenShare : startScreenShare}
-                title={sharing ? 'Stop Sharing' : 'Share Screen'}
-                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
-                  sharing
-                    ? 'bg-emerald-650 hover:bg-emerald-700 text-white'
-                    : 'bg-white/10 hover:bg-white/20 text-white'
-                }`}
-              >
-                <Monitor className="w-5 h-5" />
-              </button>
-
-              {/* reactions */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  title="Reactions"
-                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
-                {showEmojiPicker && (
-                  <EmojiPopover
-                    onSelect={addReaction}
-                    onClose={() => setShowEmojiPicker(false)}
-                  />
-                )}
-              </div>
-
-              {/* more */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
-                  title="More options"
-                  className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
-                >
-                  <MoreHorizontal className="w-5 h-5" />
-                </button>
-                {showMoreMenu && (
-                  <MoreMenu
-                    onBreakout={() => setShowBreakout(true)}
-                    onClose={() => setShowMoreMenu(false)}
-                  />
-                )}
-              </div>
-            </div>
-
-            {/* right group */}
-            <div className="flex items-center gap-2">
-              {/* participants */}
-              <button
-                onClick={() => togglePanel('participants')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
-                  activePanel === 'participants'
-                    ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
-                    : 'bg-white/10 hover:bg-white/15 text-slate-300'
-                }`}
-              >
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:block">{participants.length + 1}</span>
-              </button>
-
-              {/* chat */}
+              {/* chat toggle */}
               <button
                 onClick={() => togglePanel('chat')}
-                className={`relative flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
+                className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
                   activePanel === 'chat'
                     ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
-                    : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                    : 'bg-white/10 text-slate-300'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
-                <span className="hidden sm:block">Chat</span>
                 {unreadChat > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#5B5FC7] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                     {unreadChat}
@@ -1116,56 +1294,47 @@ function MeetingRoomInner() {
                 )}
               </button>
 
-              {/* Q&A */}
+              {/* participants toggle */}
               <button
-                onClick={() => togglePanel('qa')}
-                className={`flex items-center gap-1.5 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0 ${
-                  activePanel === 'qa'
+                onClick={() => togglePanel('participants')}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer border-0 ${
+                  activePanel === 'participants'
                     ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
-                    : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                    : 'bg-white/10 text-slate-300'
                 }`}
               >
-                <HelpCircle className="w-4 h-4" />
-                <span className="hidden sm:block">Q&amp;A</span>
+                <Users className="w-4 h-4" />
               </button>
 
-              {/* view toggle */}
-              <div className="relative" ref={viewMenuRef}>
+              {/* mobile more options */}
+              <div className="relative">
                 <button
-                  onClick={() => setShowViewMenu(!showViewMenu)}
-                  className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 text-slate-300 rounded-xl px-3 h-10 text-xs font-medium transition-all duration-200 cursor-pointer border-0"
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center transition-all duration-200 cursor-pointer border-0"
                 >
-                  {viewMode === 'gallery' ? <Grid className="w-4 h-4" /> : <LayoutList className="w-4 h-4" />}
+                  <MoreHorizontal className="w-4 h-4" />
                 </button>
-                {showViewMenu && (
-                  <div className="absolute bottom-full mb-2 right-0 bg-[#252540] border border-white/[0.06] rounded-xl overflow-hidden shadow-2xl z-50 min-w-[140px]">
-                    {([['gallery', 'Gallery View', Grid], ['speaker', 'Speaker View', LayoutList]] as const).map(
-                      ([mode, label, Icon]) => (
-                        <button
-                          key={mode}
-                          onClick={() => { setViewMode(mode); setShowViewMenu(false); }}
-                          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors cursor-pointer border-0 ${
-                            viewMode === mode
-                              ? 'bg-[#5B5FC7]/20 text-[#818cf8]'
-                              : 'text-slate-300 hover:bg-white/[0.04]'
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {label}
-                        </button>
-                      )
-                    )}
-                  </div>
+                {showMoreMenu && (
+                  <MobileMoreMenu
+                    onClose={() => setShowMoreMenu(false)}
+                    sharing={sharing}
+                    startScreenShare={startScreenShare}
+                    stopScreenShare={stopScreenShare}
+                    togglePanel={togglePanel}
+                    showEmojiPicker={showEmojiPicker}
+                    setShowEmojiPicker={setShowEmojiPicker}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                  />
                 )}
               </div>
 
               {/* leave */}
               <button
                 onClick={handleLeave}
-                title="Leave meeting"
-                className="w-12 h-12 rounded-full bg-red-650 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border-0"
+                className="w-10 h-10 rounded-full bg-red-650 hover:bg-red-700 text-white flex items-center justify-center shadow-lg transition-all duration-200 cursor-pointer border-0"
               >
-                <PhoneOff className="w-5 h-5" />
+                <PhoneOff className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1173,8 +1342,10 @@ function MeetingRoomInner() {
 
         {/* ── right side panel ── */}
         <div
-          className={`flex-shrink-0 bg-[#1a1a2e] border-l border-white/[0.06] flex flex-col transition-all duration-300 overflow-hidden ${
-            activePanel ? 'w-72 xl:w-80' : 'w-0 border-0'
+          className={`bg-[#1a1a2e] flex flex-col transition-all duration-300 overflow-hidden ${
+            activePanel
+              ? 'fixed inset-x-0 bottom-16 top-12 z-20 md:relative md:inset-auto md:w-72 md:xl:w-80 md:flex-shrink-0 md:border-l md:border-white/[0.06]'
+              : 'w-0 border-0'
           }`}
         >
           {activePanel === 'participants' && (
