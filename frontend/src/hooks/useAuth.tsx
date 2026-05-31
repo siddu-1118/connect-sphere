@@ -124,22 +124,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Verify OTP
   const verifyOtp = async (email: string, otpCode: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({
+    console.log('Verifying OTP for email:', email, 'code:', otpCode);
+    
+    // 1. Try 'signup' verification
+    let { data, error } = await supabase.auth.verifyOtp({
       email,
       token: otpCode,
       type: 'signup'
     });
 
     if (error) {
-      // Try verify magiclink as fallback
-      const { data: recoveryData, error: recoveryError } = await supabase.auth.verifyOtp({
+      console.warn('Signup OTP verification failed, trying email type...', error.message);
+      
+      // 2. Try 'email' verification (modern Supabase standard for OTP)
+      const { data: emailData, error: emailError } = await supabase.auth.verifyOtp({
         email,
         token: otpCode,
-        type: 'magiclink'
+        type: 'email'
       });
-      if (recoveryError) throw recoveryError;
+      
+      if (emailError) {
+        console.warn('Email OTP verification failed, trying magiclink type...', emailError.message);
+        
+        // 3. Try 'magiclink' verification (fallback)
+        const { data: magicData, error: magicError } = await supabase.auth.verifyOtp({
+          email,
+          token: otpCode,
+          type: 'magiclink'
+        });
+        
+        if (magicError) {
+          console.error('All verification attempts failed:', magicError.message);
+          throw new Error(magicError.message || 'Verification token is invalid or has expired.');
+        }
+        
+        data = magicData;
+      } else {
+        data = emailData;
+      }
     }
 
+    console.log('OTP verified successfully, session data:', data);
     router.push('/dashboard');
   };
 
