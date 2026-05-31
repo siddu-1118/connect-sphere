@@ -38,18 +38,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex bg-[#0B0F17] text-slate-200 font-outfit">
-        {/* Teams-style 240px aside drawer on desktop, hidden on mobile */}
-        <Sidebar
-          onSearchClick={() => setSearchOpen(true)}
-        />
+      <div className="min-h-screen flex bg-slate-950 text-slate-200 font-outfit">
+        {/* Left Navigation Rail (desktop) */}
+        <Sidebar />
 
-        {/* Main content area — offset by sidebar width on desktop, bottom bar on mobile */}
-        <main className="flex-1 md:ml-[240px] ml-0 pb-16 md:pb-0 h-screen overflow-hidden flex flex-col bg-[#0f131c]">
+        {/* Main content area — offset by left rail width on desktop, bottom dock on mobile */}
+        <main className="flex-1 md:ml-20 ml-0 pb-20 md:pb-0 h-screen overflow-hidden flex flex-col bg-slate-950">
           {children}
         </main>
 
-        {/* Floating bottom tab nav for mobile layout */}
+        {/* Sticky floating bottom dock for mobile layout */}
         <BottomNav />
 
         {/* Global command palette */}

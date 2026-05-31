@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  Bell, Grid, MessageSquare, Clock, Video 
+import {
+  Bell, Grid, MessageSquare, Clock, Settings
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -12,40 +12,15 @@ export function BottomNav() {
   const pathname = usePathname();
 
   const mainItems = [
-    { 
-      name: 'Activity', 
-      href: '/dashboard', 
-      icon: Bell,
-      activeColor: 'text-primary'
-    },
-    { 
-      name: 'Workspaces', 
-      href: '/workspace', 
-      icon: Grid,
-      activeColor: 'text-primary'
-    },
-    { 
-      name: 'Direct Chat', 
-      href: '/chat', 
-      icon: MessageSquare,
-      activeColor: 'text-secondary-glow'
-    },
-    { 
-      name: 'Calendar', 
-      href: '/calendar', 
-      icon: Clock,
-      activeColor: 'text-secondary-glow'
-    },
-    { 
-      name: 'Meet Now', 
-      href: '/room/instant/join', 
-      icon: Video,
-      activeColor: 'text-primary'
-    },
+    { name: 'Activity', href: '/dashboard', icon: Bell },
+    { name: 'Spaces', href: '/workspace', icon: Grid },
+    { name: 'Chats', href: '/chat', icon: MessageSquare },
+    { name: 'Calendar', href: '/calendar', icon: Clock },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   return (
-    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-[420px] h-14 bg-[#111827]/75 border border-white/10 backdrop-blur-3xl rounded-full flex items-center justify-around z-50 px-3 shadow-[0_0_30px_rgba(16,185,129,0.12)] md:hidden transition-all duration-200">
+    <nav className="fixed bottom-5 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] h-14 bg-slate-900/60 border border-slate-800 backdrop-blur-xl rounded-full flex items-center justify-around z-50 px-2.5 shadow-2xl shadow-slate-950/50 md:hidden transition-all duration-200">
       {mainItems.map((item) => {
         const Icon = item.icon;
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
@@ -57,10 +32,15 @@ export function BottomNav() {
             className="flex flex-col items-center justify-center flex-1 h-full py-1 group transition-all"
           >
             <div className={cn(
-              "p-2.5 rounded-full transition-all duration-200 group-active:scale-90",
-              isActive ? "bg-[#10B981]/15 text-[#10B981]" : "text-slate-400 group-hover:text-slate-200"
+              "p-2.5 rounded-full transition-all duration-150 relative active:scale-90 border border-transparent",
+              isActive 
+                ? "bg-cyan-500/10 text-cyan-400 border-cyan-500/10 shadow-[0_0_12px_rgba(6,182,212,0.1)]" 
+                : "text-slate-400 hover:text-slate-200"
             )}>
               <Icon className="w-4 h-4" />
+              {isActive && (
+                <span className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-1 h-1 bg-cyan-400 rounded-full shadow-[0_0_4px_#06b6d4]" />
+              )}
             </div>
           </Link>
         );

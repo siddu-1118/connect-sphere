@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import Whiteboard from '@/components/meeting/Whiteboard';
 import { useRouter } from 'next/navigation';
 import {
   Plus,
@@ -11,1606 +12,860 @@ import {
   StickyNote,
   Bold,
   Italic,
-  Code,
   List,
   Paperclip,
   Smile,
-  Image,
   Send,
-  MoreHorizontal,
-  MessageSquare,
   X,
   ChevronDown,
-  AlertCircle,
   Zap,
+  AlertCircle,
   CheckCircle2,
-  Heart,
-  Coffee,
-  HelpCircle,
-  Activity,
-  Map,
+  Trash2,
+  AlertTriangle,
+  FolderOpen,
+  MessageSquare
 } from 'lucide-react';
-import api from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
+import { cn } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+interface LocalWorkspace {
+  id: string;
+  name: string;
+  description?: string;
+  channels: LocalChannel[];
+}
 
-interface Team {
+interface LocalChannel {
   id: string;
   name: string;
   description?: string;
 }
 
-interface Channel {
+interface LocalMessage {
   id: string;
-  name: string;
-  teamId: string;
-  description?: string;
-}
-
-interface Message {
-  id: string;
+  channelId: string;
   content: string;
   senderId: string;
   senderName: string;
+  senderAvatar?: string | null;
   createdAt: string;
-  channelId: string;
+  priority: 'Standard' | 'Important' | 'Urgent';
 }
 
-interface TeamMember {
-  id: string;
-  role: 'owner' | 'admin' | 'member';
-  joinedAt: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    avatarUrl: string | null;
-  };
-}
+type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard';
 
-type ChannelTab = 'Posts' | 'Files' | 'Notes';
-type Priority = 'Standard' | 'Important' | 'Urgent';
+export default function WorkspacePage() {
+  const { user } = useAuth();
+  const router = useRouter();
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+  // Workspaces, channels, active selection
+  const [workspaces, setWorkspaces] = useState<LocalWorkspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [expandedWorkspaces, setExpandedWorkspaces] = useState<Record<string, boolean>>({});
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
+  // Active tab in Main Stage
+  const [activeTab, setActiveTab] = useState<TabType>('Posts');
 
-function formatTimestamp(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
+  // Message list for the active channel
+  const [messages, setMessages] = useState<LocalMessage[]>([]);
 
-// ─── Markdown-lite renderer ───────────────────────────────────────────────────
+  // Compose text and toolbar states
+  const [messageText, setMessageText] = useState('');
+  const [priority, setPriority] = useState<'Standard' | 'Important' | 'Urgent'>('Standard');
+  const [showPriorityMenu, setShowPriorityMenu] = useState(false);
+  const [showEmojiMenu, setShowEmojiMenu] = useState(false);
 
-function renderMarkdownLite(text: string): JSX.Element[] {
-  const lines = text.split('\n');
-  return lines.map((line, idx) => {
-    const parts: (string | JSX.Element)[] = [];
-    let remaining = line;
-    let key = 0;
+  // Modal dialog states
+  const [showWorkspaceModal, setShowWorkspaceModal] = useState(false);
+  const [showChannelModal, setShowChannelModal] = useState(false);
+  const [newWorkspaceName, setNewWorkspaceName] = useState('');
+  const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
+  const [newChannelName, setNewChannelName] = useState('');
 
-    // bold **text**
-    remaining = remaining.replace(/\*\*(.+?)\*\*/g, (_, m) => `%%BOLD:${m}%%`);
-    // italic *text*
-    remaining = remaining.replace(/\*(.+?)\*/g, (_, m) => `%%ITALIC:${m}%%`);
-    // code `text`
-    remaining = remaining.replace(/`(.+?)`/g, (_, m) => `%%CODE:${m}%%`);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const emojiRef = useRef<HTMLDivElement>(null);
+  const priorityRef = useRef<HTMLDivElement>(null);
 
-    const tokens = remaining.split(/(%%BOLD:.+?%%|%%ITALIC:.+?%%|%%CODE:.+?%%)/g);
-    for (const token of tokens) {
-      if (token.startsWith('%%BOLD:')) {
-        parts.push(<strong key={key++} className="font-semibold text-slate-100">{token.slice(7, -2)}</strong>);
-      } else if (token.startsWith('%%ITALIC:')) {
-        parts.push(<em key={key++} className="italic text-slate-300">{token.slice(9, -2)}</em>);
-      } else if (token.startsWith('%%CODE:')) {
-        parts.push(
-          <code key={key++} className="px-1 py-0.5 rounded bg-white/10 text-[#22d3ee] font-mono text-[12px]">
-            {token.slice(7, -2)}
-          </code>
-        );
-      } else {
-        parts.push(token);
+  // 1. Initial hydration from localStorage (or fallback mock setups)
+  useEffect(() => {
+    const savedWorkspaces = localStorage.getItem('cs_workspaces');
+    if (savedWorkspaces) {
+      try {
+        const parsed = JSON.parse(savedWorkspaces) as LocalWorkspace[];
+        setWorkspaces(parsed);
+        if (parsed.length > 0) {
+          setActiveWorkspaceId(parsed[0].id);
+          if (parsed[0].channels.length > 0) {
+            setActiveChannelId(parsed[0].channels[0].id);
+          }
+          // Expand the first workspace by default
+          setExpandedWorkspaces({ [parsed[0].id]: true });
+        }
+      } catch (e) {
+        console.error('Failed to parse saved workspaces:', e);
       }
     }
+  }, []);
 
-    return (
-      <span key={idx} className="block leading-relaxed">
-        {parts}
-        {idx < lines.length - 1 && <br />}
-      </span>
-    );
-  });
-}
+  // Save workspaces to localStorage
+  const saveWorkspaces = (updated: LocalWorkspace[]) => {
+    setWorkspaces(updated);
+    localStorage.setItem('cs_workspaces', JSON.stringify(updated));
+  };
 
-// ─── Empty States ─────────────────────────────────────────────────────────────
+  // 2. Load messages based on active channel selection
+  useEffect(() => {
+    if (activeChannelId) {
+      const savedMessages = localStorage.getItem(`cs_msgs_${activeChannelId}`);
+      if (savedMessages) {
+        try {
+          setMessages(JSON.parse(savedMessages));
+        } catch {
+          setMessages([]);
+        }
+      } else {
+        setMessages([]);
+      }
+    } else {
+      setMessages([]);
+    }
+  }, [activeChannelId]);
 
-function NoTeamSelected() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-5 select-none">
-      <div className="relative">
-        <div className="absolute inset-0 -m-8 rounded-full bg-[#10B981]/5 blur-3xl" />
-        <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-          {/* Background circles */}
-          <circle cx="60" cy="60" r="50" fill="#191f31" />
-          <circle cx="60" cy="60" r="50" stroke="#10B981" strokeWidth="1" strokeOpacity="0.2" />
-          {/* Channel hash */}
-          <text x="60" y="72" textAnchor="middle" fontSize="42" fill="#10B981" fillOpacity="0.3" fontWeight="900" fontFamily="Inter, sans-serif">#</text>
-          {/* Sparkle */}
-          <line x1="96" y1="22" x2="96" y2="32" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
-          <line x1="91" y1="27" x2="101" y2="27" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="26" cy="88" r="3" fill="#10B981" fillOpacity="0.5" />
-          <circle cx="90" cy="92" r="2" fill="#22d3ee" fillOpacity="0.4" />
-        </svg>
-      </div>
-      <div className="text-center">
-        <p className="text-slate-300 font-semibold text-base">Select a channel to start collaborating</p>
-        <p className="text-slate-600 text-sm mt-1.5 max-w-[260px]">Choose a team and channel from the left panel to view conversations.</p>
-      </div>
-    </div>
-  );
-}
+  // Scroll to bottom when messages load/change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-function NoTeams({ onCreateTeam }: { onCreateTeam: () => void }) {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4 px-4 py-10 text-center">
-      <div className="w-14 h-14 rounded-2xl bg-[#10B981]/15 flex items-center justify-center">
-        <Users className="w-7 h-7 text-[#10B981]" />
-      </div>
-      <div>
-        <p className="text-slate-300 font-semibold text-sm">No teams yet</p>
-        <p className="text-slate-600 text-xs mt-1 leading-relaxed">Create a team to start collaborating with your colleagues.</p>
-      </div>
-      <button
-        onClick={onCreateTeam}
-        className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors"
-      >
-        Create your first team
-      </button>
-    </div>
-  );
-}
-
-function NoMessages({ channelName }: { channelName: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4 py-16 select-none">
-      <div className="w-16 h-16 rounded-2xl bg-[#10B981]/15 flex items-center justify-center">
-        <MessageSquare className="w-8 h-8 text-[#10B981]" />
-      </div>
-      <div className="text-center">
-        <p className="text-slate-300 font-semibold text-sm">Start the conversation in #{channelName}</p>
-        <p className="text-slate-600 text-xs mt-1.5 max-w-[280px]">Be the first to post a message. Share ideas, files, or updates with your team.</p>
-      </div>
-    </div>
-  );
-}
-
-function FilesEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4 py-16 select-none">
-      <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] border-dashed flex items-center justify-center">
-        <FileText className="w-8 h-8 text-slate-600" />
-      </div>
-      <div className="text-center">
-        <p className="text-slate-300 font-semibold text-sm">No files shared yet</p>
-        <p className="text-slate-600 text-xs mt-1.5 max-w-[260px]">Drag &amp; drop a file to share it with the channel.</p>
-      </div>
-    </div>
-  );
-}
-
-function NotesEmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4 py-16 select-none">
-      <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
-        <StickyNote className="w-8 h-8 text-slate-600" />
-      </div>
-      <div className="text-center">
-        <p className="text-slate-300 font-semibold text-sm">No meeting notes yet</p>
-        <p className="text-slate-600 text-xs mt-1.5 max-w-[260px]">Notes from meetings in this channel will appear here automatically.</p>
-      </div>
-    </div>
-  );
-}
-
-// ─── Priority Dropdown ────────────────────────────────────────────────────────
-
-const PRIORITY_OPTIONS: { value: Priority; label: string; icon: JSX.Element; color: string }[] = [
-  { value: 'Standard', label: 'Standard', icon: <CheckCircle2 className="w-3.5 h-3.5" />, color: 'text-slate-400' },
-  { value: 'Important', label: 'Important', icon: <AlertCircle className="w-3.5 h-3.5" />, color: 'text-amber-400' },
-  { value: 'Urgent', label: 'Urgent', icon: <Zap className="w-3.5 h-3.5" />, color: 'text-red-400' },
-];
-
-function PriorityDropdown({
-  value,
-  onChange,
-}: {
-  value: Priority;
-  onChange: (v: Priority) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
+  // Close menus on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) {
+        setShowEmojiMenu(false);
+      }
+      if (priorityRef.current && !priorityRef.current.contains(e.target as Node)) {
+        setShowPriorityMenu(false);
+      }
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const selected = PRIORITY_OPTIONS.find((o) => o.value === value)!;
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen((p) => !p)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/[0.06] text-[11px] font-medium transition-colors cursor-pointer ${selected.color}`}
-      >
-        {selected.icon}
-        <span>{selected.label}</span>
-        <ChevronDown className="w-3 h-3 text-slate-500 ml-0.5" />
-      </button>
-      {open && (
-        <div className="absolute bottom-full mb-2 left-0 z-50 bg-[#2a2a4a] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden w-36 py-1">
-          {PRIORITY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-medium hover:bg-white/[0.06] transition-colors cursor-pointer ${opt.color} ${value === opt.value ? 'bg-white/[0.04]' : ''}`}
-            >
-              {opt.icon}
-              {opt.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Message Item ─────────────────────────────────────────────────────────────
-
-const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮'];
-
-function MessageItem({ message }: { message: Message }) {
-  const [hovered, setHovered] = useState(false);
-  const [reactions, setReactions] = useState<Record<string, number>>({});
-
-  const addReaction = (emoji: string) => {
-    setReactions((prev) => ({ ...prev, [emoji]: (prev[emoji] ?? 0) + 1 }));
+  // Toggle workspace accordion
+  const toggleWorkspace = (id: string) => {
+    setExpandedWorkspaces(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+    setActiveWorkspaceId(id);
   };
 
-  return (
-    <div
-      className="group relative flex gap-3 px-5 py-2.5 hover:bg-white/[0.02] rounded-lg transition-colors"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Avatar */}
-      <div className="shrink-0 mt-0.5">
-        <Avatar name={message.senderName} size="md" />
-      </div>
+  // Create workspace handler
+  const handleCreateWorkspace = () => {
+    if (!newWorkspaceName.trim()) return;
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-baseline gap-2 mb-0.5">
-          <span className="text-[13px] font-semibold text-slate-100">{message.senderName}</span>
-          <span className="text-[11px] text-slate-600">{formatTimestamp(message.createdAt)}</span>
-        </div>
-        <div className="text-[13px] text-slate-300 leading-relaxed">
-          {renderMarkdownLite(message.content)}
-        </div>
-        {/* Reaction badges */}
-        {Object.keys(reactions).length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            {Object.entries(reactions).map(([emoji, count]) => (
-              <button
-                key={emoji}
-                onClick={() => addReaction(emoji)}
-                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#10B981]/15 border border-[#10B981]/25 text-[11px] text-slate-300 hover:bg-[#10B981]/25 cursor-pointer transition-colors"
-              >
-                <span>{emoji}</span>
-                <span className="text-[#10B981] font-medium">{count}</span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    // Create a default #general channel for the workspace
+    const newWorkspace: LocalWorkspace = {
+      id: `ws-${Date.now()}`,
+      name: newWorkspaceName.trim(),
+      description: newWorkspaceDesc.trim(),
+      channels: [
+        { id: `ch-${Date.now()}-general`, name: 'general', description: 'General announcements and discussion' },
+        { id: `ch-${Date.now()}-frontend`, name: 'frontend-dev', description: 'Frontend engineering sync' }
+      ]
+    };
 
-      {/* Hover toolbar */}
-      {hovered && (
-        <div className="absolute right-4 top-1.5 flex items-center gap-0.5 bg-[#2a2a4a] border border-white/[0.08] rounded-xl px-1.5 py-1 shadow-xl z-10">
-          {QUICK_REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              onClick={() => addReaction(emoji)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-base cursor-pointer transition-colors"
-              title={`React with ${emoji}`}
-            >
-              {emoji}
-            </button>
-          ))}
-          <div className="w-px h-4 bg-white/10 mx-0.5" />
-          <button
-            className="flex items-center gap-1 px-2 h-7 text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
-            title="Reply"
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/10 cursor-pointer transition-colors"
-            title="More options"
-          >
-            <MoreHorizontal className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+    const updated = [...workspaces, newWorkspace];
+    saveWorkspaces(updated);
 
-// ─── Compose Box ──────────────────────────────────────────────────────────────
+    // Set as active
+    setActiveWorkspaceId(newWorkspace.id);
+    setActiveChannelId(newWorkspace.channels[0].id);
+    setExpandedWorkspaces(prev => ({ ...prev, [newWorkspace.id]: true }));
 
-function ComposeBox({
-  channelId,
-  channelName,
-  onMessageSent,
-}: {
-  channelId: string;
-  channelName: string;
-  onMessageSent: (msg: Message) => void;
-}) {
-  const [text, setText] = useState('');
-  const [priority, setPriority] = useState<Priority>('Standard');
-  const [sending, setSending] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { user } = useAuth();
-
-  const handleInput = () => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    // Reset fields
+    setNewWorkspaceName('');
+    setNewWorkspaceDesc('');
+    setShowWorkspaceModal(false);
   };
 
+  // Create channel handler
+  const handleCreateChannel = () => {
+    if (!newChannelName.trim() || !activeWorkspaceId) return;
+
+    const formattedName = newChannelName.trim().toLowerCase().replace(/\s+/g, '-');
+    const newChannel: LocalChannel = {
+      id: `ch-${Date.now()}`,
+      name: formattedName
+    };
+
+    const updated = workspaces.map(ws => {
+      if (ws.id === activeWorkspaceId) {
+        return {
+          ...ws,
+          channels: [...ws.channels, newChannel]
+        };
+      }
+      return ws;
+    });
+
+    saveWorkspaces(updated);
+    setActiveChannelId(newChannel.id);
+
+    setNewChannelName('');
+    setShowChannelModal(false);
+  };
+
+  // Delete workspace utility (premium detail for interactivity)
+  const handleDeleteWorkspace = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const updated = workspaces.filter(ws => ws.id !== id);
+    saveWorkspaces(updated);
+
+    if (activeWorkspaceId === id) {
+      if (updated.length > 0) {
+        setActiveWorkspaceId(updated[0].id);
+        if (updated[0].channels.length > 0) {
+          setActiveChannelId(updated[0].channels[0].id);
+        }
+      } else {
+        setActiveWorkspaceId(null);
+        setActiveChannelId(null);
+      }
+    }
+  };
+
+  // Rich Text helpers
   const insertFormat = (wrap: string) => {
     const el = textareaRef.current;
     if (!el) return;
     const start = el.selectionStart;
     const end = el.selectionEnd;
-    const selected = text.slice(start, end);
-    const newText = text.slice(0, start) + wrap + selected + wrap + text.slice(end);
-    setText(newText);
+    const selected = messageText.slice(start, end);
+    const newText = messageText.slice(0, start) + wrap + selected + wrap + messageText.slice(end);
+    setMessageText(newText);
     setTimeout(() => {
       el.focus();
       el.setSelectionRange(start + wrap.length, end + wrap.length);
     }, 0);
   };
 
-  const handleSend = async () => {
-    const trimmed = text.trim();
-    if (!trimmed || sending) return;
-    setSending(true);
-    try {
-      const res = await api.post(`/channels/${channelId}/messages`, {
-        content: trimmed,
-        priority,
-      });
-      onMessageSent(res.data as Message);
-      setText('');
-      setPriority('Standard');
-      if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    } catch {
-      // silently fail — in production show toast
-    } finally {
-      setSending(false);
-    }
+  const insertEmoji = (emoji: string) => {
+    setMessageText(prev => prev + emoji);
+    setShowEmojiMenu(false);
+    textareaRef.current?.focus();
+  };
+
+  // Send Message
+  const handleSendMessage = () => {
+    if (!messageText.trim() || !activeChannelId) return;
+
+    const newMessage: LocalMessage = {
+      id: `msg-${Date.now()}`,
+      channelId: activeChannelId,
+      content: messageText.trim(),
+      senderId: user?.id ?? 'user-offline',
+      senderName: user?.name ?? 'Explorer',
+      senderAvatar: user?.avatarUrl,
+      createdAt: new Date().toISOString(),
+      priority
+    };
+
+    const updatedMessages = [...messages, newMessage];
+    setMessages(updatedMessages);
+    localStorage.setItem(`cs_msgs_${activeChannelId}`, JSON.stringify(updatedMessages));
+
+    // Clear compose box
+    setMessageText('');
+    setPriority('Standard');
+    textareaRef.current?.focus();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleSendMessage();
     }
   };
 
-  return (
-    <div className="shrink-0 px-5 pb-5 pt-2">
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl overflow-hidden">
-        {/* Formatting toolbar */}
-        <div className="flex items-center gap-0.5 px-3 pt-2.5 pb-1.5 border-b border-white/[0.04]">
-          <button
-            onClick={() => insertFormat('**')}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Bold"
-          >
-            <Bold className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => insertFormat('*')}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Italic"
-          >
-            <Italic className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => insertFormat('`')}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Code"
-          >
-            <Code className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Bullet list"
-          >
-            <List className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-4 bg-white/10 mx-1" />
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Attach file"
-          >
-            <Paperclip className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="Emoji"
-          >
-            <Smile className="w-3.5 h-3.5" />
-          </button>
-          <button
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-            title="GIF"
-          >
-            <Image className="w-3.5 h-3.5" />
-          </button>
-        </div>
-
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={(e) => { setText(e.target.value); handleInput(); }}
-          onKeyDown={handleKeyDown}
-          placeholder={`Message #${channelName}`}
-          rows={2}
-          className="w-full bg-transparent px-4 py-3 text-[13px] text-slate-200 placeholder-slate-600 outline-none resize-none leading-relaxed"
-          style={{ minHeight: '60px', maxHeight: '200px' }}
-        />
-
-        {/* Bottom bar */}
-        <div className="flex items-center justify-between px-3 pb-3 pt-1 gap-2">
-          <PriorityDropdown value={priority} onChange={setPriority} />
-
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-700 hidden sm:block">⏎ send · ⇧⏎ newline</span>
-            <button
-              onClick={handleSend}
-              disabled={!text.trim() || sending}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-[12px] font-semibold transition-all cursor-pointer
-                ${text.trim() && !sending
-                  ? 'bg-[#10B981] hover:bg-[#059669] text-white'
-                  : 'bg-white/5 text-slate-600 cursor-not-allowed'
-                }`}
-            >
-              <Send className="w-3.5 h-3.5" />
-              {sending ? 'Sending…' : 'Send'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Modal ────────────────────────────────────────────────────────────────────
-
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      {/* Panel */}
-      <div className="relative bg-[#191f31] border border-white/[0.08] rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-slate-100 font-bold text-base">{title}</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-200 hover:bg-white/10 cursor-pointer transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
-
-// ─── New Team Modal ────────────────────────────────────────────────────────────
-
-function NewTeamModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (team: Team) => void;
-}) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleCreate = async () => {
-    if (!name.trim()) { setError('Team name is required.'); return; }
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.post('/teams', { name: name.trim(), description: description.trim() });
-      if (res.data?.success && res.data?.team) {
-        onCreated(res.data.team as Team);
-        onClose();
-      } else {
-        setError('Failed to create team. Invalid server response.');
+  // Format message rendering with basic styling Markdown
+  const renderMessageContent = (text: string) => {
+    const parts = text.split(/(\*\*.+?\*\*|\*.+?\*|`.+?`)/g);
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index} className="font-bold text-slate-100">{part.slice(2, -2)}</strong>;
       }
-    } catch {
-      setError('Failed to create team. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Modal title="Create a new team" onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-            Team Name
-          </label>
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            placeholder="e.g. Engineering, Design, Marketing"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
-          />
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-            Description <span className="text-slate-700 normal-case font-normal">(optional)</span>
-          </label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="What's this team about?"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
-          />
-        </div>
-        {error && (
-          <p className="text-red-400 text-xs flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-sm cursor-pointer transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={loading}
-            className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
-          >
-            {loading ? 'Creating…' : 'Create Team'}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-// ─── Add Channel Modal ─────────────────────────────────────────────────────────
-
-function AddChannelModal({
-  team,
-  onClose,
-  onCreated,
-}: {
-  team: Team;
-  onClose: () => void;
-  onCreated: (channel: Channel) => void;
-}) {
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleCreate = async () => {
-    if (!name.trim()) { setError('Channel name is required.'); return; }
-    setLoading(true);
-    setError('');
-    try {
-      const res = await api.post(`/teams/${team.id}/channels`, {
-        name: name.trim().toLowerCase().replace(/\s+/g, '-'),
-      });
-      if (res.data?.success && res.data?.channel) {
-        onCreated(res.data.channel as Channel);
-        onClose();
-      } else {
-        setError('Failed to create channel. Invalid server response.');
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={index} className="italic text-slate-350">{part.slice(1, -1)}</em>;
       }
-    } catch {
-      setError('Failed to create channel. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        return <code key={index} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-400 font-mono text-xs">{part.slice(1, -1)}</code>;
+      }
+      return part;
+    });
   };
 
-  return (
-    <Modal title={`Add channel to ${team.name}`} onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <div>
-          <label className="block text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
-            Channel Name
-          </label>
-          <div className="flex items-center gap-2 bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 focus-within:border-[#10B981]/50 transition-colors">
-            <Hash className="w-4 h-4 text-slate-600 shrink-0" />
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-              placeholder="general, announcements, random"
-              className="flex-1 bg-transparent text-sm text-slate-200 placeholder-slate-600 outline-none"
-            />
-          </div>
-          <p className="text-slate-700 text-[11px] mt-1.5">Spaces will be replaced with hyphens.</p>
-        </div>
-        {error && (
-          <p className="text-red-400 text-xs flex items-center gap-1.5">
-            <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-            {error}
-          </p>
-        )}
-        <div className="flex justify-end gap-2 pt-1">
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-sm cursor-pointer transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleCreate}
-            disabled={loading}
-            className="bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl px-4 py-2 text-sm cursor-pointer transition-colors disabled:opacity-60"
-          >
-            {loading ? 'Adding…' : 'Add Channel'}
-          </button>
-        </div>
-      </div>
-    </Modal>
-  );
-}
+  const getWorkspaceInitials = (name: string) => {
+    return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  };
 
-// ─── Team Row ─────────────────────────────────────────────────────────────────
-
-function TeamRow({
-  team,
-  channels,
-  selectedChannelId,
-  onSelectChannel,
-  onAddChannel,
-  loadingChannels,
-}: {
-  team: Team;
-  channels: Channel[];
-  selectedChannelId: string | null;
-  onSelectChannel: (channel: Channel) => void;
-  onAddChannel: (team: Team) => void;
-  loadingChannels: boolean;
-}) {
-  const [expanded, setExpanded] = useState(true);
+  const activeWorkspace = workspaces.find(ws => ws.id === activeWorkspaceId);
+  const activeChannel = activeWorkspace?.channels.find(ch => ch.id === activeChannelId);
 
   return (
-    <div>
-      {/* Team header row */}
-      <div
-        className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/[0.04] rounded-xl cursor-pointer group transition-colors"
-        onClick={() => setExpanded((p) => !p)}
-      >
-        <ChevronRight
-          className={`w-3.5 h-3.5 text-slate-600 shrink-0 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`}
-        />
-        {/* Avatar initials */}
-        <div className="w-6 h-6 rounded-md bg-[#10B981]/30 flex items-center justify-center shrink-0">
-          <span className="text-[9px] font-black text-[#10B981]">{getInitials(team.name)}</span>
+    <div className="flex-1 flex overflow-hidden bg-slate-950 font-outfit h-full select-none relative">
+      
+      {/* ── SECONDARY SIDEBAR: Accordion Teams/Channels List ── */}
+      <aside className="w-64 shrink-0 bg-slate-905 border-r border-slate-900 flex flex-col h-full select-none hidden sm:flex">
+        
+        {/* Sidebar Header */}
+        <div className="h-16 px-5 border-b border-slate-900 flex items-center justify-between shrink-0 select-none">
+          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Workspace Channels</h2>
+          <button
+            onClick={() => setShowWorkspaceModal(true)}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-900 border border-transparent hover:border-slate-850 transition-all cursor-pointer"
+            title="Create Workspace"
+          >
+            <Plus size={15} className="stroke-[2.5]" />
+          </button>
         </div>
-        <span className="text-slate-300 text-[13px] font-medium truncate flex-1">{team.name}</span>
-        {/* Add channel button (appears on hover) */}
-        <button
-          onClick={(e) => { e.stopPropagation(); onAddChannel(team); }}
-          className="w-5 h-5 flex items-center justify-center rounded-md text-slate-600 hover:text-slate-300 hover:bg-white/10 opacity-0 group-hover:opacity-100 cursor-pointer transition-all"
-          title="Add channel"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-      </div>
 
-      {/* Channels */}
-      {expanded && (
-        <div className="ml-5 mt-0.5 mb-1">
-          {loadingChannels ? (
-            <div className="flex items-center gap-2 px-3 py-2">
-              <div className="w-3 h-3 rounded-full border border-[#10B981]/50 border-t-transparent animate-spin" />
-              <span className="text-slate-600 text-xs">Loading…</span>
+        {/* Channels Accordion list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1.5 select-none scrollbar-thin">
+          {workspaces.length === 0 ? (
+            /* Sidebar Empty State */
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center select-none h-full">
+              <svg width="48" height="48" viewBox="0 0 64 64" fill="none" className="mb-4 text-slate-600 opacity-40">
+                <rect x="12" y="12" width="40" height="40" rx="8" fill="#1e293b" opacity="0.1" stroke="#475569" strokeWidth="1.5" />
+                <path d="M12 28H52" stroke="#475569" strokeWidth="1.5" strokeDasharray="3 3" />
+                <circle cx="24" cy="20" r="3" fill="#6366f1" />
+                <circle cx="40" cy="20" r="3" fill="#06b6d4" />
+                <path d="M20 44L28 36L36 44L44 36" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <p className="text-xs font-bold text-slate-400">No workspaces yet</p>
+              <p className="text-[10px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+                You haven't joined any workspaces yet. Create one to start collaborating.
+              </p>
+              <button
+                onClick={() => setShowWorkspaceModal(true)}
+                className="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border border-indigo-500/25"
+              >
+                Create Workspace
+              </button>
             </div>
-          ) : channels.length === 0 ? (
-            <button
-              onClick={() => onAddChannel(team)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] text-slate-600 hover:text-[#10B981] cursor-pointer transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              Add a channel
-            </button>
           ) : (
-            channels.map((channel) => {
-              const isActive = selectedChannelId === channel.id;
+            workspaces.map(ws => {
+              const isExpanded = !!expandedWorkspaces[ws.id];
+              const isActiveWs = activeWorkspaceId === ws.id;
+
               return (
-                <div
-                  key={channel.id}
-                  onClick={() => onSelectChannel(channel)}
-                  className={`relative flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors
-                    ${isActive
-                      ? 'bg-[#10B981]/15 text-[#10B981]'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
-                    }`}
-                >
-                  {/* Active left accent bar */}
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-[#10B981] rounded-full" />
+                <div key={ws.id} className="space-y-0.5 select-none">
+                  {/* Workspace Accordion Header */}
+                  <div
+                    onClick={() => toggleWorkspace(ws.id)}
+                    className={cn(
+                      "flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer group transition-all duration-200",
+                      isActiveWs ? "bg-slate-900/60 border border-slate-850/50" : "hover:bg-slate-900/20 border border-transparent"
+                    )}
+                  >
+                    <ChevronRight
+                      size={14}
+                      className={cn(
+                        "text-slate-500 group-hover:text-slate-350 transition-transform duration-200 shrink-0",
+                        isExpanded && "rotate-90 text-cyan-400"
+                      )}
+                    />
+                    
+                    {/* Workspace Initials Mark */}
+                    <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-[9px] flex items-center justify-center shrink-0">
+                      {getWorkspaceInitials(ws.name)}
+                    </div>
+                    
+                    <span className="text-slate-300 text-xs font-bold truncate flex-1">{ws.name}</span>
+                    
+                    {/* Workspace utility options (appears on hover) */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setActiveWorkspaceId(ws.id); setShowChannelModal(true); }}
+                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 hover:text-cyan-450 hover:bg-slate-800 transition-colors"
+                        title="Add Channel"
+                      >
+                        <Plus size={12} className="stroke-[2.5]" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDeleteWorkspace(e, ws.id)}
+                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                        title="Delete Workspace"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expanded Accordion Channels List */}
+                  {isExpanded && (
+                    <div className="pl-6 space-y-0.5 mt-0.5 select-none transition-all">
+                      {ws.channels.length === 0 ? (
+                        <button
+                          onClick={() => { setActiveWorkspaceId(ws.id); setShowChannelModal(true); }}
+                          className="w-full text-left px-3 py-1.5 text-[10px] text-slate-550 hover:text-cyan-400 flex items-center gap-1 cursor-pointer"
+                        >
+                          <Plus size={10} />
+                          Add channel
+                        </button>
+                      ) : (
+                        ws.channels.map(ch => {
+                          const isChanActive = activeChannelId === ch.id;
+                          return (
+                            <div
+                              key={ch.id}
+                              onClick={() => { setActiveChannelId(ch.id); setActiveWorkspaceId(ws.id); }}
+                              className={cn(
+                                "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors relative border border-transparent select-none",
+                                isChanActive 
+                                  ? "bg-cyan-500/10 text-cyan-450 border-cyan-500/5 shadow-[0_0_12px_rgba(6,182,212,0.05)]" 
+                                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/10"
+                              )}
+                            >
+                              {isChanActive && (
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_6px_#06b6d4]" />
+                              )}
+                              <Hash size={13} className="shrink-0 text-slate-500" />
+                              <span className="text-[11px] font-semibold truncate leading-none mt-0.5">{ch.name}</span>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
                   )}
-                  <Hash className="w-3.5 h-3.5 shrink-0" />
-                  <span className="text-[13px] font-medium truncate">{channel.name}</span>
                 </div>
               );
             })
           )}
         </div>
-      )}
-    </div>
-  );
-}
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
-interface KudosItem {
-  id: number;
-  sender: string;
-  time: string;
-  target: string;
-  text: string;
-  likes: number;
-  liked: boolean;
-  avatarUrl: string | null;
-}
-
-export default function WorkspacePage() {
-  const { user } = useAuth();
-  const router = useRouter();
-
-  // Redesign states
-  const [workspaceTab, setWorkspaceTab] = useState<'map' | 'chats'>('map');
-  const [selectedRoom, setSelectedRoom] = useState<'boardroom' | 'coffee' | 'zen' | 'engineering' | null>(null);
-  const [kudos, setKudos] = useState<KudosItem[]>([]);
-  const [newKudosText, setNewKudosText] = useState('');
-
-  // Teams & channels state
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [channelsByTeam, setChannelsByTeam] = useState<Record<string, Channel[]>>({});
-  const [membersByTeam, setMembersByTeam] = useState<Record<string, TeamMember[]>>({});
-  const [loadingTeams, setLoadingTeams] = useState(true);
-  const [loadingChannels, setLoadingChannels] = useState<Record<string, boolean>>({});
-
-  // Selection
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
-
-  // Messages
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Tabs
-  const [activeTab, setActiveTab] = useState<ChannelTab>('Posts');
-
-  // Modals
-  const [showNewTeam, setShowNewTeam] = useState(false);
-  const [addChannelForTeam, setAddChannelForTeam] = useState<Team | null>(null);
-
-  // Load Kudos from localStorage on mount
-  useEffect(() => {
-    const storedKudos = localStorage.getItem('connect_sphere_kudos');
-    if (storedKudos) {
-      try {
-        setKudos(JSON.parse(storedKudos));
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, []);
-
-  // Save Kudos to localStorage on change
-  const isFirstMount = useRef(true);
-  useEffect(() => {
-    if (isFirstMount.current) {
-      isFirstMount.current = false;
-      return;
-    }
-    localStorage.setItem('connect_sphere_kudos', JSON.stringify(kudos));
-  }, [kudos]);
-
-  // Auto-select first team when teams are loaded
-  useEffect(() => {
-    if (teams.length > 0 && !selectedTeam) {
-      setSelectedTeam(teams[0]);
-    }
-  }, [teams, selectedTeam]);
-
-  // ── Fetch teams on mount ──
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchTeams() {
-      setLoadingTeams(true);
-      try {
-        const res = await api.get('/teams');
-        if (!cancelled) {
-          const teamsList = (res.data?.teams ?? []) as Team[];
-          setTeams(teamsList);
-          // Fetch details for each team
-          teamsList.forEach((team) => fetchTeamDetails(team.id));
-        }
-      } catch {
-        // silently ignore
-      } finally {
-        if (!cancelled) setLoadingTeams(false);
-      }
-    }
-    fetchTeams();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
-  // ── Fetch channels and members for a team ──
-  const fetchTeamDetails = useCallback(async (teamId: string) => {
-    setLoadingChannels((p) => ({ ...p, [teamId]: true }));
-    try {
-      const res = await api.get(`/teams/${teamId}`);
-      if (res.data?.success) {
-        setChannelsByTeam((p) => ({ ...p, [teamId]: res.data.channels as Channel[] }));
-        setMembersByTeam((p) => ({ ...p, [teamId]: res.data.members as TeamMember[] }));
-      }
-    } catch {
-      setChannelsByTeam((p) => ({ ...p, [teamId]: [] }));
-      setMembersByTeam((p) => ({ ...p, [teamId]: [] }));
-    } finally {
-      setLoadingChannels((p) => ({ ...p, [teamId]: false }));
-    }
-  }, []);
-
-  // ── Deterministic Room Presence Mapping ──
-  const getRoomMembers = useCallback((roomId: string) => {
-    if (!selectedTeam) return [];
-    const members = membersByTeam[selectedTeam.id] ?? [];
-    // Distribute actual members (excluding current user to avoid displaying them in all rooms)
-    const otherMembers = members.filter((m) => m.user?.id !== user?.id);
-    return otherMembers.filter((m) => {
-      const str = m.user?.id || '';
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      const roomIdx = Math.abs(hash) % 4;
-      const targetRoomIdx = 
-        roomId === 'boardroom' ? 0 : 
-        roomId === 'coffee' ? 1 : 
-        roomId === 'zen' ? 2 : 3;
-      return roomIdx === targetRoomIdx;
-    });
-  }, [selectedTeam, membersByTeam, user]);
-
-  // ── Fetch messages when channel changes ──
-  useEffect(() => {
-    if (!selectedChannel) return;
-    let cancelled = false;
-    async function fetchMessages() {
-      setLoadingMessages(true);
-      setMessages([]);
-      try {
-        const res = await api.get(`/channels/${selectedChannel!.id}/messages`);
-        if (!cancelled) setMessages(res.data as Message[]);
-      } catch {
-        if (!cancelled) setMessages([]);
-      } finally {
-        if (!cancelled) setLoadingMessages(false);
-      }
-    }
-    fetchMessages();
-    return () => { cancelled = true; };
-  }, [selectedChannel]);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  const handleSelectChannel = (channel: Channel) => {
-    setSelectedChannel(channel);
-    setActiveTab('Posts');
-    const team = teams.find((t) => t.id === channel.teamId);
-    if (team) setSelectedTeam(team);
-  };
-
-  const handleTeamCreated = (team: Team) => {
-    setTeams((p) => [...p, team]);
-    setChannelsByTeam((p) => ({ ...p, [team.id]: [] }));
-  };
-
-  const handleChannelCreated = (channel: Channel) => {
-    setChannelsByTeam((p) => ({
-      ...p,
-      [channel.teamId]: [...(p[channel.teamId] ?? []), channel],
-    }));
-  };
-
-  const handleMessageSent = (msg: Message) => {
-    setMessages((p) => [...p, msg]);
-  };
-
-  const TABS: ChannelTab[] = ['Posts', 'Files', 'Notes'];
-
-  return (
-    <div className="flex flex-col h-full bg-[#0B0F17] overflow-hidden">
-      {/* ── Tabs Header ── */}
-      <div className="h-14 bg-[#0c1324] border-b border-white/5 flex items-center justify-between px-6 shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-            <span className="material-symbols-outlined text-[18px]">grid_view</span>
+        {/* Sidebar Footer User Detail info */}
+        <div className="p-3.5 border-t border-slate-900/60 bg-slate-905 flex items-center justify-between shrink-0 select-none">
+          <div className="flex items-center gap-2.5">
+            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" className="border border-slate-800" />
+            <div className="leading-none text-left select-none">
+              <p className="text-xs font-bold text-slate-350">{user?.name?.split(' ')[0] ?? 'Aero User'}</p>
+              <span className="text-[8px] font-bold tracking-wider text-indigo-400 uppercase select-none mt-0.5 block">Enterprise Plan</span>
+            </div>
           </div>
-          <span className="text-sm font-bold text-slate-100 font-outfit">Virtual Workspace</span>
         </div>
 
-        {/* Tab switch buttons */}
-        <div className="flex items-center gap-1 bg-white/[0.04] rounded-xl p-1">
-          <button
-            onClick={() => setWorkspaceTab('map')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              workspaceTab === 'map'
-                ? 'bg-[#10B981]/20 text-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
-            }`}
-          >
-            <Map className="w-3.5 h-3.5" />
-            <span>Workspace Map</span>
-          </button>
-          <button
-            onClick={() => setWorkspaceTab('chats')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              workspaceTab === 'chats'
-                ? 'bg-[#10B981]/20 text-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.1)]'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>Team Chats</span>
-          </button>
-        </div>
+      </aside>
 
-        {/* Right decoration */}
-        <div className="flex items-center gap-2">
-          <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-[10px] font-mono flex items-center gap-1.5 border border-primary/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary status-pulse" />
-            Encrypted Workspace
-          </span>
-        </div>
-      </div>
-
-      {/* ── Main Workspace Body ── */}
-      <div className="flex-1 flex overflow-hidden">
-        {workspaceTab === 'chats' ? (
-          <div className="flex h-full w-full bg-[#111827] overflow-hidden">
-            {/* ── Left Sub-Panel ── */}
-            <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col overflow-hidden">
-              {/* Header */}
-              <div className="h-14 flex items-center justify-between px-4 shrink-0 border-b border-white/[0.06]">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Teams</span>
-                <button
-                  onClick={() => setShowNewTeam(true)}
-                  className="flex items-center gap-1 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-2 py-1.5 text-[11px] font-medium cursor-pointer transition-colors"
-                  title="New Team"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New</span>
-                </button>
-              </div>
-
-              {/* Teams list */}
-              <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-                {loadingTeams ? (
-                  <div className="flex flex-col gap-2 p-3">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-md bg-white/5 animate-pulse" />
-                        <div className="h-3 rounded-full bg-white/5 animate-pulse flex-1" />
-                      </div>
-                    ))}
-                  </div>
-                ) : teams.length === 0 ? (
-                  <NoTeams onCreateTeam={() => setShowNewTeam(true)} />
-                ) : (
-                  teams.map((team) => (
-                    <TeamRow
-                      key={team.id}
-                      team={team}
-                      channels={channelsByTeam[team.id] ?? []}
-                      selectedChannelId={selectedChannel?.id ?? null}
-                      onSelectChannel={handleSelectChannel}
-                      onAddChannel={(t) => setAddChannelForTeam(t)}
-                      loadingChannels={loadingChannels[team.id] ?? false}
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="shrink-0 px-4 py-3 border-t border-white/[0.06]">
-                <button
-                  onClick={() => setShowNewTeam(true)}
-                  className="text-[12px] text-slate-500 hover:text-[#10B981] cursor-pointer transition-colors w-full text-left"
-                >
-                  + Join or create a team
-                </button>
+      {/* ── MAIN CHAT CANVAS ── */}
+      <main className="flex-1 flex flex-col h-full bg-slate-950/10 overflow-hidden relative">
+        {!activeChannel ? (
+          /* Canvas Select Channel Empty State */
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-slate-950/40 relative">
+            <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-cyan-500/5 rounded-full blur-[130px] pointer-events-none" />
+            <div className="relative mb-6">
+              <div className="w-20 h-20 rounded-full border border-slate-900 flex items-center justify-center bg-slate-900/60 shadow-2xl z-10 relative ring-1 ring-white/5">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-cyan-500/10 border border-indigo-500/25 flex items-center justify-center shadow-lg text-cyan-400">
+                  <Hash size={24} className="text-cyan-450 stroke-[2.5]" />
+                </div>
               </div>
             </div>
-
-            {/* ── Main Content Area ── */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              {!selectedChannel ? (
-                <NoTeamSelected />
-              ) : (
-                <>
-                  {/* Channel header */}
-                  <div className="h-14 flex items-center gap-3 px-5 bg-[#0B0F17] border-b border-white/[0.06] shrink-0">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <Hash className="w-4 h-4 text-slate-500 shrink-0" />
-                      <span className="text-slate-100 font-semibold text-sm truncate">{selectedChannel.name}</span>
-                      {selectedTeam && (
-                        <>
-                          <span className="text-slate-700 text-xs hidden sm:block">·</span>
-                          <span className="text-slate-600 text-xs truncate hidden sm:block">{selectedTeam.name}</span>
-                        </>
-                      )}
-                    </div>
-                    {/* Tab bar */}
-                    <div className="flex items-center gap-0.5">
-                      {TABS.map((tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`px-3 py-1.5 rounded-lg text-[12px] font-medium cursor-pointer transition-colors
-                            ${activeTab === tab
-                              ? 'bg-[#10B981]/15 text-[#10B981]'
-                              : 'text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]'
-                            }`}
-                        >
-                          {tab}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tab content */}
-                  {activeTab === 'Posts' && (
-                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                      {/* Messages area */}
-                      <div className="flex-1 overflow-y-auto py-4">
-                        {loadingMessages ? (
-                          <div className="flex flex-col gap-4 px-5 py-2">
-                            {[1, 2, 3].map((i) => (
-                              <div key={i} className="flex gap-3">
-                                <div className="w-8 h-8 rounded-full bg-white/5 animate-pulse shrink-0" />
-                                <div className="flex-1 flex flex-col gap-2">
-                                  <div className="h-3 w-24 rounded-full bg-white/5 animate-pulse" />
-                                  <div className="h-3 w-48 rounded-full bg-white/5 animate-pulse" />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : messages.length === 0 ? (
-                          <NoMessages channelName={selectedChannel.name} />
-                        ) : (
-                          <>
-                            {messages.map((msg) => (
-                              <MessageItem key={msg.id} message={msg} />
-                            ))}
-                            <div ref={messagesEndRef} />
-                          </>
-                        )}
-                      </div>
-
-                      {/* Compose box */}
-                      <ComposeBox
-                        channelId={selectedChannel.id}
-                        channelName={selectedChannel.name}
-                        onMessageSent={handleMessageSent}
-                      />
-                    </div>
-                  )}
-
-                  {activeTab === 'Files' && (
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      <FilesEmptyState />
-                    </div>
-                  )}
-
-                  {activeTab === 'Notes' && (
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                      <NotesEmptyState />
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
+            <h3 className="text-slate-200 font-bold text-base tracking-tight">Select a channel to begin</h3>
+            <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
+              Choose a workspace and channel from the sidebar accordion, or click below to create a new collaborative space.
+            </p>
+            {workspaces.length === 0 && (
+              <button
+                onClick={() => setShowWorkspaceModal(true)}
+                className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:scale-[1.02] cursor-pointer"
+              >
+                Create Workspace
+              </button>
+            )}
           </div>
         ) : (
-          /* ── REDESIGNED VIRTUAL OFFICE FLOOR PLAN MAP ── */
-          <div className="flex h-full w-full bg-[#111827] overflow-hidden">
-            {/* Rooms List Panel */}
-            <div className="w-[260px] shrink-0 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col overflow-hidden">
-              <div className="h-14 flex items-center px-4 border-b border-white/[0.06] shrink-0 justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Workspace Rooms</span>
-              </div>
-              
-              {/* Team Selector Dropdown */}
-              {teams.length > 0 && (
-                <div className="px-3 py-2 border-b border-white/[0.04] shrink-0 bg-[#0c1220]">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wide mb-1">Active Team Map</label>
-                  <select
-                    value={selectedTeam?.id ?? ''}
-                    onChange={(e) => {
-                      const t = teams.find((x) => x.id === e.target.value);
-                      if (t) setSelectedTeam(t);
-                    }}
-                    className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-2.5 py-1.5 text-xs text-slate-300 outline-none cursor-pointer focus:border-[#10B981]/50 transition-colors"
-                  >
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id} className="bg-[#191f31] text-slate-200">
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+          <>
+            {/* 1. FIXED TABBED HEADER */}
+            <header className="h-16 border-b border-slate-900 bg-slate-950/30 backdrop-blur-md flex flex-col justify-end px-6 shrink-0 select-none z-20">
+              <div className="flex items-center justify-between flex-1 select-none">
+                <div className="flex items-center gap-2 select-none">
+                  <Hash size={18} className="text-slate-400 stroke-[2.5]" />
+                  <h1 className="text-sm font-black text-slate-150 uppercase tracking-wide mt-0.5">{activeChannel.name}</h1>
                 </div>
-              )}
+                <div className="flex items-center gap-3 text-slate-500 text-[10px] font-bold tracking-wider uppercase select-none">
+                  {activeWorkspace?.name}
+                </div>
+              </div>
 
-              <div className="flex-grow overflow-y-auto p-3 space-y-2">
-                {[
-                  { id: 'boardroom', name: 'Boardroom', desc: 'Quarterly Review', tag: '#sprint-planning' },
-                  { id: 'coffee', name: 'Coffee Lounge', desc: 'Casual Chat', tag: '#watercooler' },
-                  { id: 'zen', name: 'Zen Zone', desc: 'Focus Mode', tag: '#silent-zone' },
-                  { id: 'engineering', name: 'Engineering Hub', desc: 'Live Coding Standup', tag: '#engineering' }
-                ].map((room) => {
-                  const roomMembers = getRoomMembers(room.id);
-                  const count = roomMembers.length;
-                  const isActive = count > 0;
-                  const isSelected = selectedRoom === room.id;
+              {/* Horizontal Tabs: Posts, Files, Notes, Whiteboard */}
+              <div className="flex gap-6 select-none shrink-0">
+                {(['Posts', 'Files', 'Notes', 'Whiteboard'] as TabType[]).map(tab => {
+                  const isActive = activeTab === tab;
                   return (
                     <button
-                      key={room.id}
-                      onClick={() => setSelectedRoom(room.id as any)}
-                      className={`w-full p-3 rounded-xl text-left border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#10B981]/10 border-[#10B981] shadow-[0_0_10px_rgba(16,185,129,0.06)]'
-                          : 'bg-white/5 border-white/[0.06] hover:border-white/10 hover:bg-white/[0.08]'
-                      }`}
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={cn(
+                        "pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all relative",
+                        isActive 
+                          ? "border-cyan-400 text-cyan-400" 
+                          : "border-transparent text-slate-500 hover:text-slate-350 cursor-pointer"
+                      )}
                     >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={`text-sm font-semibold ${isSelected ? 'text-[#10B981]' : 'text-slate-200'}`}>
-                          {room.name}
-                        </span>
-                        {isActive && (
-                          <span className="flex items-center gap-1 text-[9px] bg-[#10B981]/25 text-[#10B981] font-bold px-1.5 py-0.5 rounded-md">
-                            <span className="w-1 h-1 rounded-full bg-[#10B981] status-pulse" />
-                            Live
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 truncate">{room.desc}</p>
-                      <div className="flex items-center justify-between mt-2.5">
-                        <span className="text-[10px] text-slate-650 font-medium font-mono">{room.tag}</span>
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                          <Users className="w-3 h-3 text-slate-500" />
-                          {count} online
-                        </span>
-                      </div>
+                      {tab}
                     </button>
                   );
                 })}
               </div>
-              <div className="p-4 border-t border-white/[0.06] shrink-0">
-                <button
-                  onClick={() => router.push('/room/instant/join')}
-                  className="w-full py-2 bg-[#10B981] hover:bg-[#059669] text-white font-semibold rounded-xl text-sm transition-colors cursor-pointer text-center"
-                >
-                  Host Instant Meeting
-                </button>
+            </header>
+
+            {/* 2. SCROLLABLE CENTRAL AREA */}
+            <div className={cn(
+              "flex-1 relative",
+              activeTab === 'Posts' ? "overflow-y-auto px-6 py-6 space-y-4 scrollbar-thin" : "overflow-hidden"
+            )}>
+              {activeTab === 'Posts' ? (
+                messages.length === 0 ? (
+                  /* Message Feed Empty State */
+                  <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full">
+                    <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/80 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
+                      <MessageSquare size={24} className="text-indigo-400 stroke-[2.5]" />
+                    </div>
+                    <h3 className="text-slate-200 font-bold text-sm tracking-tight">Welcome to #{activeChannel.name}</h3>
+                    <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
+                      Welcome to the beginning of this channel. Send a message to start the thread.
+                    </p>
+                  </div>
+                ) : (
+                  /* Chronological Message Feed */
+                  <div className="space-y-4 max-w-4xl mx-auto">
+                    {messages.map(msg => {
+                      const isUrgent = msg.priority === 'Urgent';
+                      const isImportant = msg.priority === 'Important';
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            "flex gap-4 p-4 rounded-2xl transition-all select-text",
+                            isUrgent 
+                              ? "bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]" 
+                              : isImportant 
+                              ? "bg-amber-500/5 border border-amber-500/15" 
+                              : "bg-slate-900/15 border border-slate-900/40 hover:bg-slate-900/20 hover:border-slate-850/40"
+                          )}
+                        >
+                          {/* Avatar */}
+                          <Avatar name={msg.senderName} src={msg.senderAvatar} size="md" className="border border-slate-800" />
+                          
+                          {/* Body */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-slate-100">{msg.senderName}</span>
+                              <span className="text-[9px] font-medium text-slate-650">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              
+                              {/* Priority Indicator Tags */}
+                              {isUrgent && (
+                                <span className="flex items-center gap-0.5 px-2 py-0.5 bg-rose-500/10 text-rose-450 border border-rose-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
+                                  <Zap size={8} className="fill-rose-500" /> Urgent
+                                </span>
+                              )}
+                              {isImportant && (
+                                <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-450 border border-amber-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
+                                  <AlertTriangle size={8} /> Important
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Render Markdown Content */}
+                            <div className="text-slate-300 text-xs leading-relaxed break-words font-outfit select-text selection:bg-cyan-500/20">
+                              {renderMessageContent(msg.content)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </div>
+                )
+              ) : activeTab === 'Whiteboard' ? (
+                <div className="absolute inset-0 p-6">
+                  <Whiteboard />
+                </div>
+              ) : (
+                /* Files & Notes empty states */
+                <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full bg-slate-950/20">
+                  <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/80 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
+                    {activeTab === 'Files' ? <FolderOpen className="text-indigo-400 stroke-[2.5]" /> : <StickyNote className="text-indigo-400 stroke-[2.5]" />}
+                  </div>
+                  <h3 className="text-slate-200 font-bold text-sm tracking-tight">{activeTab === 'Files' ? 'No files uploaded' : 'No notes written'}</h3>
+                  <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
+                    Collaborate with your team by sharing {activeTab === 'Files' ? 'files and documents' : 'notes and logs'} in this channel.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 3. RICH TEXT INPUT COMPONENT (FIXED AT THE BOTTOM) */}
+            {activeTab === 'Posts' && (
+              <div className="px-6 pb-6 pt-2 shrink-0 select-none z-10">
+                <div className="max-w-4xl w-full mx-auto">
+                  <div className="bg-slate-900/30 border border-slate-900 focus-within:border-cyan-500/40 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 shadow-2xl">
+                    
+                    {/* Text Compose Area */}
+                    <textarea
+                      ref={textareaRef}
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder={`Message #${activeChannel.name}...`}
+                      rows={1}
+                      className="w-full bg-transparent px-5 py-4 text-xs text-slate-200 placeholder-slate-600 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
+                    />
+
+                    {/* Toolbar Panel (Inside Compose Card) */}
+                    <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-900/60 select-none">
+                      <div className="flex items-center gap-1.5 select-none">
+                        
+                        {/* Formats */}
+                        <button
+                          onClick={() => insertFormat('**')}
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          title="Bold (**)"
+                        >
+                          <Bold size={13} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                          onClick={() => insertFormat('*')}
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          title="Italic (*)"
+                        >
+                          <Italic size={13} className="stroke-[2.5]" />
+                        </button>
+                        <button
+                          onClick={() => insertFormat('`')}
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          title="Code inline (`)"
+                        >
+                          <Hash size={13} />
+                        </button>
+                        
+                        <div className="h-4 w-[1px] bg-slate-900 mx-1" />
+
+                        {/* Attachments */}
+                        <button
+                          onClick={() => alert("Simulated: File Attachment trigger.")}
+                          className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          title="Attach File"
+                        >
+                          <Paperclip size={13} />
+                        </button>
+
+                        {/* Emoji Popover */}
+                        <div className="relative" ref={emojiRef}>
+                          <button
+                            onClick={() => setShowEmojiMenu(!showEmojiMenu)}
+                            className={cn(
+                              "p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-all border border-transparent hover:border-slate-850",
+                              showEmojiMenu && "text-cyan-400 bg-slate-900 border-slate-850"
+                            )}
+                            title="Insert Emoji"
+                          >
+                            <Smile size={13} />
+                          </button>
+                          {showEmojiMenu && (
+                            <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-2 z-50 flex gap-1.5 animate-fadeIn">
+                              {['👍', '❤️', '😂', '😮', '🔥', '🎉', '🚀'].map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => insertEmoji(emoji)}
+                                  className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm cursor-pointer hover:scale-110 active:scale-95 transition-all"
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Priority Tag Selector */}
+                        <div className="relative" ref={priorityRef}>
+                          <button
+                            onClick={() => setShowPriorityMenu(!showPriorityMenu)}
+                            className={cn(
+                              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border",
+                              priority === 'Urgent' 
+                                ? "bg-rose-500/10 border-rose-500/20 text-rose-400" 
+                                : priority === 'Important' 
+                                ? "bg-amber-500/10 border-amber-500/20 text-amber-400" 
+                                : "bg-slate-900/60 border-slate-850 text-slate-450 hover:text-slate-350 hover:bg-slate-900"
+                            )}
+                          >
+                            <Zap size={11} className={cn(priority === 'Urgent' && "fill-rose-455")} />
+                            {priority}
+                            <ChevronDown size={10} className="text-slate-500" />
+                          </button>
+                          {showPriorityMenu && (
+                            <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fadeIn">
+                              {(['Standard', 'Important', 'Urgent'] as const).map(p => (
+                                <button
+                                  key={p}
+                                  onClick={() => { setPriority(p); setShowPriorityMenu(false); }}
+                                  className={cn(
+                                    "w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors",
+                                    p === 'Urgent' ? "text-rose-400 hover:bg-rose-500/10" : p === 'Important' ? "text-amber-400 hover:bg-amber-500/10" : "text-slate-300"
+                                  )}
+                                >
+                                  {p}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+
+                      {/* Send Button */}
+                      <button
+                        onClick={handleSendMessage}
+                        disabled={!messageText.trim()}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
+                          messageText.trim()
+                            ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98]"
+                            : "bg-slate-900 text-slate-650 cursor-not-allowed border border-slate-850/50"
+                        )}
+                      >
+                        <Send size={11} className={cn("stroke-[2.5]", messageText.trim() ? "text-slate-950" : "text-slate-650")} />
+                        Send
+                      </button>
+
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* ── DIALOG MODALS ── */}
+
+      {/* 1. Create Workspace Modal */}
+      {showWorkspaceModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-fadeIn select-none">
+          <div className="bg-slate-900 border border-slate-850 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+            
+            <button 
+              onClick={() => { setShowWorkspaceModal(false); setNewWorkspaceName(''); setNewWorkspaceDesc(''); }}
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h2 className="text-sm font-black text-slate-100 uppercase tracking-widest mb-5 flex items-center gap-2 select-none">
+              <Users className="w-4 h-4 text-cyan-400" />
+              Create Workspace
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Workspace Name</label>
+                <input
+                  value={newWorkspaceName}
+                  onChange={e => setNewWorkspaceName(e.target.value)}
+                  placeholder="e.g., Engineering, Design Core"
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-700 outline-none focus:border-cyan-500/50 transition-all font-outfit"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Description</label>
+                <input
+                  value={newWorkspaceDesc}
+                  onChange={e => setNewWorkspaceDesc(e.target.value)}
+                  placeholder="Workspace focus areas (optional)..."
+                  className="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-700 outline-none focus:border-cyan-500/50 transition-all font-outfit"
+                />
               </div>
             </div>
 
-            {/* Interactive office map view */}
-            <div className="flex-1 flex flex-col min-w-0 p-6 overflow-y-auto">
-              <div className="mb-5 flex items-center justify-between shrink-0">
-                <div>
-                  <h1 className="text-lg font-bold text-slate-100 font-outfit">HQ Floor Plan</h1>
-                  <p className="text-xs text-slate-500 mt-0.5">Click any room to view details and join the session</p>
-                </div>
-                <div className="flex items-center gap-2 bg-[#191f31] border border-white/5 px-3 py-1.5 rounded-full text-xs text-slate-400">
-                  <span className="w-2 h-2 rounded-full bg-[#10B981] status-pulse" />
-                  <span>
-                    {selectedTeam ? (membersByTeam[selectedTeam.id] ?? []).length : 0} online in workspace
-                  </span>
-                </div>
-              </div>
- 
-               {/* Map surface grid */}
-               <div className="flex-grow glass-card rounded-2xl relative min-h-[360px] border border-white/5 shadow-2xl flex items-center justify-center p-4">
-                 {/* Radial grid background */}
-                 <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#10b981 0.5px, transparent 0.5px)', backgroundSize: '20px 20px' }} />
-                 
-                 {/* Rooms Grid */}
-                 <div className="w-full h-full max-w-lg aspect-[4/3] grid grid-cols-2 grid-rows-3 gap-4 relative z-10">
-                   {/* Boardroom */}
-                   <button
-                     onClick={() => setSelectedRoom('boardroom')}
-                     className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
-                       selectedRoom === 'boardroom'
-                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                     }`}
-                   >
-                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Boardroom</span>
-                     <div className="flex items-center justify-between">
-                       {getRoomMembers('boardroom').length > 0 ? (
-                         <div className="flex items-center gap-1">
-                           <div className="flex -space-x-1.5">
-                             {getRoomMembers('boardroom').slice(0, 3).map((m) => (
-                               <div
-                                 key={m.id}
-                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
-                                 title={m.user?.name}
-                               >
-                                 {m.user?.avatarUrl ? (
-                                   // eslint-disable-next-line @next/next/no-img-element
-                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
-                                 ) : (
-                                   getInitials(m.user?.name || '')
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                           {getRoomMembers('boardroom').length > 3 && (
-                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('boardroom').length - 3}</span>
-                           )}
-                         </div>
-                       ) : (
-                         <span className="text-xs text-slate-650 font-medium">Empty</span>
-                       )}
-                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                     </div>
-                   </button>
- 
-                   {/* Coffee Lounge */}
-                   <button
-                     onClick={() => setSelectedRoom('coffee')}
-                     className={`rounded-xl relative p-4 flex flex-col justify-between group row-span-2 transition-all text-left ${
-                       selectedRoom === 'coffee'
-                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                     }`}
-                   >
-                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Coffee Lounge</span>
-                     <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-500">
-                       <Coffee className="w-4 h-4" />
-                     </div>
-                     <div className="flex items-center justify-between">
-                       {getRoomMembers('coffee').length > 0 ? (
-                         <div className="flex items-center gap-1">
-                           <div className="flex -space-x-1.5">
-                             {getRoomMembers('coffee').slice(0, 3).map((m) => (
-                               <div
-                                 key={m.id}
-                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
-                                 title={m.user?.name}
-                               >
-                                 {m.user?.avatarUrl ? (
-                                   // eslint-disable-next-line @next/next/no-img-element
-                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
-                                 ) : (
-                                   getInitials(m.user?.name || '')
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                           {getRoomMembers('coffee').length > 3 && (
-                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('coffee').length - 3}</span>
-                           )}
-                         </div>
-                       ) : (
-                         <span className="text-xs text-slate-650 font-medium">Empty</span>
-                       )}
-                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                     </div>
-                   </button>
- 
-                   {/* Zen Zone */}
-                   <button
-                     onClick={() => setSelectedRoom('zen')}
-                     className={`rounded-xl relative p-4 flex flex-col justify-between group transition-all text-left ${
-                       selectedRoom === 'zen'
-                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                     }`}
-                   >
-                     <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Zen Zone</span>
-                     <span className="text-xs text-slate-600">Silent focus</span>
-                     <div className="flex items-center justify-between">
-                       {getRoomMembers('zen').length > 0 ? (
-                         <div className="flex items-center gap-1">
-                           <div className="flex -space-x-1.5">
-                             {getRoomMembers('zen').slice(0, 3).map((m) => (
-                               <div
-                                 key={m.id}
-                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
-                                 title={m.user?.name}
-                               >
-                                 {m.user?.avatarUrl ? (
-                                   // eslint-disable-next-line @next/next/no-img-element
-                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
-                                 ) : (
-                                   getInitials(m.user?.name || '')
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                           {getRoomMembers('zen').length > 3 && (
-                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('zen').length - 3}</span>
-                           )}
-                         </div>
-                       ) : (
-                         <span className="text-xs text-slate-650 font-medium">Empty</span>
-                       )}
-                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                     </div>
-                   </button>
- 
-                   {/* Engineering Hub */}
-                   <button
-                     onClick={() => setSelectedRoom('engineering')}
-                     className={`rounded-xl relative p-4 flex flex-col justify-between group col-span-2 transition-all text-left ${
-                       selectedRoom === 'engineering'
-                         ? 'border border-[#10B981] bg-[#10B981]/5 shadow-[inset_0_0_20px_rgba(16,185,129,0.05),0_0_15px_rgba(16,185,129,0.1)]'
-                         : 'border border-white/10 hover:border-[#4cd7f6]/50 bg-white/[0.02]'
-                     }`}
-                   >
-                     <div className="flex justify-between items-start">
-                       <span className="text-[10px] font-bold text-secondary uppercase tracking-wider">Engineering Hub</span>
-                       {getRoomMembers('engineering').length > 0 && (
-                         <span className="flex items-center gap-1 text-[9px] text-[#10B981] font-bold">
-                           <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                           Live Standup
-                         </span>
-                       )}
-                     </div>
-                     <div className="flex items-center justify-between">
-                       {getRoomMembers('engineering').length > 0 ? (
-                         <div className="flex items-center gap-1.5">
-                           <div className="flex -space-x-1.5">
-                             {getRoomMembers('engineering').slice(0, 3).map((m) => (
-                               <div
-                                 key={m.id}
-                                 className="w-6 h-6 rounded-full bg-[#10B981]/30 border border-slate-900 flex items-center justify-center text-[9px] font-bold text-[#10B981] overflow-hidden"
-                                 title={m.user?.name}
-                               >
-                                 {m.user?.avatarUrl ? (
-                                   // eslint-disable-next-line @next/next/no-img-element
-                                   <img src={m.user.avatarUrl} alt={m.user.name} className="w-full h-full object-cover" />
-                                 ) : (
-                                   getInitials(m.user?.name || '')
-                                 )}
-                               </div>
-                             ))}
-                           </div>
-                           {getRoomMembers('engineering').length > 3 && (
-                             <span className="text-[10px] text-slate-500 font-bold">+{getRoomMembers('engineering').length - 3}</span>
-                           )}
-                         </div>
-                       ) : (
-                         <span className="text-xs text-slate-650 font-medium">Empty</span>
-                       )}
-                       <span className="text-[10px] bg-slate-800 text-slate-400 group-hover:bg-[#10B981] group-hover:text-white px-2 py-0.5 rounded transition-all font-semibold uppercase">Join</span>
-                     </div>
-                   </button>
-                 </div>
-               </div>
- 
-               {/* Room details card */}
-               {selectedRoom && (
-                 <div className="mt-4 bg-[#191f31] border border-white/5 rounded-2xl p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fadeIn">
-                   <div>
-                     <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wide">
-                       {selectedRoom === 'boardroom' && 'Boardroom Review'}
-                       {selectedRoom === 'coffee' && 'Coffee Break Lounge'}
-                       {selectedRoom === 'zen' && 'Zen Quiet Room'}
-                       {selectedRoom === 'engineering' && 'Engineering Team Space'}
-                     </h3>
-                     <p className="text-xs text-slate-400 mt-1">
-                       {selectedRoom === 'boardroom' && `Quarterly Sprint Planning & KPI Reviews (${getRoomMembers('boardroom').length} online)`}
-                       {selectedRoom === 'coffee' && `Grab a coffee, listen to music, or chat informally (${getRoomMembers('coffee').length} online)`}
-                       {selectedRoom === 'zen' && `No audio focus workspace. Silent study and chill (${getRoomMembers('zen').length} online)`}
-                       {selectedRoom === 'engineering' && `Active live coding, sync meetings, and standups (${getRoomMembers('engineering').length} online)`}
-                     </p>
-                   </div>
-                   <button
-                     onClick={() => router.push(`/meet/${selectedRoom}`)}
-                     className="px-5 py-2 bg-[#10B981] hover:bg-[#059669] text-white text-xs font-bold rounded-xl transition-all cursor-pointer self-stretch md:self-auto text-center"
-                   >
-                     Join Session
-                   </button>
-                 </div>
-               )}
-             </div>
- 
-             {/* Recognition Wall Sidebar */}
-             <div className="w-[340px] shrink-0 bg-[#0B0F17] border-l border-white/[0.06] flex flex-col overflow-hidden">
-               <div className="p-4 border-b border-white/[0.06]">
-                 <h2 className="text-sm font-bold text-slate-100 font-outfit">Recognition Wall</h2>
-                 <p className="text-[11px] text-slate-500 mt-0.5">Celebrate team wins together</p>
-               </div>
- 
-               {/* Kudos feed */}
-               <div className="flex-grow overflow-y-auto p-4 space-y-4">
-                 {kudos.length === 0 ? (
-                   <div className="flex flex-col items-center justify-center h-48 text-center text-slate-500">
-                     <Heart className="w-8 h-8 text-slate-650 mb-2" />
-                     <p className="text-xs font-semibold text-slate-400">No Kudos Yet</p>
-                     <p className="text-[10px] text-slate-600 mt-1 max-w-[200px]">Be the first to appreciate a team member's hard work!</p>
-                   </div>
-                 ) : (
-                   kudos.map((item) => (
-                     <div
-                       key={item.id}
-                       className="bg-[#191f31] border border-[#10B981]/10 rounded-2xl p-4 hover:border-[#10B981]/30 transition-all flex flex-col gap-3 group animate-fadeIn"
-                     >
-                       <div className="flex items-start gap-3">
-                         <Avatar name={item.sender} src={item.avatarUrl} size="sm" />
-                         <div className="flex-1 min-w-0">
-                           <div className="flex items-center gap-1.5 justify-between">
-                             <span className="text-xs font-semibold text-slate-200 truncate">{item.sender}</span>
-                             <span className="text-[9px] text-slate-500 shrink-0">{item.time}</span>
-                           </div>
-                           <p className="text-[10px] font-bold text-[#10B981] mt-0.5">Kudos to {item.target}</p>
-                         </div>
-                       </div>
-                       <p className="text-xs text-slate-400 leading-relaxed font-body">{item.text}</p>
-                       <div className="flex items-center justify-between border-t border-white/[0.04] pt-2 mt-1">
-                         <button
-                           onClick={() => {
-                             setKudos((prev) =>
-                               prev.map((k) =>
-                                 k.id === item.id
-                                   ? { ...k, liked: !k.liked, likes: k.liked ? k.likes - 1 : k.likes + 1 }
-                                   : k
-                               )
-                             );
-                           }}
-                           className={`flex items-center gap-1.5 text-xs transition-colors cursor-pointer ${
-                             item.liked ? 'text-[#10B981]' : 'text-slate-500 hover:text-slate-300'
-                           }`}
-                         >
-                           <Heart className={`w-3.5 h-3.5 ${item.liked ? 'fill-[#10B981]' : ''}`} />
-                           <span className="font-semibold text-[11px]">{item.likes}</span>
-                         </button>
-                       </div>
-                     </div>
-                   ))
-                 )}
-               </div>
-
-              {/* Kudos creation input */}
-              <div className="p-4 border-t border-white/[0.06] bg-[#0B0F17] shrink-0">
-                <div className="flex flex-col gap-2">
-                  <textarea
-                    value={newKudosText}
-                    onChange={(e) => setNewKudosText(e.target.value)}
-                    placeholder="Give kudos (e.g. Kudos to @Marcus for the code sync!)"
-                    rows={2}
-                    className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-650 outline-none focus:border-[#10B981]/50 resize-none transition-colors leading-relaxed"
-                  />
-                  <button
-                    onClick={() => {
-                      const trimmed = newKudosText.trim();
-                      if (!trimmed) return;
-                      // Detect target handle or use @Team
-                      const targetMatch = trimmed.match(/@[a-zA-Z0-9]+/);
-                      const target = targetMatch ? targetMatch[0] : '@Everyone';
-                      
-                      setKudos((prev) => [
-                        {
-                          id: Date.now(),
-                          sender: user?.name ?? 'Guest',
-                          time: 'Just now',
-                          target,
-                          text: trimmed,
-                          likes: 1,
-                          liked: true,
-                          avatarUrl: user?.avatarUrl ?? null
-                        },
-                        ...prev
-                      ]);
-                      setNewKudosText('');
-                    }}
-                    disabled={!newKudosText.trim()}
-                    className="py-2 bg-[#10B981] hover:bg-[#059669] disabled:bg-white/5 disabled:text-slate-600 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer disabled:cursor-not-allowed text-center"
-                  >
-                    Post Kudos
-                  </button>
-                </div>
-              </div>
+            <div className="flex gap-3 mt-6 select-none">
+              <button 
+                onClick={() => { setShowWorkspaceModal(false); setNewWorkspaceName(''); setNewWorkspaceDesc(''); }} 
+                className="flex-1 py-2.5 rounded-xl border border-slate-850 hover:bg-slate-850 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-300 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateWorkspace}
+                disabled={!newWorkspaceName.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold uppercase tracking-wider text-slate-950 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-bold"
+              >
+                Create
+              </button>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── Modals ── */}
-      {showNewTeam && (
-        <NewTeamModal
-          onClose={() => setShowNewTeam(false)}
-          onCreated={handleTeamCreated}
-        />
+      {/* 2. Add Channel Modal */}
+      {showChannelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-fadeIn select-none">
+          <div className="bg-slate-900 border border-slate-850 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+            
+            <button 
+              onClick={() => { setShowChannelModal(false); setNewChannelName(''); }}
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h2 className="text-sm font-black text-slate-100 uppercase tracking-widest mb-5 flex items-center gap-2 select-none">
+              <Hash className="w-4 h-4 text-cyan-400 stroke-[2.5]" />
+              Create Channel
+            </h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Channel Name</label>
+                <div className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl px-3 py-2.5 focus-within:border-cyan-500/50 transition-all select-none">
+                  <Hash size={14} className="text-slate-500 shrink-0" />
+                  <input
+                    value={newChannelName}
+                    onChange={e => setNewChannelName(e.target.value)}
+                    placeholder="general, dev-sync"
+                    className="flex-1 bg-transparent text-xs text-slate-200 placeholder:text-slate-700 outline-none font-outfit"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 select-none">
+              <button 
+                onClick={() => { setShowChannelModal(false); setNewChannelName(''); }} 
+                className="flex-1 py-2.5 rounded-xl border border-slate-850 hover:bg-slate-850 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-300 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateChannel}
+                disabled={!newChannelName.trim()}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-xs font-bold uppercase tracking-wider text-slate-950 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-bold"
+              >
+                Add Channel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      {addChannelForTeam && (
-        <AddChannelModal
-          team={addChannelForTeam}
-          onClose={() => setAddChannelForTeam(null)}
-          onCreated={handleChannelCreated}
-        />
-      )}
+
     </div>
   );
 }
