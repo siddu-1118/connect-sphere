@@ -10,9 +10,29 @@ interface RoomUser {
 }
 
 export function setupSocketIO(server: HttpServer) {
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:4000',
+    'https://aeromeet.vercel.app',
+    'https://aeromeet.vercel.app/',
+  ];
+  if (process.env.FRONTEND_URL) {
+    const trimmed = process.env.FRONTEND_URL.replace(/\/$/, '');
+    allowedOrigins.push(trimmed);
+    allowedOrigins.push(`${trimmed}/`);
+  }
+
   const io = new Server(server, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+      origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          console.warn(`⚠️ Blocked by CORS for signaling: ${origin}`);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },

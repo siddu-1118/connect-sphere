@@ -16,8 +16,27 @@ import { errorHandler } from './middleware/errorHandler'; // We'll create this n
 const app = express();
 
 // Middleware
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:4000',
+  'https://aeromeet.vercel.app',
+  'https://aeromeet.vercel.app/',
+];
+if (process.env.FRONTEND_URL) {
+  const trimmed = process.env.FRONTEND_URL.replace(/\/$/, '');
+  allowedOrigins.push(trimmed);
+  allowedOrigins.push(`${trimmed}/`);
+}
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());

@@ -1,7 +1,7 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './auth';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://aeromeet-backend-fwjc.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,

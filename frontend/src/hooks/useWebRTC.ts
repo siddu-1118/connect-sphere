@@ -92,22 +92,25 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
     };
   }, []);
 
-  const hasLocalStream = !!localStream;
-
   // WebRTC full-mesh signaling handlers
   useEffect(() => {
-    if (!socket || !localStream) return;
+    if (!socket) return;
 
     const myId = socket.id;
 
     // Helper: Initialize an RTCPeerConnection for a remote peer
     const createPeerConnection = (remoteSocketId: string, remoteUserName: string, initiateOffer: boolean) => {
+      if (peersRef.current[remoteSocketId]) {
+        console.log(`📡 Peer connection to ${remoteSocketId} already exists. Skipping creation.`);
+        return peersRef.current[remoteSocketId];
+      }
+
       console.log(`📡 Creating RTCPeerConnection to peer ${remoteUserName} (${remoteSocketId}), initiateOffer=${initiateOffer}`);
       
       const pc = new RTCPeerConnection(rtcConfig);
       peersRef.current[remoteSocketId] = pc;
 
-      // Add local stream tracks to connection
+      // Add local stream tracks to connection if ready
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
@@ -199,8 +202,10 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
     socket.on('user-joined', (newUser: ParticipantInfo) => {
       console.log(`👋 New participant joined: ${newUser.userName}`);
       setParticipants((prev) => {
-        // Prevent duplicate lists
-        if (prev.some((p) => p.socketId === newUser.socketId)) return prev;
+        // Prevent duplicate lists, but update info if duplicate exists (e.g. placeholder)
+        if (prev.some((p) => p.socketId === newUser.socketId)) {
+          return prev.map((p) => p.socketId === newUser.socketId ? { ...p, userName: newUser.userName, userId: newUser.userId } : p);
+        }
         return [...prev, newUser];
       });
 
@@ -208,10 +213,19 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       createPeerConnection(newUser.socketId, newUser.userName, false);
     });
 
-    // 3. Listen for SDP Offer
+    // 3. SDP Offer (with auto-create and placeholder support)
     socket.on('offer', async ({ from, sdp }: { from: string; sdp: RTCSessionDescriptionInit }) => {
-      const pc = peersRef.current[from];
-      if (!pc) return;
+      // Add a placeholder to participants so the tile renders immediately
+      setParticipants((prev) => {
+        if (prev.some((p) => p.socketId === from)) return prev;
+        return [...prev, { userId: '', userName: 'Remote Peer', socketId: from }];
+      });
+
+      let pc = peersRef.current[from];
+      if (!pc) {
+        console.log(`⚠️ Peer connection not found for offer from ${from}. Creating it now...`);
+        pc = createPeerConnection(from, 'Remote Peer', false);
+      }
 
       try {
         console.log(`🤝 Received SDP offer from ${from}`);
@@ -249,19 +263,17 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       }
     });
 
-    // 5. Listen for ICE Candidate
+    // 5. Listen for ICE Candidate (with queue fallback)
     socket.on('ice-candidate', async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit }) => {
       const pc = peersRef.current[from];
-      if (!pc) return;
-
-      if (pc.remoteDescription && pc.remoteDescription.type) {
+      if (pc && pc.remoteDescription && pc.remoteDescription.type) {
         try {
           await pc.addIceCandidate(new RTCIceCandidate(candidate));
         } catch (e) {
           console.error('Failed to add remote ICE candidate:', e);
         }
       } else {
-        // Buffer candidate if remote description is not set yet
+        // Buffer candidate if peer connection or remote description is not set yet
         if (!candidateQueuesRef.current[from]) {
           candidateQueuesRef.current[from] = [];
         }
@@ -318,7 +330,23 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       });
       peersRef.current = {};
     };
-  }, [roomId, socket, hasLocalStream]);
+  }, [roomId, socket]);
+
+  // Track synchronization effect: Add local tracks to all peer connections once webcam is captured
+  useEffect(() => {
+    if (!localStream) return;
+    console.log('🎥 Local stream is ready, adding tracks to all existing peer connections...');
+    Object.keys(peersRef.current).forEach((sockId) => {
+      const pc = peersRef.current[sockId];
+      const senders = pc.getSenders();
+      // Only add tracks if no tracks have been added yet
+      if (senders.length === 0) {
+        localStream.getTracks().forEach((track) => {
+          pc.addTrack(track, localStream);
+        });
+      }
+    });
+  }, [localStream]);
 
   // Helper: Close a single peer connection
   const handlePeerLeave = (socketId: string) => {
