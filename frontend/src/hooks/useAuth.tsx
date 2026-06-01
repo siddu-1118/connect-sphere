@@ -101,10 +101,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Register with Supabase Auth
   const register = async (name: string, email: string, password: string) => {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: `${appUrl}/dashboard`,
         data: {
           display_name: name,
           avatar_url: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(name)}`
@@ -114,10 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (error) throw error;
     
-    // If confirmation is required, redirect to OTP or email notification route
+    // If confirmation is required, show the "Check your inbox" screen
     if (data.user && !data.session) {
       router.push(`/auth?email=${encodeURIComponent(email)}&verify=true`);
     } else if (data.session) {
+      // Email confirmation is disabled in Supabase — user is logged in immediately
       router.push('/dashboard');
     }
   };
