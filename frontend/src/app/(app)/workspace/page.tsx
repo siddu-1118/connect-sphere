@@ -25,7 +25,8 @@ import {
   FolderOpen,
   MessageSquare,
   MessageCircle,
-  CornerDownRight
+  CornerDownRight,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -92,6 +93,11 @@ export default function WorkspacePage() {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   // Workspace members & assignments states (Options A & B)
   interface WorkspaceMember {
@@ -308,52 +314,46 @@ export default function WorkspacePage() {
   }, [user]);
 
   // Load workspace members list
-  useEffect(() => {
+  const loadMembers = async () => {
     if (!activeWorkspaceId) {
       setWorkspaceMembers([]);
       return;
     }
-    
-    let isMounted = true;
-    async function loadMembers() {
-      try {
-        const isMock = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
-        if (isMock) throw new Error('Offline mode');
+    try {
+      const isMock = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+      if (isMock) throw new Error('Offline mode');
 
-        const { data, error } = await supabase
-          .from('workspace_members')
-          .select(`
-            role,
-            users (
-              id,
-              email,
-              display_name,
-              avatar_url
-            )
-          `)
-          .eq('workspace_id', activeWorkspaceId);
-          
-        if (error) throw error;
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select(`
+          role,
+          users (
+            id,
+            email,
+            display_name,
+            avatar_url
+          )
+        `)
+        .eq('workspace_id', activeWorkspaceId);
         
-        const mappedMembers = (data || []).map((m: any) => ({
-          id: m.users?.id,
-          name: m.users?.display_name || m.users?.email?.split('@')[0] || 'Aero User',
-          email: m.users?.email || '',
-          avatarUrl: m.users?.avatar_url || null,
-          role: m.role as any
-        }));
-        
-        if (isMounted) {
-          setWorkspaceMembers(mappedMembers);
-        }
-      } catch (err) {
-        console.error('Error loading workspace members:', err);
-      }
+      if (error) throw error;
+      
+      const mappedMembers = (data || []).map((m: any) => ({
+        id: m.users?.id,
+        name: m.users?.display_name || m.users?.email?.split('@')[0] || 'Aero User',
+        email: m.users?.email || '',
+        avatarUrl: m.users?.avatar_url || null,
+        role: m.role as any
+      }));
+      
+      setWorkspaceMembers(mappedMembers);
+    } catch (err) {
+      console.error('Error loading workspace members:', err);
     }
+  };
+
+  useEffect(() => {
     loadMembers();
-    return () => {
-      isMounted = false;
-    };
   }, [activeWorkspaceId]);
 
   // Determine if active user is a teacher (admin/owner)
@@ -1122,8 +1122,23 @@ export default function WorkspacePage() {
                   <Hash size={18} className="text-slate-400 stroke-[2.5]" />
                   <h1 className="text-sm font-black text-slate-150 uppercase tracking-wide mt-0.5">{activeChannel.name}</h1>
                 </div>
-                <div className="flex items-center gap-3 text-slate-555 text-[10px] font-bold tracking-wider uppercase select-none">
-                  {activeWorkspace?.name}
+                <div className="flex items-center gap-4 select-none">
+                  <span className="text-slate-555 text-[10px] font-bold tracking-wider uppercase">{activeWorkspace?.name}</span>
+                  {isTeacher && (
+                    <button
+                      onClick={() => {
+                        setInviteEmail('');
+                        setInviteError(null);
+                        setInviteSuccess(null);
+                        setShowInviteModal(true);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 rounded-full font-bold text-[9px] uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)] focus:outline-none"
+                      title="Invite student to this workspace"
+                    >
+                      <UserPlus size={10} className="stroke-[2.5]" />
+                      Invite Student
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1795,7 +1810,7 @@ export default function WorkspacePage() {
             
             <button 
               onClick={() => { setShowAssignmentModal(false); }}
-              className="absolute top-4 right-4 p-1 rounded-lg text-slate-550 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-555 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
             >
               <X size={16} />
             </button>
@@ -1915,6 +1930,170 @@ export default function WorkspacePage() {
                 className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-505 text-xs font-bold uppercase tracking-wider text-slate-955 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-black"
               >
                 Assign Work
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Invite Student Modal */}
+      {showInviteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/75 backdrop-blur-sm p-4 animate-fadeIn select-none">
+          <div className="bg-slate-900 border border-slate-855 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative select-text">
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+            
+            <button 
+              onClick={() => { setShowInviteModal(false); }}
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-550 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h2 className="text-sm font-black text-slate-100 uppercase tracking-widest mb-3 flex items-center gap-2 select-none font-outfit">
+              <UserPlus className="w-4 h-4 text-cyan-400" />
+              Invite Student
+            </h2>
+            <p className="text-slate-500 text-[10px] mb-5 select-none leading-relaxed">
+              Enter the student's email. If they have an AeroMeet account, they'll join immediately. If not, they'll receive an email invitation to register.
+            </p>
+
+            {inviteError && (
+              <div className="mb-4 px-3 py-2 bg-red-950/40 border border-red-900/50 text-[10px] text-red-200 rounded-xl flex items-center gap-2 animate-fadeIn text-left select-text">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-400" />
+                <span className="break-all flex-1">{inviteError}</span>
+              </div>
+            )}
+
+            {inviteSuccess && (
+              <div className="mb-4 px-3 py-2 bg-cyan-950/40 border border-cyan-800/40 text-[10px] text-cyan-300 rounded-xl flex items-center gap-2 animate-fadeIn text-left select-text">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-cyan-400" />
+                <span className="break-all flex-1">{inviteSuccess}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Student Email</label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="student@example.com"
+                  disabled={inviting}
+                  className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-750 outline-none focus:border-cyan-500/50 transition-all font-outfit"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 select-none">
+              <button 
+                onClick={() => { setShowInviteModal(false); }} 
+                className="flex-1 py-2.5 rounded-xl border border-slate-855 hover:bg-slate-855 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-300 transition-all cursor-pointer"
+                disabled={inviting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!inviteEmail.trim() || !activeWorkspaceId) return;
+                  setInviteError(null);
+                  setInviteSuccess(null);
+                  setInviting(true);
+
+                  try {
+                    // Check if user exists in public.users
+                    const { data: student, error: searchError } = await supabase
+                      .from('users')
+                      .select('id, display_name, email')
+                      .eq('email', inviteEmail.trim().toLowerCase())
+                      .maybeSingle();
+
+                    if (searchError) throw searchError;
+
+                    const workspaceName = activeWorkspace?.name || 'Aero Workspace';
+                    
+                    if (student) {
+                      // Check if already in workspace
+                      const { data: existing } = await supabase
+                        .from('workspace_members')
+                        .select('*')
+                        .eq('user_id', student.id)
+                        .eq('workspace_id', activeWorkspaceId)
+                        .maybeSingle();
+
+                      if (existing) {
+                        setInviteError('This student is already a member of this workspace.');
+                        setInviting(false);
+                        return;
+                      }
+
+                      // Add user directly
+                      const { error: insertError } = await supabase
+                        .from('workspace_members')
+                        .insert({
+                          user_id: student.id,
+                          workspace_id: activeWorkspaceId,
+                          role: 'member'
+                        });
+
+                      if (insertError) throw insertError;
+
+                      // Send email notification
+                      const { data: { session } } = await supabase.auth.getSession();
+                      await fetch('/api/workspace/invite', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          email: inviteEmail.trim().toLowerCase(),
+                          workspaceId: activeWorkspaceId,
+                          workspaceName,
+                          isNewUser: false
+                        })
+                      });
+
+                      setInviteSuccess(`Successfully added ${student.display_name || inviteEmail} to this workspace!`);
+                      setInviteEmail('');
+                      loadMembers();
+                    } else {
+                      // Send registration invitation email
+                      const { data: { session } } = await supabase.auth.getSession();
+                      const res = await fetch('/api/workspace/invite', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          email: inviteEmail.trim().toLowerCase(),
+                          workspaceId: activeWorkspaceId,
+                          workspaceName,
+                          isNewUser: true
+                        })
+                      });
+
+                      if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error || 'Failed to send invite');
+                      }
+
+                      setInviteSuccess(`Invitation email sent successfully to ${inviteEmail}!`);
+                      setInviteEmail('');
+                    }
+                  } catch (e: any) {
+                    console.error('Error inviting member:', e);
+                    setInviteError(e.message || 'An unexpected error occurred during the invitation.');
+                  } finally {
+                    setInviting(false);
+                  }
+                }}
+                disabled={!inviteEmail.trim() || inviting}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-505 text-xs font-bold uppercase tracking-wider text-slate-955 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-black flex items-center justify-center gap-1.5"
+              >
+                {inviting && <div className="w-3.5 h-3.5 border-2 border-t-slate-950 border-slate-950/20 rounded-full animate-spin shrink-0" />}
+                Send Invite
               </button>
             </div>
           </div>

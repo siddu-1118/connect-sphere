@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import { useAuth } from '@/hooks/useAuth';
 import { ShieldAlert, CheckCircle2, Lock } from 'lucide-react';
+import { supabase } from '@/lib/supabaseClient';
 
 function AuthContent() {
   const router = useRouter();
@@ -13,11 +14,38 @@ function AuthContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Redirect if already logged in
+  // Redirect if already logged in (joins invited workspace if redirected with inviteWorkspaceId)
   useEffect(() => {
-    if (user) {
-      router.push('/dashboard');
+    async function handlePostLoginRedirect() {
+      if (user) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteWorkspaceId = urlParams.get('inviteWorkspaceId');
+        
+        if (inviteWorkspaceId) {
+          try {
+            const { data: existing } = await supabase
+              .from('workspace_members')
+              .select('*')
+              .eq('user_id', user.id)
+              .eq('workspace_id', inviteWorkspaceId)
+              .maybeSingle();
+
+            if (!existing) {
+              await supabase.from('workspace_members').insert({
+                user_id: user.id,
+                workspace_id: inviteWorkspaceId,
+                role: 'member'
+              });
+            }
+          } catch (e) {
+            console.error('Error adding user to invited workspace:', e);
+          }
+        }
+        router.push('/dashboard');
+      }
     }
+    
+    handlePostLoginRedirect();
   }, [user, router]);
 
   // Atmospheric Particle Canvas Background
