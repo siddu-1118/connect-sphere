@@ -59,7 +59,7 @@ interface LocalMessage {
   parentMessageId?: string | null;
 }
 
-type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard' | 'Assignments';
+type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard' | 'Assignments' | 'Members';
 
 const isUuid = (val: string | null): boolean => {
   if (!val) return false;
@@ -114,6 +114,8 @@ export default function WorkspacePage() {
     role: 'admin' | 'member';
   }
   const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
+  const [loadingInvites, setLoadingInvites] = useState(false);
   
   interface LocalAssignment {
     id: string;
@@ -357,10 +359,85 @@ export default function WorkspacePage() {
       console.error('Error loading workspace members:', err);
     }
   };
+  // Load workspace pending invitations list
+  const loadPendingInvites = async () => {
+    if (!activeWorkspaceId || !isUuid(activeWorkspaceId)) {
+      setPendingInvites([]);
+      return;
+    }
+    setLoadingInvites(true);
+    try {
+      const isMock = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+      if (isMock) throw new Error('Offline mode');
+
+      const { data, error } = await supabase
+        .from('workspace_invitations')
+        .select('*')
+        .eq('workspace_id', activeWorkspaceId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPendingInvites(data || []);
+    } catch (err) {
+      console.error('Error loading pending invites:', err);
+    } finally {
+      setLoadingInvites(false);
+    }
+  };
+
+  const handleRevokeInvite = async (inviteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('workspace_invitations')
+        .delete()
+        .eq('id', inviteId);
+      if (error) throw error;
+      setPendingInvites(prev => prev.filter(inv => inv.id !== inviteId));
+    } catch (err) {
+      console.error('Error revoking invitation:', err);
+    }
+  };
+
+  const handleResendInvite = async (invite: any) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const workspaceName = activeWorkspace?.name || 'Aero Workspace';
+      const res = await fetch('/api/workspace/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          email: invite.email,
+          workspaceId: activeWorkspaceId,
+          workspaceName,
+          isNewUser: true,
+          role: invite.role
+        })
+      });
+      if (!res.ok) throw new Error('Failed to resend invite');
+      alert(`Invitation resent successfully to ${invite.email}!`);
+    } catch (err: any) {
+      console.error('Error resending invite:', err);
+      alert(err.message || 'Failed to resend invitation.');
+    }
+  };
 
   useEffect(() => {
     loadMembers();
+    if (activeWorkspaceId) {
+      loadPendingInvites();
+    }
   }, [activeWorkspaceId]);
+
+  useEffect(() => {
+    if (activeWorkspaceId && activeTab === 'Members') {
+      loadMembers();
+      loadPendingInvites();
+      loadAssignments();
+    }
+  }, [activeWorkspaceId, activeTab]);
 
   // Determine if active user is a teacher (admin/owner)
   const isTeacher = workspaceMembers.find(m => m.id === user?.id)?.role === 'admin';
@@ -1153,7 +1230,7 @@ export default function WorkspacePage() {
 
               {/* Horizontal Tabs: Posts, Files, Notes, Whiteboard, Assignments */}
               <div className="flex gap-6 select-none shrink-0">
-                {(['Posts', 'Files', 'Notes', 'Whiteboard', 'Assignments'] as TabType[]).map(tab => {
+                {(['Posts', 'Files', 'Notes', 'Whiteboard', 'Assignments', 'Members'] as TabType[]).map(tab => {
                   const isActive = activeTab === tab;
                   return (
                     <button
@@ -1489,6 +1566,230 @@ export default function WorkspacePage() {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+              ) : activeTab === 'Members' ? (
+                /* Members Tab Stage */
+                <div className="h-full flex flex-col p-6 overflow-y-auto scrollbar-thin">
+                  <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-8 select-text">
+                    
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-4">
+                      <div className="text-left">
+                        <h2 className="text-xl font-bold text-slate-100">Workspace Directory</h2>
+                        <p className="text-xs text-slate-500 mt-1">Audit active members, track pending invites, and monitor assignment completion.</p>
+                      </div>
+                      
+                      {isTeacher && (
+                        <button
+                          onClick={() => {
+                            setInviteEmail('');
+                            setInviteError(null);
+                            setInviteSuccess(null);
+                            setShowInviteModal(true);
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-505 text-slate-955 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                        >
+                          <UserPlus size={12} className="stroke-[2.5]" />
+                          Invite Student
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Joined Members Section */}
+                    <div className="space-y-3">
+                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
+                        <Users size={12} className="text-indigo-400" />
+                        Joined Members ({workspaceMembers.length})
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                        {workspaceMembers.map(member => (
+                          <div 
+                            key={member.id} 
+                            className="p-4 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-md flex items-center justify-between group hover:border-slate-850 transition-all"
+                          >
+                            <div className="flex items-center gap-3.5">
+                              <Avatar name={member.name} src={member.avatarUrl} size="md" className="border border-slate-800" />
+                              <div className="text-left">
+                                <h4 className="text-xs font-bold text-slate-200">{member.name}</h4>
+                                <p className="text-[10px] text-slate-505 mt-0.5">{member.email}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
+                                member.role === 'admin' 
+                                  ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
+                                  : "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                              )}>
+                                {member.role === 'admin' ? 'Teacher' : 'Student'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pending Invitations Section (Teachers only) */}
+                    {isTeacher && (
+                      <div className="space-y-3 pt-2">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
+                          <UserPlus size={12} className="text-cyan-400" />
+                          Pending Invitations ({pendingInvites.length})
+                        </h3>
+                        {loadingInvites ? (
+                          <div className="py-8 flex justify-center">
+                            <div className="w-6 h-6 border-2 border-t-cyan-500 border-white/5 rounded-full animate-spin" />
+                          </div>
+                        ) : pendingInvites.length === 0 ? (
+                          <div className="py-8 bg-slate-900/10 border border-slate-900/40 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
+                            <p className="text-xs text-slate-500">No pending invitations. All invited students have joined!</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {pendingInvites.map(invite => (
+                              <div 
+                                key={invite.id} 
+                                className="px-4 py-3 rounded-xl bg-[#0c101a] border border-slate-900/60 shadow-md flex items-center justify-between group hover:border-slate-850 transition-all select-text"
+                              >
+                                <div className="text-left">
+                                  <span className="text-xs font-semibold text-slate-300">{invite.email}</span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Role:</span>
+                                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-wider">{invite.role === 'admin' ? 'Teacher' : 'Student'}</span>
+                                    <span className="text-slate-700 text-[8px]">•</span>
+                                    <span className="text-[8px] text-slate-505">Invited {new Date(invite.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={() => handleResendInvite(invite)}
+                                    className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/15 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                  >
+                                    Resend
+                                  </button>
+                                  <button
+                                    onClick={() => handleRevokeInvite(invite.id)}
+                                    className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/15 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                  >
+                                    Revoke
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Assignment Completion Audit Hub (Teachers only) */}
+                    {isTeacher && (
+                      <div className="space-y-3 pt-2">
+                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
+                          <FileText size={12} className="text-amber-400" />
+                          Assignment Completion Hub
+                        </h3>
+                        {assignments.length === 0 ? (
+                          <div className="py-8 bg-slate-900/10 border border-slate-900/40 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
+                            <p className="text-xs text-slate-500">No assignments created yet in this workspace.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {workspaceMembers
+                              .filter(m => m.role === 'member') // Only show students (members)
+                              .map(student => {
+                                // Compute assignment completion rate for this student
+                                const studentAssignments = assignments.filter(ass => 
+                                  ass.recipients.some(r => r.studentId === student.id)
+                                );
+                                const completedCount = studentAssignments.filter(ass => 
+                                  ass.recipients.some(r => r.studentId === student.id && (r.status === 'submitted' || r.status === 'graded'))
+                                ).length;
+                                const totalCount = studentAssignments.length;
+                                
+                                return (
+                                  <div 
+                                    key={student.id} 
+                                    className="p-4 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-md flex flex-col gap-3.5 select-text hover:border-slate-850 transition-all text-left"
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <Avatar name={student.name} src={student.avatarUrl} size="sm" className="border border-slate-800" />
+                                        <div>
+                                          <h4 className="text-xs font-bold text-slate-200">{student.name}</h4>
+                                          <p className="text-[9px] text-slate-500">{student.email}</p>
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <span className="text-xs font-black text-cyan-400">{completedCount} / {totalCount}</span>
+                                        <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Assignments Completed</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Student Assignments List */}
+                                    {totalCount > 0 ? (
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                                        {studentAssignments.map(ass => {
+                                          const rec = ass.recipients.find(r => r.studentId === student.id);
+                                          const status = rec?.status || 'pending';
+                                          return (
+                                            <div 
+                                              key={ass.id} 
+                                              className="flex justify-between items-center px-3 py-2 bg-slate-950/20 border border-slate-900 rounded-xl"
+                                            >
+                                              <span className="text-[10px] font-semibold text-slate-350 truncate max-w-[150px]" title={ass.title}>
+                                                {ass.title}
+                                              </span>
+                                              <div className="flex items-center gap-2">
+                                                <span className={cn(
+                                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
+                                                  status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                                  status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+                                                  status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                                )}>
+                                                  {status}
+                                                </span>
+                                                {status === 'submitted' && (
+                                                  <button
+                                                    onClick={async () => {
+                                                      try {
+                                                        const { error } = await supabase
+                                                          .from('assignment_recipients')
+                                                          .update({ status: 'graded' })
+                                                          .eq('assignment_id', ass.id)
+                                                          .eq('student_id', student.id);
+                                                        if (error) throw error;
+                                                        loadAssignments();
+                                                      } catch (e) {
+                                                        console.error('Error grading assignment:', e);
+                                                      }
+                                                    }}
+                                                    className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded"
+                                                  >
+                                                    Grade
+                                                  </button>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : (
+                                      <p className="text-[10px] text-slate-600 italic">No assignments allocated to this student.</p>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            {workspaceMembers.filter(m => m.role === 'member').length === 0 && (
+                              <div className="py-4 text-center">
+                                <p className="text-xs text-slate-555 italic">No students joined this workspace yet.</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2081,6 +2382,17 @@ export default function WorkspacePage() {
                       setInviteEmail('');
                       loadMembers();
                     } else {
+                      // Record in workspace_invitations table first
+                      const { error: invDbError } = await supabase
+                        .from('workspace_invitations')
+                        .upsert({
+                          workspace_id: activeWorkspaceId,
+                          email: inviteEmail.trim().toLowerCase(),
+                          role: inviteRole
+                        }, { onConflict: 'workspace_id,email' });
+
+                      if (invDbError) throw invDbError;
+
                       // Send registration invitation email
                       const { data: { session } } = await supabase.auth.getSession();
                       const res = await fetch('/api/workspace/invite', {

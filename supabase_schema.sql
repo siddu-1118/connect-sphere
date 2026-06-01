@@ -430,3 +430,37 @@ create policy "Allow insert message recipients to sender"
             where messages.id = message_id and messages.user_id = auth.uid()
         )
     );
+
+-- 9. WORKSPACE INVITATIONS TABLE (Pending invites)
+create table if not exists public.workspace_invitations (
+    id uuid primary key default uuid_generate_v4(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    email text not null,
+    role text not null default 'member' check (role in ('admin', 'member')),
+    created_at timestamp with time zone default now() not null,
+    unique (workspace_id, email)
+);
+
+-- Enable RLS for workspace_invitations
+alter table public.workspace_invitations enable row level security;
+
+-- Workspace Invitations policies:
+drop policy if exists "Allow members to view invitations" on public.workspace_invitations;
+create policy "Allow members to view invitations"
+    on public.workspace_invitations for select
+    to authenticated
+    using (
+        public.is_workspace_member(workspace_id, auth.uid())
+    );
+
+drop policy if exists "Allow admins to manage invitations" on public.workspace_invitations;
+create policy "Allow admins to manage invitations"
+    on public.workspace_invitations for all
+    to authenticated
+    using (
+        public.is_workspace_admin(workspace_id, auth.uid())
+        or exists (
+            select 1 from public.workspaces as ws
+            where ws.id = workspace_id and ws.owner_id = auth.uid()
+        )
+    );

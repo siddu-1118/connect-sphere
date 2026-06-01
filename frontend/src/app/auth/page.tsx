@@ -38,6 +38,15 @@ function AuthContent() {
                 role: inviteRole
               });
             }
+
+            // Clean up workspace invitations table
+            if (user.email) {
+              await supabase
+                .from('workspace_invitations')
+                .delete()
+                .eq('workspace_id', inviteWorkspaceId)
+                .eq('email', user.email.toLowerCase());
+            }
           } catch (e) {
             console.error('Error adding user to invited workspace:', e);
           }
