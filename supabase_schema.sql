@@ -22,6 +22,7 @@ alter table public.users enable row level security;
 create table if not exists public.workspaces (
     id uuid primary key default uuid_generate_v4(),
     name text not null,
+    description text,
     owner_id uuid not null references public.users(id) on delete cascade,
     created_at timestamp with time zone default now() not null
 );
