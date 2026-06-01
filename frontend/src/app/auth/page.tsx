@@ -285,13 +285,11 @@ function AuthContent() {
           
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-100">
-              {isVerify && !isReset ? 'Check Your Inbox' : isVerify ? 'Verify Identity' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
+              {isVerify ? 'Verify Your Email' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              {isVerify && !isReset
-                ? 'We sent a verification link to confirm your registration'
-                : isVerify 
-                ? `Enter the code sent to ${email || emailParam || 'your email'}` 
+              {isVerify 
+                ? `Enter the 6-digit code sent to ${email || emailParam || 'your email'}` 
                 : isReset 
                 ? 'Create a secure new password for your account' 
                 : 'Access your enterprise dashboard'}
@@ -335,25 +333,9 @@ function AuthContent() {
                 </button>
               )}
 
-              {isVerify && !isReset ? (
-                /* Check Email Instructions instead of OTP Input */
-                <div className="flex flex-col items-center justify-center py-6 text-center animate-fadeIn gap-4 select-text">
-                  <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center shadow-lg text-cyan-400 mb-2">
-                    <Mail size={24} className="stroke-[2.5]" />
-                  </div>
-                  <h3 className="text-slate-100 font-bold text-sm">Verify your email address</h3>
-                  <p className="text-slate-400 text-xs max-w-xs leading-relaxed">
-                    We've sent a secure confirmation link to <strong className="text-cyan-400 font-bold">{email || emailParam || 'your email'}</strong>. Please click the link inside that email to activate your account.
-                  </p>
-                  <div className="w-full h-[1px] bg-white/5 my-2"></div>
-                  <p className="text-[10px] text-slate-500 italic">
-                    Once clicked, you will be redirected to the AeroMeet workspace. You can safely close this page.
-                  </p>
-                </div>
-              ) : (
-                /* Form container */
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                  
+              {/* Sign-in / Register / Verify / Reset form */}
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                
                   {/* TABS SELECTOR (Only when NOT verifying or resetting) */}
                   {!isVerify && !isReset && (
                     <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5 mb-2">
@@ -464,16 +446,24 @@ function AuthContent() {
 
                   {/* 4. Verification OTP Field (Verify and Reset mode only) */}
                   {(isVerify || isReset) && (
-                    <div className="space-y-1.5 text-left">
-                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">Verification OTP Code</label>
+                    <div className="space-y-3 text-left">
+                      {/* Email receipt hint */}
+                      <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-cyan-500/5 border border-cyan-500/15 rounded-xl">
+                        <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                        <p className="text-[10px] text-slate-400">
+                          Code sent to <span className="text-cyan-400 font-bold">{email || emailParam || 'your email'}</span>
+                        </p>
+                      </div>
+                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">6-Digit Verification Code</label>
                       <input
                         type="text"
                         required
                         maxLength={6}
+                        autoFocus
                         value={otp}
                         onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                        placeholder="123456"
-                        className="w-full bg-slate-955 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 px-4 text-center tracking-[1em] text-sm text-cyan-400 placeholder:text-slate-800 outline-none transition-all font-mono"
+                        placeholder="• • • • • •"
+                        className="w-full bg-slate-955 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3.5 px-4 text-center tracking-[0.6em] text-base text-cyan-400 placeholder:text-slate-800 outline-none transition-all font-mono"
                       />
                     </div>
                   )}
@@ -527,8 +517,7 @@ function AuthContent() {
                       Didn't receive a code? Resend
                     </button>
                   )}
-                </form>
-              )}
+              </form>
 
               {/* Providers (Google & Sandbox) - Only when NOT verifying or resetting */}
               {!isVerify && !isReset && (
