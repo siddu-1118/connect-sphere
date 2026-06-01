@@ -80,14 +80,18 @@ export async function POST(request: Request) {
       `;
     }
 
-    // Trigger email sending asynchronously
+    // Trigger email sending
     const emailSent = await sendEmail({
       to: [email],
       subject,
       html: emailHtml,
     });
 
-    return NextResponse.json({ success: true, emailSent });
+    if (!emailSent) {
+      return NextResponse.json({ error: 'Failed to send invite email. Please check your SMTP configuration.' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('[API/Workspace/Invite] Global handler exception:', err);
     return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 });
