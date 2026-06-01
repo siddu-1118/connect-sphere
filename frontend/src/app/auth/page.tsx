@@ -285,10 +285,12 @@ function AuthContent() {
           
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-100">
-              {isVerify ? 'Verify Identity' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
+              {isVerify && !isReset ? 'Check Your Inbox' : isVerify ? 'Verify Identity' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              {isVerify 
+              {isVerify && !isReset
+                ? 'We sent a verification link to confirm your registration'
+                : isVerify 
                 ? `Enter the code sent to ${email || emailParam || 'your email'}` 
                 : isReset 
                 ? 'Create a secure new password for your account' 
@@ -333,183 +335,200 @@ function AuthContent() {
                 </button>
               )}
 
-              {/* Form container */}
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                
-                {/* TABS SELECTOR (Only when NOT verifying or resetting) */}
-                {!isVerify && !isReset && (
-                  <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5 mb-2">
-                    {(['signin', 'magiclink', 'register'] as const).map(tab => (
-                      <button
-                        key={tab}
-                        type="button"
-                        onClick={() => { setActiveTab(tab); setError(null); setSuccess(null); }}
-                        className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
-                          activeTab === tab 
-                            ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/15 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-350 border border-transparent'
-                        }`}
-                      >
-                        {tab === 'signin' ? 'Sign In' : tab === 'magiclink' ? 'Magic Link' : 'Register'}
-                      </button>
-                    ))}
+              {isVerify && !isReset ? (
+                /* Check Email Instructions instead of OTP Input */
+                <div className="flex flex-col items-center justify-center py-6 text-center animate-fadeIn gap-4 select-text">
+                  <div className="w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center shadow-lg text-cyan-400 mb-2">
+                    <Mail size={24} className="stroke-[2.5]" />
                   </div>
-                )}
+                  <h3 className="text-slate-100 font-bold text-sm">Verify your email address</h3>
+                  <p className="text-slate-400 text-xs max-w-xs leading-relaxed">
+                    We've sent a secure confirmation link to <strong className="text-cyan-400 font-bold">{email || emailParam || 'your email'}</strong>. Please click the link inside that email to activate your account.
+                  </p>
+                  <div className="w-full h-[1px] bg-white/5 my-2"></div>
+                  <p className="text-[10px] text-slate-500 italic">
+                    Once clicked, you will be redirected to the AeroMeet workspace. You can safely close this page.
+                  </p>
+                </div>
+              ) : (
+                /* Form container */
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  
+                  {/* TABS SELECTOR (Only when NOT verifying or resetting) */}
+                  {!isVerify && !isReset && (
+                    <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5 mb-2">
+                      {(['signin', 'magiclink', 'register'] as const).map(tab => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => { setActiveTab(tab); setError(null); setSuccess(null); }}
+                          className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                            activeTab === tab 
+                              ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/15 shadow-sm' 
+                              : 'text-slate-500 hover:text-slate-350 border border-transparent'
+                          }`}
+                        >
+                          {tab === 'signin' ? 'Sign In' : tab === 'magiclink' ? 'Magic Link' : 'Register'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                {/* FIELDS DISPLAY */}
-                
-                {/* 1. Display Name (Register tab only) */}
-                {!isVerify && !isReset && activeTab === 'register' && (
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Full Name</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <User className="w-4 h-4 text-slate-600" />
-                      </span>
+                  {/* FIELDS DISPLAY */}
+                  
+                  {/* 1. Display Name (Register tab only) */}
+                  {!isVerify && !isReset && activeTab === 'register' && (
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Full Name</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                          <User className="w-4 h-4 text-slate-600" />
+                        </span>
+                        <input
+                          type="text"
+                          required
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Email Address (All tabs, but hidden during verification if email already exists, or shown as disabled) */}
+                  {(!isVerify && !isReset) && (
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Email Address</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                          <Mail className="w-4 h-4 text-slate-600" />
+                        </span>
+                        <input
+                          type="email"
+                          required
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@company.com"
+                          className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. Password field (Sign In or Register only) */}
+                  {!isVerify && !isReset && (activeTab === 'signin' || activeTab === 'register') && (
+                    <div className="space-y-1.5 text-left">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Password</label>
+                        {activeTab === 'signin' && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (!email.trim()) {
+                                setError('Please enter your email address to request a password reset.');
+                                return;
+                              }
+                              setLoading(true);
+                              setError(null);
+                              try {
+                                await forgotPassword(email.trim());
+                                setSuccess('Password reset link sent to your email.');
+                              } catch (e: any) {
+                                setError(e.message || 'Failed to request reset.');
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className="text-[9px] font-bold text-cyan-455 hover:text-cyan-350 uppercase tracking-wider"
+                          >
+                            Forgot?
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                          <KeyRound className="w-4 h-4 text-slate-600" />
+                        </span>
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4. Verification OTP Field (Verify and Reset mode only) */}
+                  {(isVerify || isReset) && (
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">Verification OTP Code</label>
                       <input
                         type="text"
                         required
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="John Doe"
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
+                        maxLength={6}
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="123456"
+                        className="w-full bg-slate-955 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 px-4 text-center tracking-[1em] text-sm text-cyan-400 placeholder:text-slate-800 outline-none transition-all font-mono"
                       />
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* 2. Email Address (All tabs, but hidden during verification if email already exists, or shown as disabled) */}
-                {(!isVerify && !isReset) && (
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Email Address</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Mail className="w-4 h-4 text-slate-600" />
-                      </span>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="you@company.com"
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
-                      />
+                  {/* 5. New Password field (Reset mode only) */}
+                  {isReset && (
+                    <div className="space-y-1.5 text-left">
+                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">New Password</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                          <KeyRound className="w-4 h-4 text-slate-600" />
+                        </span>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* 3. Password field (Sign In or Register only) */}
-                {!isVerify && !isReset && (activeTab === 'signin' || activeTab === 'register') && (
-                  <div className="space-y-1.5 text-left">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Password</label>
-                      {activeTab === 'signin' && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            if (!email.trim()) {
-                              setError('Please enter your email address to request a password reset.');
-                              return;
-                            }
-                            setLoading(true);
-                            setError(null);
-                            try {
-                              await forgotPassword(email.trim());
-                              setSuccess('Password reset link sent to your email.');
-                            } catch (e: any) {
-                              setError(e.message || 'Failed to request reset.');
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          className="text-[9px] font-bold text-cyan-450 hover:text-cyan-350 uppercase tracking-wider"
-                        >
-                          Forgot?
-                        </button>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <KeyRound className="w-4 h-4 text-slate-600" />
-                      </span>
-                      <input
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* 4. Verification OTP Field (Verify and Reset mode only) */}
-                {(isVerify || isReset) && (
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Verification OTP Code</label>
-                    <input
-                      type="text"
-                      required
-                      maxLength={6}
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                      placeholder="123456"
-                      className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 px-4 text-center tracking-[1em] text-sm text-cyan-400 placeholder:text-slate-800 outline-none transition-all font-mono"
-                    />
-                  </div>
-                )}
-
-                {/* 5. New Password field (Reset mode only) */}
-                {isReset && (
-                  <div className="space-y-1.5 text-left">
-                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">New Password</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <KeyRound className="w-4 h-4 text-slate-600" />
-                      </span>
-                      <input
-                        type="password"
-                        required
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value)}
-                        placeholder="••••••••••••"
-                        className="w-full bg-slate-950 border border-slate-850 focus:border-cyan-500/50 rounded-xl py-3 pl-10 pr-4 text-xs text-slate-200 placeholder:text-slate-700 outline-none transition-all"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Submit button */}
-                <button
-                  type="submit"
-                  className="w-full h-11 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-2"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>
-                    {isVerify 
-                      ? 'Verify Code' 
-                      : isReset 
-                      ? 'Reset Password' 
-                      : activeTab === 'signin' 
-                      ? 'Sign In' 
-                      : activeTab === 'magiclink' 
-                      ? 'Send OTP Link' 
-                      : 'Create Account'}
-                  </span>
-                </button>
-
-                {/* Resend OTP handler for verification screens */}
-                {isVerify && (
+                  {/* Submit button */}
                   <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    className="text-[9px] font-bold text-slate-500 hover:text-slate-300 uppercase tracking-widest mt-1"
+                    type="submit"
+                    className="w-full h-11 bg-cyan-600 hover:bg-cyan-500 text-slate-955 font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_20px_rgba(6,182,212,0.15)] hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer mt-2"
                   >
-                    Didn't receive a code? Resend
+                    <Send className="w-3.5 h-3.5" />
+                    <span>
+                      {isVerify 
+                        ? 'Verify Code' 
+                        : isReset 
+                        ? 'Reset Password' 
+                        : activeTab === 'signin' 
+                        ? 'Sign In' 
+                        : activeTab === 'magiclink' 
+                        ? 'Send OTP Link' 
+                        : 'Create Account'}
+                    </span>
                   </button>
-                )}
-              </form>
+
+                  {/* Resend OTP handler for verification screens */}
+                  {isVerify && (
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      className="text-[9px] font-bold text-slate-505 hover:text-slate-300 uppercase tracking-widest mt-1"
+                    >
+                      Didn't receive a code? Resend
+                    </button>
+                  )}
+                </form>
+              )}
 
               {/* Providers (Google & Sandbox) - Only when NOT verifying or resetting */}
               {!isVerify && !isReset && (
