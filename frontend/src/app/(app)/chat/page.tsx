@@ -25,6 +25,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface LocalConversation {
@@ -55,6 +56,14 @@ const SYNTHETIC_CONTACTS = [
   { id: 'usr-devon', name: 'Devon Harris', email: 'devon.h@aeromeet.live', presence: 'online' as const, avatar: null },
 ];
 
+interface DirectoryContact {
+  id: string;
+  name: string;
+  email: string;
+  presence: 'online' | 'away' | 'offline' | 'busy' | 'dnd';
+  avatar: string | null;
+}
+
 export default function ChatPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -63,6 +72,41 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<LocalConversation[]>([]);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [contacts, setContacts] = useState<DirectoryContact[]>(SYNTHETIC_CONTACTS);
+
+  // Load real contacts from Database
+  useEffect(() => {
+    async function loadContacts() {
+      try {
+        const { data: dbUsers, error } = await supabase
+          .from('users')
+          .select('id, display_name, email, avatar_url, status');
+        
+        if (error) throw error;
+        
+        if (dbUsers && dbUsers.length > 0) {
+          const mapped: DirectoryContact[] = dbUsers
+            .filter(u => u.id !== user?.id) // exclude current user
+            .map(u => ({
+              id: u.id,
+              name: u.display_name || u.email.split('@')[0] || 'Unknown User',
+              email: u.email,
+              presence: (u.status || 'online') as any,
+              avatar: u.avatar_url || null
+            }));
+          setContacts(mapped);
+        } else {
+          setContacts(SYNTHETIC_CONTACTS);
+        }
+      } catch (err) {
+        console.warn('Failed to fetch real users, falling back to mock contacts:', err);
+        setContacts(SYNTHETIC_CONTACTS);
+      }
+    }
+    if (user) {
+      loadContacts();
+    }
+  }, [user]);
 
   // Messages in active chat
   const [messages, setMessages] = useState<LocalDMMessage[]>([]);
@@ -142,7 +186,7 @@ export default function ChatPage() {
   }, []);
 
   // Start new DM conversation
-  const handleStartDM = (contact: typeof SYNTHETIC_CONTACTS[number]) => {
+  const handleStartDM = (contact: DirectoryContact) => {
     const exists = conversations.some(c => c.userId === contact.id);
     
     if (!exists) {
@@ -251,7 +295,7 @@ export default function ChatPage() {
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredContacts = SYNTHETIC_CONTACTS.filter(c =>
+  const filteredContacts = contacts.filter(c =>
     c.name.toLowerCase().includes(contactSearch.toLowerCase()) ||
     c.email.toLowerCase().includes(contactSearch.toLowerCase())
   );
