@@ -193,6 +193,14 @@ create policy "Allow admins to invite or edit workspace members"
         )
     );
 
+drop policy if exists "Allow users to join workspace themselves" on public.workspace_members;
+create policy "Allow users to join workspace themselves"
+    on public.workspace_members for insert
+    to authenticated
+    with check (
+        user_id = auth.uid()
+    );
+
 -- Channels Policies:
 drop policy if exists "Allow channel view to workspace members" on public.channels;
 create policy "Allow channel view to workspace members"
