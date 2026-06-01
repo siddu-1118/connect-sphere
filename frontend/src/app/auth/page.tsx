@@ -285,13 +285,13 @@ function AuthContent() {
           
           <div className="text-center">
             <h2 className="text-xl font-bold text-slate-100">
-              {isVerify ? 'Verify Your Email' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
+              {isVerify ? 'Check Your Inbox' : isReset ? 'Reset Password' : 'Welcome to AeroMeet'}
             </h2>
             <p className="text-xs text-slate-400 mt-1">
               {isVerify 
-                ? `Enter the 6-digit code sent to ${email || emailParam || 'your email'}` 
+                ? `We sent a confirmation link to ${email || emailParam || 'your email'}` 
                 : isReset 
-                ? 'Create a secure new password for your account' 
+                ? `Enter the reset code sent to ${email || emailParam || 'your email'}` 
                 : 'Access your enterprise dashboard'}
             </p>
           </div>
@@ -333,11 +333,64 @@ function AuthContent() {
                 </button>
               )}
 
-              {/* Sign-in / Register / Verify / Reset form */}
+              {/* ── SIGNUP VERIFY: Show "Check inbox" static screen ── */}
+              {isVerify && (
+                <div className="flex flex-col items-center text-center gap-5 py-4 animate-fadeIn select-text">
+                  {/* Animated envelope icon */}
+                  <div className="relative">
+                    <div className="w-20 h-20 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+                      <Mail size={32} className="text-cyan-400 stroke-[1.5]" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg animate-bounce">
+                      <CheckCircle2 size={12} className="text-slate-900 stroke-[3]" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-bold text-slate-100">Confirmation email sent!</h3>
+                    <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                      We sent a confirmation link to{' '}
+                      <span className="text-cyan-400 font-bold break-all">{email || emailParam || 'your email'}</span>.
+                      Please open your inbox and click the link to activate your account.
+                    </p>
+                  </div>
+
+                  <div className="w-full space-y-2.5 pt-1">
+                    {/* Step hints */}
+                    {[
+                      { step: '1', text: 'Open your email inbox' },
+                      { step: '2', text: 'Find the email from AeroMeet' },
+                      { step: '3', text: 'Click the confirmation link' },
+                    ].map(({ step, text }) => (
+                      <div key={step} className="flex items-center gap-3 px-4 py-2.5 bg-slate-950/60 border border-slate-900 rounded-xl text-left">
+                        <span className="w-5 h-5 rounded-full bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 text-[9px] font-black flex items-center justify-center shrink-0">{step}</span>
+                        <span className="text-[11px] text-slate-350">{text}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="w-full h-[1px] bg-white/5" />
+
+                  <p className="text-[10px] text-slate-500 italic leading-relaxed max-w-xs">
+                    Didn't receive the email?{' '}
+                    <button
+                      type="button"
+                      onClick={handleResendOtp}
+                      className="text-cyan-400 underline underline-offset-2 font-bold hover:text-cyan-300 transition-colors cursor-pointer"
+                    >
+                      Click here to resend
+                    </button>
+                    {' '}or check your spam folder.
+                  </p>
+                </div>
+              )}
+
+              {/* ── RESET / SIGN-IN / REGISTER form ── */}
+              {!isVerify && (
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 
-                  {/* TABS SELECTOR (Only when NOT verifying or resetting) */}
-                  {!isVerify && !isReset && (
+                  {/* TABS SELECTOR (Only when NOT resetting) */}
+                  {!isReset && (
                     <div className="flex bg-slate-950/60 p-1 rounded-xl border border-white/5 mb-2">
                       {(['signin', 'magiclink', 'register'] as const).map(tab => (
                         <button
@@ -356,10 +409,8 @@ function AuthContent() {
                     </div>
                   )}
 
-                  {/* FIELDS DISPLAY */}
-                  
                   {/* 1. Display Name (Register tab only) */}
-                  {!isVerify && !isReset && activeTab === 'register' && (
+                  {!isReset && activeTab === 'register' && (
                     <div className="space-y-1.5 text-left">
                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Full Name</label>
                       <div className="relative">
@@ -378,8 +429,8 @@ function AuthContent() {
                     </div>
                   )}
 
-                  {/* 2. Email Address (All tabs, but hidden during verification if email already exists, or shown as disabled) */}
-                  {(!isVerify && !isReset) && (
+                  {/* 2. Email Address */}
+                  {!isReset && (
                     <div className="space-y-1.5 text-left">
                       <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Email Address</label>
                       <div className="relative">
@@ -399,7 +450,7 @@ function AuthContent() {
                   )}
 
                   {/* 3. Password field (Sign In or Register only) */}
-                  {!isVerify && !isReset && (activeTab === 'signin' || activeTab === 'register') && (
+                  {!isReset && (activeTab === 'signin' || activeTab === 'register') && (
                     <div className="space-y-1.5 text-left">
                       <div className="flex justify-between items-center">
                         <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider block">Password</label>
@@ -415,7 +466,7 @@ function AuthContent() {
                               setError(null);
                               try {
                                 await forgotPassword(email.trim());
-                                setSuccess('Password reset link sent to your email.');
+                                setSuccess('Password reset code sent to your email.');
                               } catch (e: any) {
                                 setError(e.message || 'Failed to request reset.');
                               } finally {
@@ -444,17 +495,16 @@ function AuthContent() {
                     </div>
                   )}
 
-                  {/* 4. Verification OTP Field (Verify and Reset mode only) */}
-                  {(isVerify || isReset) && (
+                  {/* 4. OTP code (Reset mode only) */}
+                  {isReset && (
                     <div className="space-y-3 text-left">
-                      {/* Email receipt hint */}
                       <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-cyan-500/5 border border-cyan-500/15 rounded-xl">
                         <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
                         <p className="text-[10px] text-slate-400">
-                          Code sent to <span className="text-cyan-400 font-bold">{email || emailParam || 'your email'}</span>
+                          Reset code sent to <span className="text-cyan-400 font-bold">{email || emailParam || 'your email'}</span>
                         </p>
                       </div>
-                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">6-Digit Verification Code</label>
+                      <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">6-Digit Reset Code</label>
                       <input
                         type="text"
                         required
@@ -468,7 +518,7 @@ function AuthContent() {
                     </div>
                   )}
 
-                  {/* 5. New Password field (Reset mode only) */}
+                  {/* 5. New Password (Reset mode only) */}
                   {isReset && (
                     <div className="space-y-1.5 text-left">
                       <label className="text-[9px] font-black text-slate-505 uppercase tracking-wider block">New Password</label>
@@ -495,29 +545,17 @@ function AuthContent() {
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>
-                      {isVerify 
-                        ? 'Verify Code' 
-                        : isReset 
+                      {isReset 
                         ? 'Reset Password' 
                         : activeTab === 'signin' 
                         ? 'Sign In' 
                         : activeTab === 'magiclink' 
-                        ? 'Send OTP Link' 
+                        ? 'Send Magic Link' 
                         : 'Create Account'}
                     </span>
                   </button>
-
-                  {/* Resend OTP handler for verification screens */}
-                  {isVerify && (
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      className="text-[9px] font-bold text-slate-505 hover:text-slate-300 uppercase tracking-widest mt-1"
-                    >
-                      Didn't receive a code? Resend
-                    </button>
-                  )}
               </form>
+              )}
 
               {/* Providers (Google & Sandbox) - Only when NOT verifying or resetting */}
               {!isVerify && !isReset && (
