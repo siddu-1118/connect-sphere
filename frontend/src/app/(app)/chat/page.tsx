@@ -32,7 +32,7 @@ interface LocalConversation {
   userId: string;
   name: string;
   avatarUrl: string | null;
-  presence: 'online' | 'away' | 'offline';
+  presence: 'online' | 'away' | 'offline' | 'busy' | 'dnd';
   lastMessage?: string | null;
   lastMessageAt?: string | null;
 }
