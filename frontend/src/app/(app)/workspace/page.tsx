@@ -61,6 +61,11 @@ interface LocalMessage {
 
 type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard' | 'Assignments';
 
+const isUuid = (val: string | null): boolean => {
+  if (!val) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+};
+
 export default function WorkspacePage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -316,7 +321,7 @@ export default function WorkspacePage() {
 
   // Load workspace members list
   const loadMembers = async () => {
-    if (!activeWorkspaceId) {
+    if (!activeWorkspaceId || !isUuid(activeWorkspaceId)) {
       setWorkspaceMembers([]);
       return;
     }
@@ -362,7 +367,10 @@ export default function WorkspacePage() {
 
   // Load assignments list
   const loadAssignments = async () => {
-    if (!activeWorkspaceId) return;
+    if (!activeWorkspaceId || !isUuid(activeWorkspaceId)) {
+      setAssignments([]);
+      return;
+    }
     setAssignmentsLoading(true);
     try {
       const { data: dbAssignments, error: assError } = await supabase
@@ -433,7 +441,7 @@ export default function WorkspacePage() {
 
   // 2. Load messages based on active channel selection
   useEffect(() => {
-    if (!activeChannelId) {
+    if (!activeChannelId || !isUuid(activeChannelId)) {
       setMessages([]);
       return;
     }
