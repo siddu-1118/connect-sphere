@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authorization header is required' }, { status: 401 });
     }
 
-    const { email, workspaceId, workspaceName, isNewUser } = await request.json();
+    const { email, workspaceId, workspaceName, isNewUser, role } = await request.json();
 
     if (!email || !workspaceId || !workspaceName) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -33,9 +33,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized: Invalid credentials' }, { status: 401 });
     }
 
+    const inviteRole = role || 'member';
     const teacherName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Your Teacher';
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
-    const loginLink = `${appUrl}/auth?inviteWorkspaceId=${workspaceId}`;
+    const loginLink = `${appUrl}/auth?inviteWorkspaceId=${workspaceId}&inviteRole=${inviteRole}`;
 
     let emailHtml = '';
     let subject = '';
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #ffffff;">
           <h2 style="color: #0891b2; border-bottom: 2px solid #0891b2; padding-bottom: 10px; margin-top: 0;">AeroMeet Workspace Invite</h2>
           <p>Hello,</p>
-          <p>Teacher <strong>${teacherName}</strong> has invited you to join their AeroMeet Workspace <strong>"${workspaceName}"</strong>.</p>
+          <p>Teacher <strong>${teacherName}</strong> has invited you to join their AeroMeet Workspace <strong>"${workspaceName}"</strong> as a <strong>${inviteRole === 'admin' ? 'Teacher' : 'Student'}</strong>.</p>
           
           <p>You don't have an AeroMeet account yet. Please sign up using Google through the link below to get started and automatically join the workspace:</p>
           
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e1e1e1; border-radius: 8px; background-color: #ffffff;">
           <h2 style="color: #0891b2; border-bottom: 2px solid #0891b2; padding-bottom: 10px; margin-top: 0;">Added to Workspace</h2>
           <p>Hello,</p>
-          <p>Teacher <strong>${teacherName}</strong> has added you to their AeroMeet Workspace <strong>"${workspaceName}"</strong>.</p>
+          <p>Teacher <strong>${teacherName}</strong> has added you to their AeroMeet Workspace <strong>"${workspaceName}"</strong> as a <strong>${inviteRole === 'admin' ? 'Teacher' : 'Student'}</strong>.</p>
           
           <p>Since you already have an AeroMeet account, you can access the workspace immediately by logging in below:</p>
           

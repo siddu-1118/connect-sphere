@@ -95,6 +95,7 @@ export default function WorkspacePage() {
   const [newChannelName, setNewChannelName] = useState('');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member');
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
@@ -1973,7 +1974,7 @@ export default function WorkspacePage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Student Email</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Email Address</label>
                 <input
                   type="email"
                   value={inviteEmail}
@@ -1982,6 +1983,19 @@ export default function WorkspacePage() {
                   disabled={inviting}
                   className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-750 outline-none focus:border-cyan-500/50 transition-all font-outfit"
                 />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Assign Workspace Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as 'admin' | 'member')}
+                  disabled={inviting}
+                  className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-cyan-500/50 transition-all font-outfit [color-scheme:dark]"
+                >
+                  <option value="member">Student (Member)</option>
+                  <option value="admin">Teacher (Admin)</option>
+                </select>
               </div>
             </div>
 
@@ -2022,7 +2036,7 @@ export default function WorkspacePage() {
                         .maybeSingle();
 
                       if (existing) {
-                        setInviteError('This student is already a member of this workspace.');
+                        setInviteError('This user is already a member of this workspace.');
                         setInviting(false);
                         return;
                       }
@@ -2033,7 +2047,7 @@ export default function WorkspacePage() {
                         .insert({
                           user_id: student.id,
                           workspace_id: activeWorkspaceId,
-                          role: 'member'
+                          role: inviteRole
                         });
 
                       if (insertError) throw insertError;
@@ -2050,11 +2064,12 @@ export default function WorkspacePage() {
                           email: inviteEmail.trim().toLowerCase(),
                           workspaceId: activeWorkspaceId,
                           workspaceName,
-                          isNewUser: false
+                          isNewUser: false,
+                          role: inviteRole
                         })
                       });
 
-                      setInviteSuccess(`Successfully added ${student.display_name || inviteEmail} to this workspace!`);
+                      setInviteSuccess(`Successfully added ${student.display_name || inviteEmail} as a ${inviteRole === 'admin' ? 'Teacher' : 'Student'}!`);
                       setInviteEmail('');
                       loadMembers();
                     } else {
@@ -2070,7 +2085,8 @@ export default function WorkspacePage() {
                           email: inviteEmail.trim().toLowerCase(),
                           workspaceId: activeWorkspaceId,
                           workspaceName,
-                          isNewUser: true
+                          isNewUser: true,
+                          role: inviteRole
                         })
                       });
 
@@ -2079,7 +2095,7 @@ export default function WorkspacePage() {
                         throw new Error(err.error || 'Failed to send invite');
                       }
 
-                      setInviteSuccess(`Invitation email sent successfully to ${inviteEmail}!`);
+                      setInviteSuccess(`Invitation email sent successfully to ${inviteEmail} as a ${inviteRole === 'admin' ? 'Teacher' : 'Student'}!`);
                       setInviteEmail('');
                     }
                   } catch (e: any) {

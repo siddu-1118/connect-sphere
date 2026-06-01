@@ -20,6 +20,7 @@ function AuthContent() {
       if (user) {
         const urlParams = new URLSearchParams(window.location.search);
         const inviteWorkspaceId = urlParams.get('inviteWorkspaceId');
+        const inviteRole = urlParams.get('inviteRole') || 'member';
         
         if (inviteWorkspaceId) {
           try {
@@ -34,7 +35,7 @@ function AuthContent() {
               await supabase.from('workspace_members').insert({
                 user_id: user.id,
                 workspace_id: inviteWorkspaceId,
-                role: 'member'
+                role: inviteRole
               });
             }
           } catch (e) {
