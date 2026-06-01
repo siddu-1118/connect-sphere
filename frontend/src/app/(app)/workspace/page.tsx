@@ -58,7 +58,7 @@ interface LocalMessage {
   parentMessageId?: string | null;
 }
 
-type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard';
+type TabType = 'Posts' | 'Files' | 'Notes' | 'Whiteboard' | 'Assignments';
 
 export default function WorkspacePage() {
   const { user } = useAuth();
@@ -92,6 +92,43 @@ export default function WorkspacePage() {
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [newWorkspaceDesc, setNewWorkspaceDesc] = useState('');
   const [newChannelName, setNewChannelName] = useState('');
+
+  // Workspace members & assignments states (Options A & B)
+  interface WorkspaceMember {
+    id: string;
+    name: string;
+    email: string;
+    avatarUrl?: string | null;
+    role: 'admin' | 'member';
+  }
+  const [workspaceMembers, setWorkspaceMembers] = useState<WorkspaceMember[]>([]);
+  
+  interface LocalAssignment {
+    id: string;
+    title: string;
+    description?: string;
+    dueDate?: string | null;
+    createdAt: string;
+    teacherName: string;
+    recipients: {
+      studentId: string;
+      studentName: string;
+      status: 'pending' | 'submitted' | 'graded';
+    }[];
+  }
+  const [assignments, setAssignments] = useState<LocalAssignment[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  
+  // Assignment Form State
+  const [assignmentTitle, setAssignmentTitle] = useState('');
+  const [assignmentDesc, setAssignmentDesc] = useState('');
+  const [assignmentDueDate, setAssignmentDueDate] = useState('');
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  
+  // Message Alert Recipients state (Option B)
+  const [selectedMessageRecipientIds, setSelectedMessageRecipientIds] = useState<string[]>([]);
+  const [showRecipientDropdown, setShowRecipientDropdown] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -269,6 +306,129 @@ export default function WorkspacePage() {
       isMounted = false;
     };
   }, [user]);
+
+  // Load workspace members list
+  useEffect(() => {
+    if (!activeWorkspaceId) {
+      setWorkspaceMembers([]);
+      return;
+    }
+    
+    let isMounted = true;
+    async function loadMembers() {
+      try {
+        const isMock = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
+        if (isMock) throw new Error('Offline mode');
+
+        const { data, error } = await supabase
+          .from('workspace_members')
+          .select(`
+            role,
+            users (
+              id,
+              email,
+              display_name,
+              avatar_url
+            )
+          `)
+          .eq('workspace_id', activeWorkspaceId);
+          
+        if (error) throw error;
+        
+        const mappedMembers = (data || []).map((m: any) => ({
+          id: m.users?.id,
+          name: m.users?.display_name || m.users?.email?.split('@')[0] || 'Aero User',
+          email: m.users?.email || '',
+          avatarUrl: m.users?.avatar_url || null,
+          role: m.role as any
+        }));
+        
+        if (isMounted) {
+          setWorkspaceMembers(mappedMembers);
+        }
+      } catch (err) {
+        console.error('Error loading workspace members:', err);
+      }
+    }
+    loadMembers();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeWorkspaceId]);
+
+  // Determine if active user is a teacher (admin/owner)
+  const isTeacher = workspaceMembers.find(m => m.id === user?.id)?.role === 'admin';
+
+  // Load assignments list
+  const loadAssignments = async () => {
+    if (!activeWorkspaceId) return;
+    setAssignmentsLoading(true);
+    try {
+      const { data: dbAssignments, error: assError } = await supabase
+        .from('assignments')
+        .select(`
+          id,
+          title,
+          description,
+          due_date,
+          created_at,
+          users (
+            display_name
+          )
+        `)
+        .eq('workspace_id', activeWorkspaceId)
+        .order('created_at', { ascending: false });
+
+      if (assError) throw assError;
+
+      const assignmentIds = (dbAssignments || []).map(a => a.id);
+      let recipientsData: any[] = [];
+      if (assignmentIds.length > 0) {
+        const { data: dbRecipients, error: recError } = await supabase
+          .from('assignment_recipients')
+          .select(`
+            assignment_id,
+            student_id,
+            status,
+            users (
+              display_name
+            )
+          `)
+          .in('assignment_id', assignmentIds);
+        if (recError) throw recError;
+        recipientsData = dbRecipients || [];
+      }
+
+      const mappedAssignments = (dbAssignments || []).map((a: any) => {
+        const filterRecipients = recipientsData.filter(r => r.assignment_id === a.id);
+        return {
+          id: a.id,
+          title: a.title,
+          description: a.description || '',
+          dueDate: a.due_date,
+          createdAt: a.created_at,
+          teacherName: a.users?.display_name || 'Teacher',
+          recipients: filterRecipients.map((r: any) => ({
+            studentId: r.student_id,
+            studentName: r.users?.display_name || 'Student',
+            status: r.status as any
+          }))
+        };
+      });
+
+      setAssignments(mappedAssignments);
+    } catch (err) {
+      console.error('Error loading assignments:', err);
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeWorkspaceId && activeTab === 'Assignments') {
+      loadAssignments();
+    }
+  }, [activeWorkspaceId, activeTab]);
 
   // 2. Load messages based on active channel selection
   useEffect(() => {
@@ -629,27 +789,85 @@ export default function WorkspacePage() {
       const isMock = !process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder');
       if (isMock) throw new Error('Offline mode');
       
-      const { data: newMsg, error } = await supabase
-        .from('messages')
-        .insert({
-          channel_id: activeChannelId,
-          user_id: currentUser.id,
-          content: textToSend,
-          parent_message_id: parentMessageId,
-          priority: parentMessageId ? 'Standard' : priority
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
+      let newMsg;
+      // If we have selected email alert recipients for Urgent/Important message
+      if (!parentMessageId && (priority === 'Urgent' || priority === 'Important') && selectedMessageRecipientIds.length > 0) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            channelId: activeChannelId,
+            content: textToSend,
+            priority,
+            recipientIds: selectedMessageRecipientIds
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Failed to post prioritized message');
+        }
+
+        const resData = await res.json();
+        // Fetch the created message from Supabase to render it locally
+        const { data: fetchedMsg, error: fetchErr } = await supabase
+          .from('messages')
+          .select(`
+            id,
+            channel_id,
+            user_id,
+            content,
+            parent_message_id,
+            priority,
+            created_at,
+            users (
+              display_name,
+              avatar_url
+            )
+          `)
+          .eq('id', resData.messageId)
+          .single();
+
+        if (fetchErr) throw fetchErr;
+        newMsg = fetchedMsg;
+      } else {
+        // Standard flow: direct client-side Supabase insert
+        const { data: insertedMsg, error } = await supabase
+          .from('messages')
+          .insert({
+            channel_id: activeChannelId,
+            user_id: currentUser.id,
+            content: textToSend,
+            parent_message_id: parentMessageId,
+            priority: parentMessageId ? 'Standard' : priority
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        newMsg = insertedMsg;
+      }
       
+      // Load user details for rendering locally
+      const { data: userData } = await supabase
+        .from('users')
+        .select('display_name, avatar_url')
+        .eq('id', newMsg.user_id)
+        .single();
+
       const mappedMsg: LocalMessage = {
         id: newMsg.id,
         channelId: newMsg.channel_id,
         content: newMsg.content,
-        senderId: currentUser.id,
-        senderName: currentUser.name || 'Aero User',
-        senderAvatar: currentUser.avatarUrl,
+        senderId: newMsg.user_id,
+        senderName: userData?.display_name || currentUser.name || 'Aero User',
+        senderAvatar: userData?.avatar_url || currentUser.avatarUrl,
         createdAt: newMsg.created_at,
         priority: newMsg.priority as any,
         parentMessageId: newMsg.parent_message_id
@@ -659,8 +877,8 @@ export default function WorkspacePage() {
         if (prev.some(m => m.id === mappedMsg.id)) return prev;
         return [...prev, mappedMsg];
       });
-    } catch (err) {
-      console.warn('Failed to send message to DB, using local storage fallback:', err);
+    } catch (err: any) {
+      console.warn('Failed to send message to DB, using local storage fallback:', err.message || err);
       const newMessage: LocalMessage = {
         id: `msg-${Date.now()}`,
         channelId: activeChannelId,
@@ -681,6 +899,8 @@ export default function WorkspacePage() {
     if (!inlineText) {
       setMessageText('');
       setPriority('Standard');
+      setSelectedMessageRecipientIds([]); // Reset selection
+      setShowRecipientDropdown(false);
       textareaRef.current?.focus();
     }
   };
@@ -907,9 +1127,9 @@ export default function WorkspacePage() {
                 </div>
               </div>
 
-              {/* Horizontal Tabs: Posts, Files, Notes, Whiteboard */}
+              {/* Horizontal Tabs: Posts, Files, Notes, Whiteboard, Assignments */}
               <div className="flex gap-6 select-none shrink-0">
-                {(['Posts', 'Files', 'Notes', 'Whiteboard'] as TabType[]).map(tab => {
+                {(['Posts', 'Files', 'Notes', 'Whiteboard', 'Assignments'] as TabType[]).map(tab => {
                   const isActive = activeTab === tab;
                   return (
                     <button
@@ -1088,6 +1308,168 @@ export default function WorkspacePage() {
                 <div className="absolute inset-0 p-6">
                   <Whiteboard />
                 </div>
+              ) : activeTab === 'Assignments' ? (
+                /* Assignments Tab Stage */
+                <div className="h-full flex flex-col p-6 overflow-y-auto scrollbar-thin">
+                  <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-6 select-text">
+                    
+                    {/* Header */}
+                    <div className="flex items-center justify-between border-b border-slate-900 pb-4">
+                      <div className="text-left">
+                        <h2 className="text-xl font-bold text-slate-100">Class Assignments</h2>
+                        <p className="text-xs text-slate-500 mt-1">Manage and track workspace work and assignments.</p>
+                      </div>
+                      
+                      {/* Create Assignment Button (Visible only to workspace admins/owners) */}
+                      {isTeacher && (
+                        <button
+                          onClick={() => {
+                            setAssignmentTitle('');
+                            setAssignmentDesc('');
+                            setAssignmentDueDate('');
+                            setSelectedStudentIds([]);
+                            setShowAssignmentModal(true);
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                        >
+                          <Plus size={12} className="stroke-[2.5]" />
+                          Create Assignment
+                        </button>
+                      )}
+                    </div>
+
+                    {assignmentsLoading ? (
+                      <div className="flex-1 flex flex-col items-center justify-center py-20">
+                        <div className="w-8 h-8 rounded-full border-4 border-t-cyan-500 border-white/5 animate-spin" />
+                        <p className="text-xs text-slate-455 mt-3.5">Loading assignments...</p>
+                      </div>
+                    ) : assignments.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/80 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
+                          <FileText className="text-indigo-400 stroke-[2.5]" />
+                        </div>
+                        <h3 className="text-slate-200 font-bold text-sm tracking-tight">No assignments yet</h3>
+                        <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
+                          {isTeacher 
+                            ? 'Assign homework or tasks to students and track their completion status.' 
+                            : 'All clear! No assignments have been posted to this workspace yet.'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {assignments.map(ass => {
+                          const isAssignedToMe = ass.recipients.some(r => r.studentId === user?.id);
+                          const myStatus = ass.recipients.find(r => r.studentId === user?.id)?.status;
+                          
+                          return (
+                            <div key={ass.id} className="p-5 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-xl flex flex-col gap-4 text-left select-text">
+                              <div className="flex justify-between items-start gap-4">
+                                <div>
+                                  <h3 className="text-sm font-bold text-slate-100">{ass.title}</h3>
+                                  <p className="text-[10px] text-slate-500 mt-1">Assigned by: <strong>{ass.teacherName}</strong> • {new Date(ass.createdAt).toLocaleDateString()}</p>
+                                </div>
+
+                                {/* Due Date Badge */}
+                                {ass.dueDate && (
+                                  <div className="px-3 py-1 bg-slate-900 border border-slate-850 rounded-xl text-[9px] font-bold text-slate-400">
+                                    Due: {new Date(ass.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                                  </div>
+                                )}
+                              </div>
+
+                              <p className="text-slate-350 text-xs leading-relaxed">{ass.description || 'No description provided.'}</p>
+
+                              {/* Student View (Submit status controls) */}
+                              {isAssignedToMe && (
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-955/40 border border-slate-900/50 mt-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Status:</span>
+                                    <span className={cn(
+                                      "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
+                                      myStatus === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                      myStatus === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+                                      myStatus === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                    )}>
+                                      {myStatus}
+                                    </span>
+                                  </div>
+
+                                  {myStatus === 'pending' && (
+                                    <button
+                                      onClick={async () => {
+                                        try {
+                                          const { error } = await supabase
+                                            .from('assignment_recipients')
+                                            .update({ status: 'submitted' })
+                                            .eq('assignment_id', ass.id)
+                                            .eq('student_id', user?.id);
+                                          if (error) throw error;
+                                          loadAssignments();
+                                        } catch (e) {
+                                          console.error('Error submitting assignment:', e);
+                                        }
+                                      }}
+                                      className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase rounded-lg transition-all cursor-pointer"
+                                    >
+                                      Submit Work
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Teacher View (Recipients status table) */}
+                              {isTeacher && (
+                                <div className="border-t border-slate-900/60 pt-4 mt-2">
+                                  <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5">Student Statuses ({ass.recipients.length})</h4>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {ass.recipients.map(rec => (
+                                      <div key={rec.studentId} className="flex justify-between items-center px-3 py-2 bg-slate-950/20 border border-slate-900 rounded-xl">
+                                        <span className="text-xs text-slate-300 truncate max-w-[130px]">{rec.studentName}</span>
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={cn(
+                                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
+                                            rec.status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                            rec.status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+                                            rec.status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                          )}>
+                                            {rec.status}
+                                          </span>
+                                          {rec.status === 'submitted' && (
+                                            <button
+                                              onClick={async () => {
+                                                try {
+                                                  const { error } = await supabase
+                                                    .from('assignment_recipients')
+                                                    .update({ status: 'graded' })
+                                                    .eq('assignment_id', ass.id)
+                                                    .eq('student_id', rec.studentId);
+                                                  if (error) throw error;
+                                                  loadAssignments();
+                                                } catch (e) {
+                                                  console.error('Error grading assignment:', e);
+                                                }
+                                              }}
+                                              className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded"
+                                              title="Mark as Graded"
+                                            >
+                                              Grade
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                  </div>
+                </div>
               ) : (
                 /* Files & Notes empty states */
                 <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full bg-slate-950/20">
@@ -1218,6 +1600,53 @@ export default function WorkspacePage() {
                             </div>
                           )}
                         </div>
+
+                        {/* Student selection checklist for Urgent/Important messages (Option B) */}
+                        {(priority === 'Urgent' || priority === 'Important') && workspaceMembers.length > 0 && (
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={() => setShowRecipientDropdown(!showRecipientDropdown)}
+                              className={cn(
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border border-slate-850 bg-slate-900/60 text-slate-400 hover:text-slate-200"
+                              )}
+                            >
+                              <Users size={11} />
+                              Alert Recipients ({selectedMessageRecipientIds.length})
+                              <ChevronDown size={10} className="text-slate-550" />
+                            </button>
+                            {showRecipientDropdown && (
+                              <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-2.5 z-50 w-64 max-h-48 overflow-y-auto flex flex-col gap-1.5 animate-fadeIn select-text text-left">
+                                <p className="text-[9px] font-black text-slate-550 uppercase tracking-wider border-b border-slate-800 pb-1.5 mb-1.5">Select Students to Email</p>
+                                {workspaceMembers
+                                  .filter(m => m.id !== user?.id) // Don't list self
+                                  .map(member => {
+                                    const isChecked = selectedMessageRecipientIds.includes(member.id);
+                                    return (
+                                      <label key={member.id} className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-300 hover:text-slate-100 py-0.5 select-none">
+                                        <input
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => {
+                                            if (isChecked) {
+                                              setSelectedMessageRecipientIds(prev => prev.filter(id => id !== member.id));
+                                            } else {
+                                              setSelectedMessageRecipientIds(prev => [...prev, member.id]);
+                                            }
+                                          }}
+                                          className="accent-cyan-500 cursor-pointer"
+                                        />
+                                        <span className="truncate">{member.name} ({member.role})</span>
+                                      </label>
+                                    );
+                                  })}
+                                {workspaceMembers.filter(m => m.id !== user?.id).length === 0 && (
+                                  <span className="text-[10px] text-slate-500 text-center py-2">No other members in workspace</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                       </div>
 
@@ -1352,6 +1781,140 @@ export default function WorkspacePage() {
                 className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-505 text-xs font-bold uppercase tracking-wider text-slate-955 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-bold"
               >
                 Add Channel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Create Assignment Modal */}
+      {showAssignmentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-955/75 backdrop-blur-sm p-4 animate-fadeIn select-none">
+          <div className="bg-slate-900 border border-slate-850 rounded-2xl w-full max-w-md p-6 shadow-2xl relative select-text">
+            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+            
+            <button 
+              onClick={() => { setShowAssignmentModal(false); }}
+              className="absolute top-4 right-4 p-1 rounded-lg text-slate-550 hover:text-slate-300 hover:bg-slate-850 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <h2 className="text-sm font-black text-slate-100 uppercase tracking-widest mb-5 flex items-center gap-2 select-none font-outfit">
+              <FileText className="w-4 h-4 text-cyan-400" />
+              Create Class Assignment
+            </h2>
+
+            <div className="space-y-4 select-text">
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Assignment Title</label>
+                <input
+                  value={assignmentTitle}
+                  onChange={e => setAssignmentTitle(e.target.value)}
+                  placeholder="e.g., Homework 2: Algebra Prep"
+                  className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-750 outline-none focus:border-cyan-500/50 transition-all font-outfit"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Description / Details</label>
+                <textarea
+                  value={assignmentDesc}
+                  onChange={e => setAssignmentDesc(e.target.value)}
+                  placeholder="Provide details about the assignment..."
+                  rows={3}
+                  className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 placeholder:text-slate-750 outline-none focus:border-cyan-500/50 transition-all font-outfit resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Due Date</label>
+                <input
+                  type="datetime-local"
+                  value={assignmentDueDate}
+                  onChange={e => setAssignmentDueDate(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-855 rounded-xl px-4 py-2.5 text-xs text-slate-200 outline-none focus:border-cyan-500/50 transition-all font-outfit text-left"
+                />
+              </div>
+
+              {/* Student checkboxes */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Assign Students to Notify</label>
+                <div className="w-full bg-slate-950 border border-slate-855 rounded-xl p-3 max-h-36 overflow-y-auto flex flex-col gap-1.5 select-text scrollbar-thin text-left">
+                  {workspaceMembers
+                    .filter(member => member.id !== user?.id) // Don't list self/teacher
+                    .map(member => {
+                      const isChecked = selectedStudentIds.includes(member.id);
+                      return (
+                        <label key={member.id} className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-350 hover:text-slate-200 py-0.5 select-none">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedStudentIds(prev => prev.filter(id => id !== member.id));
+                              } else {
+                                setSelectedStudentIds(prev => [...prev, member.id]);
+                              }
+                            }}
+                            className="accent-cyan-500 cursor-pointer"
+                          />
+                          <span className="truncate">{member.name} ({member.role})</span>
+                        </label>
+                      );
+                    })}
+                  {workspaceMembers.filter(m => m.id !== user?.id).length === 0 && (
+                    <span className="text-[10px] text-slate-650 text-center py-4">No other members in workspace</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6 select-none">
+              <button 
+                onClick={() => { setShowAssignmentModal(false); }} 
+                className="flex-1 py-2.5 rounded-xl border border-slate-855 hover:bg-slate-850 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-300 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!assignmentTitle.trim() || selectedStudentIds.length === 0 || !activeWorkspaceId) return;
+                  
+                  try {
+                    const { data: { session } } = await supabase.auth.getSession();
+                    const token = session?.access_token;
+                    
+                    const res = await fetch('/api/assignments', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        workspaceId: activeWorkspaceId,
+                        title: assignmentTitle,
+                        description: assignmentDesc,
+                        dueDate: assignmentDueDate || null,
+                        recipientIds: selectedStudentIds
+                      })
+                    });
+
+                    if (!res.ok) {
+                      const errData = await res.json();
+                      throw new Error(errData.error || 'Failed to create assignment');
+                    }
+
+                    setShowAssignmentModal(false);
+                    loadAssignments();
+                  } catch (e) {
+                    console.error('Error creating assignment:', e);
+                  }
+                }}
+                disabled={!assignmentTitle.trim() || selectedStudentIds.length === 0}
+                className="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-505 text-xs font-bold uppercase tracking-wider text-slate-955 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.2)] border border-cyan-400/20 font-black"
+              >
+                Assign Work
               </button>
             </div>
           </div>
