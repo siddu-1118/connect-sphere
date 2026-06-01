@@ -131,16 +131,33 @@ create policy "Allow updates to self profile"
     to authenticated
     using (auth.uid() = id);
 
--- Workspaces Policies:
+-- Workspaces Helper Functions & Policies:
+create or replace function public.is_workspace_member(ws_id uuid, u_id uuid)
+returns boolean as $$
+begin
+    return exists (
+        select 1 from public.workspace_members
+        where workspace_id = ws_id and user_id = u_id
+    );
+end;
+$$ language plpgsql security definer;
+
+create or replace function public.is_workspace_admin(ws_id uuid, u_id uuid)
+returns boolean as $$
+begin
+    return exists (
+        select 1 from public.workspace_members
+        where workspace_id = ws_id and user_id = u_id and role = 'admin'
+    );
+end;
+$$ language plpgsql security definer;
+
 drop policy if exists "Allow workspace view to member users" on public.workspaces;
 create policy "Allow workspace view to member users"
     on public.workspaces for select
     to authenticated
     using (
-        exists (
-            select 1 from public.workspace_members
-            where workspace_members.workspace_id = id and workspace_members.user_id = auth.uid()
-        )
+        public.is_workspace_member(id, auth.uid())
     );
 
 drop policy if exists "Allow workspace creation to all authenticated users" on public.workspaces;
@@ -161,10 +178,7 @@ create policy "Allow members of same workspace to view member list"
     on public.workspace_members for select
     to authenticated
     using (
-        exists (
-            select 1 from public.workspace_members as self
-            where self.workspace_id = workspace_id and self.user_id = auth.uid()
-        )
+        public.is_workspace_member(workspace_id, auth.uid())
     );
 
 drop policy if exists "Allow admins to invite or edit workspace members" on public.workspace_members;
@@ -172,10 +186,7 @@ create policy "Allow admins to invite or edit workspace members"
     on public.workspace_members for all
     to authenticated
     using (
-        exists (
-            select 1 from public.workspace_members as self
-            where self.workspace_id = workspace_id and self.user_id = auth.uid() and self.role = 'admin'
-        )
+        public.is_workspace_admin(workspace_id, auth.uid())
         or exists (
             select 1 from public.workspaces as ws
             where ws.id = workspace_id and ws.owner_id = auth.uid()
