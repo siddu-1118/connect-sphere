@@ -122,3 +122,12 @@ export const concurrentUsersLog = pgTable('concurrent_users_log', {
   timestamp: timestamp('timestamp').defaultNow().notNull(),
   activeUsers: integer('active_users').notNull()
 });
+
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  endpoint: text('endpoint').unique().notNull(),
+  keysAuth: text('keys_auth').notNull(),
+  keysP256dh: text('keys_p256dh').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});

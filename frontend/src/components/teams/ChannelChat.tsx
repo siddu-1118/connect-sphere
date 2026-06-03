@@ -119,6 +119,23 @@ export function ChannelChat({
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadingFileName, setUploadingFileName] = useState<string>('');
   
+  const [isOnline, setIsOnline] = useState(typeof window !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+  
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -248,6 +265,14 @@ export function ChannelChat({
         )}
       </div>
 
+      {/* Offline Status Banner */}
+      {!isOnline && (
+        <div className="bg-amber-600/10 border-b border-amber-600/20 px-6 py-2.5 flex items-center gap-2 text-amber-500 text-[10px] font-black uppercase tracking-wider select-none animate-fadeIn shrink-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+          You are currently offline. Showing cached messages. Sent messages will queue until reconnected.
+        </div>
+      )}
+
       {/* Messages Viewport */}
       <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-5 min-h-0">
         {loading ? (
@@ -280,8 +305,10 @@ export function ChannelChat({
               }
             }
 
+            const isPending = (msg as any).status === 'pending';
+
             return (
-              <div key={msg.id} className="flex gap-4 items-start animate-fadeIn group">
+              <div key={msg.id} className={`flex gap-4 items-start animate-fadeIn group ${isPending ? 'opacity-50' : ''}`}>
                 <Avatar name={msg.user.name} src={msg.user.avatarUrl} size="sm" className="mt-0.5 shadow-md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2 mb-1">
@@ -291,6 +318,11 @@ export function ChannelChat({
                     <span className="text-[9px] text-slate-500">
                       {formatDate(msg.createdAt)} at {formatTime(msg.createdAt)}
                     </span>
+                    {isPending && (
+                      <span className="text-[8px] text-cyan-400 font-bold uppercase tracking-widest animate-pulse flex items-center gap-1.5 ml-1">
+                        <span className="w-2 h-2 rounded-full border-2 border-t-transparent border-cyan-400 animate-spin" /> Pending Sync
+                      </span>
+                    )}
                   </div>
                   {fileData ? (
                     <FileCard file={fileData} />

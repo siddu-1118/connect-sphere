@@ -134,9 +134,32 @@ function LiveKitMeetingRoomInner({
   const cameraOn = localParticipant.isCameraEnabled;
   const sharing = localParticipant.isScreenShareEnabled;
 
-  const toggleMute = () => localParticipant.setMicrophoneEnabled(!micOn);
-  const toggleCamera = () => localParticipant.setCameraEnabled(!cameraOn);
-  const toggleScreenShare = () => localParticipant.setScreenShareEnabled(!sharing);
+  const toggleMute = () => {
+    localParticipant.setMicrophoneEnabled(!micOn);
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+  const toggleCamera = () => {
+    localParticipant.setCameraEnabled(!cameraOn);
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+  const toggleScreenShare = () => {
+    localParticipant.setScreenShareEnabled(!sharing);
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleLeaveMeeting = () => {
+    if (socket) {
+      socket.emit('user-leave', { roomId: meetingId, userId });
+    }
+    room.disconnect();
+    router.push('/dashboard');
+  };
 
   // 1. Tracks (Camera + ScreenShare)
   const tracks = useTracks(
@@ -196,6 +219,104 @@ function LiveKitMeetingRoomInner({
   const [handRaises, setHandRaises] = useState<Record<string, boolean>>({});
 
   const channelRef = useRef<any>(null);
+
+  // ─── Swipe-to-Paginate grid states ───
+  const [currentPage, setCurrentPage] = useState(0);
+  const pageSize = 6;
+  const totalPages = Math.ceil(tracks.length / pageSize);
+  const touchStartRef = useRef<number>(0);
+
+  // Ensure current page is valid when track count changes
+  useEffect(() => {
+    if (currentPage >= totalPages && totalPages > 0) {
+      setCurrentPage(totalPages - 1);
+    }
+  }, [tracks.length, totalPages, currentPage]);
+
+  const handleGridTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0].clientX;
+  };
+
+  const handleGridTouchEnd = (e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current;
+    if (deltaX < -60) {
+      if (currentPage < totalPages - 1) {
+        setCurrentPage(prev => prev + 1);
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(40);
+        }
+      }
+    } else if (deltaX > 60) {
+      if (currentPage > 0) {
+        setCurrentPage(prev => prev - 1);
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(40);
+        }
+      }
+    }
+  };
+
+  // ─── Auto Picture-in-Picture on browser tab background ───
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.pictureInPictureEnabled) return;
+
+    const handleVisibilityChange = async () => {
+      try {
+        if (document.visibilityState === 'hidden') {
+          const video = document.querySelector('video');
+          if (video && video.readyState >= 2 && !document.pictureInPictureElement) {
+            await video.requestPictureInPicture();
+          }
+        } else if (document.visibilityState === 'visible') {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to toggle Picture-in-Picture state:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // ─── Register W3C MediaSession Actions ───
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `Meeting stage: ${meetingId}`,
+        artist: 'AeroMeet',
+        album: 'Video Conferencing Stage'
+      });
+
+      navigator.mediaSession.setActionHandler('togglemicrophone' as any, () => {
+        toggleMute();
+      });
+
+      navigator.mediaSession.setActionHandler('togglecamera' as any, () => {
+        toggleCamera();
+      });
+
+      navigator.mediaSession.setActionHandler('hangup' as any, () => {
+        handleLeaveMeeting();
+      });
+    } catch (e) {
+      console.warn('MediaSession action registration failed:', e);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('togglemicrophone' as any, null);
+        navigator.mediaSession.setActionHandler('togglecamera' as any, null);
+        navigator.mediaSession.setActionHandler('hangup' as any, null);
+      }
+    };
+  }, [meetingId, localParticipant, handleLeaveMeeting]);
 
   // Fetch Q&A questions from database
   const fetchQuestions = useCallback(async () => {
@@ -365,6 +486,10 @@ function LiveKitMeetingRoomInner({
       time: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }]);
 
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+
     setChatDraft('');
   };
 
@@ -474,13 +599,7 @@ function LiveKitMeetingRoomInner({
     }
   };
 
-  const handleLeaveMeeting = () => {
-    if (socket) {
-      socket.emit('user-leave', { roomId: meetingId, userId });
-    }
-    room.disconnect();
-    router.push('/dashboard');
-  };
+
 
   return (
     <div className="h-screen bg-slate-955 flex flex-col overflow-hidden text-slate-200 font-outfit relative">
@@ -597,65 +716,93 @@ function LiveKitMeetingRoomInner({
               );
             }
 
+            const paginatedTracks = tracks.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+
             return (
-              /* LiveKit Grid Maps */
-              <div className={cn(
-                "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
-                tracks.length === 1 
-                  ? "grid-cols-1 md:grid-cols-1 max-h-[480px]" 
-                  : tracks.length === 2 
-                  ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
-                  : tracks.length === 3 
-                  ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
-                  : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
-              )}>
-                {tracks.map(track => {
-                  const p = track.participant;
-                  const isLocal = p.isLocal;
-                  const isSpeaking = p.isSpeaking;
-                  const cameraEnabled = p.isCameraEnabled;
-                  const micEnabled = p.isMicrophoneEnabled;
-                  const isScreenShare = track.source === Track.Source.ScreenShare;
+              <div 
+                className="flex-1 flex flex-col justify-center min-h-0 select-none relative"
+                onTouchStart={handleGridTouchStart}
+                onTouchEnd={handleGridTouchEnd}
+              >
+                {/* LiveKit Grid Maps */}
+                <div className={cn(
+                  "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center flex-grow",
+                  paginatedTracks.length === 1 
+                    ? "grid-cols-1 md:grid-cols-1 max-h-[480px]" 
+                    : paginatedTracks.length === 2 
+                    ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
+                    : paginatedTracks.length === 3 
+                    ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
+                    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-3 max-h-[500px]"
+                )}>
+                  {paginatedTracks.map(track => {
+                    const p = track.participant;
+                    const isLocal = p.isLocal;
+                    const isSpeaking = p.isSpeaking;
+                    const cameraEnabled = p.isCameraEnabled;
+                    const micEnabled = p.isMicrophoneEnabled;
+                    const isScreenShare = track.source === Track.Source.ScreenShare;
 
-                  // Load custom avatar meta details if applicable
-                  const meta = p.metadata ? JSON.parse(p.metadata) : null;
-                  const pAvatar = isLocal ? avatarUrl : (meta?.avatarUrl || null);
-                  const isHandRaised = isLocal ? localHandRaised : (handRaises[p.identity] || handRaises[meta?.userId] || false);
+                    // Load custom avatar meta details if applicable
+                    const meta = p.metadata ? JSON.parse(p.metadata) : null;
+                    const pAvatar = isLocal ? avatarUrl : (meta?.avatarUrl || null);
+                    const isHandRaised = isLocal ? localHandRaised : (handRaises[p.identity] || handRaises[meta?.userId] || false);
 
-                  return (
-                    <div 
-                      key={track.publication?.trackSid || p.sid + '-' + track.source} 
-                      className={cn(
-                        "relative bg-slate-900 border rounded-2xl overflow-hidden aspect-video shadow-lg transition-all duration-300",
-                        isSpeaking ? "border-cyan-400 ring-2 ring-cyan-500/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] scale-[1.01]" : "border-slate-850"
-                      )}
-                    >
-                      {cameraEnabled || isScreenShare ? (
-                        <VideoTrack 
-                          trackRef={track as any} 
-                          className="w-full h-full object-cover"
-                          style={isLocal && !isScreenShare ? { transform: 'scaleX(-1)' } : undefined}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                          <Avatar name={p.identity || 'Aero User'} src={pAvatar} size="lg" className="border border-slate-800" />
-                          <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                    return (
+                      <div 
+                        key={track.publication?.trackSid || p.sid + '-' + track.source} 
+                        className={cn(
+                          "relative bg-slate-900 border rounded-2xl overflow-hidden aspect-video shadow-lg transition-all duration-300",
+                          isSpeaking ? "border-cyan-400 ring-2 ring-cyan-500/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] scale-[1.01]" : "border-slate-850"
+                        )}
+                      >
+                        {cameraEnabled || isScreenShare ? (
+                          <VideoTrack 
+                            trackRef={track as any} 
+                            className="w-full h-full object-cover"
+                            style={isLocal && !isScreenShare ? { transform: 'scaleX(-1)' } : undefined}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                            <Avatar name={p.identity || 'Aero User'} src={pAvatar} size="lg" className="border border-slate-800" />
+                            <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                          </div>
+                        )}
+                        <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-955/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                          <span className="text-[10px] text-slate-202 font-semibold">
+                            {p.identity} {isLocal ? '(You)' : ''} {isScreenShare ? '(Screen)' : ''}
+                          </span>
+                          {!micEnabled && !isScreenShare && <MicOff size={10} className="text-rose-400 shrink-0" />}
                         </div>
-                      )}
-                      <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-955/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                        <span className="text-[10px] text-slate-202 font-semibold">
-                          {p.identity} {isLocal ? '(You)' : ''} {isScreenShare ? '(Screen)' : ''}
-                        </span>
-                        {!micEnabled && !isScreenShare && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                        {isHandRaised && !isScreenShare && (
+                          <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                            <Hand size={14} className="stroke-[2.5]" />
+                          </div>
+                        )}
                       </div>
-                      {isHandRaised && !isScreenShare && (
-                        <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
-                          <Hand size={14} className="stroke-[2.5]" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Grid Pagination Dots */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2 mt-4 z-20">
+                    {Array.from({ length: totalPages }).map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setCurrentPage(idx);
+                          if (typeof window !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(30);
+                        }}
+                        className={cn(
+                          "w-2.5 h-2.5 rounded-full transition-all duration-150 border border-transparent min-h-[12px] min-w-[12px]",
+                          currentPage === idx ? "bg-cyan-400 w-5 shadow-[0_0_8px_rgba(6,182,212,0.5)]" : "bg-slate-700 hover:bg-slate-650"
+                        )}
+                        title={`Go to grid page ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -668,11 +815,12 @@ function LiveKitMeetingRoomInner({
               <button
                 onClick={toggleMute}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   micOn 
                     ? "bg-slate-800/60 hover:bg-slate-800 text-slate-200" 
-                    : "bg-rose-500 text-slate-950 font-bold"
+                    : "bg-rose-500 text-slate-955 font-bold"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title={micOn ? "Mute Microphone" : "Unmute Microphone"}
               >
                 {micOn ? <Mic size={16} className="stroke-[2.5]" /> : <MicOff size={16} />}
@@ -697,11 +845,12 @@ function LiveKitMeetingRoomInner({
               <button
                 onClick={toggleCamera}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   cameraOn 
                     ? "bg-slate-800/60 hover:bg-slate-800 text-slate-200" 
-                    : "bg-rose-500 text-slate-950 font-bold"
+                    : "bg-rose-500 text-slate-955 font-bold"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title={cameraOn ? "Disable Camera" : "Enable Camera"}
               >
                 {cameraOn ? <Video size={16} className="stroke-[2.5]" /> : <VideoOff size={16} />}
@@ -728,11 +877,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={toggleScreenShare}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sharing 
                   ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:scale-[1.02]" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-emerald-450"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={sharing ? "Stop Sharing Screen" : "Share Screen"}
             >
               <Monitor size={16} className="stroke-[2.5]" />
@@ -742,11 +892,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => setWhiteboardActive(!whiteboardActive)}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 whiteboardActive 
                   ? "bg-cyan-500 text-slate-955 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02]" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-cyan-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={whiteboardActive ? "Close Whiteboard Stage" : "Open Collaboration Whiteboard"}
             >
               <Pencil size={16} className="stroke-[2.5]" />
@@ -756,11 +907,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => { setBreakoutStep(1); setShowBreakoutModal(true); }}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 showBreakoutModal 
                   ? "bg-indigo-500/20 text-indigo-400 border-indigo-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-indigo-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Manage Breakout Rooms"
             >
               <Grid size={16} />
@@ -770,11 +922,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => setShowSecurityModal(true)}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 showSecurityModal 
                   ? "bg-rose-500/15 text-rose-455 border-rose-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-rose-455"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Host Security Settings"
             >
               <Shield size={16} />
@@ -785,11 +938,12 @@ function LiveKitMeetingRoomInner({
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   showEmojiPicker 
                     ? "bg-slate-800 text-cyan-400 border-slate-850" 
                     : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title="Send Reaction"
               >
                 <Smile size={16} />
@@ -813,11 +967,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={toggleHandRaise}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 localHandRaised 
                   ? "bg-amber-500 text-slate-955 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)] hover:scale-[1.02]" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-amber-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={localHandRaised ? "Lower Hand" : "Raise Hand"}
             >
               <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
@@ -827,11 +982,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('People')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'People'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Participants list"
             >
               <Users size={16} />
@@ -840,11 +996,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('Chat')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'Chat'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Channel Chat feed"
             >
               <MessageSquare size={16} />
@@ -853,11 +1010,12 @@ function LiveKitMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('Q&A')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'Q&A'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Questions & Answers"
             >
               <HelpCircle size={16} />
@@ -868,7 +1026,8 @@ function LiveKitMeetingRoomInner({
             {/* Leave button */}
             <button
               onClick={handleLeaveMeeting}
-              className="px-5 h-10 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-slate-955 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/10 transition-all cursor-pointer border-0"
+              className="px-5 h-11 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-slate-955 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/10 transition-all cursor-pointer border-0 shrink-0"
+              style={{ minWidth: '80px', minHeight: '44px' }}
               title="Leave call room"
             >
               <PhoneOff size={13} className="text-slate-955 stroke-[2.5]" />
@@ -1165,6 +1324,27 @@ function WebRTCMeetingRoomInner({
   const cameraOn = !isCameraOff;
   const sharing = isScreenSharing;
 
+  const handleToggleMute = () => {
+    toggleMute();
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleToggleCamera = () => {
+    toggleCamera();
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
+  };
+
+  const handleLeaveMeeting = () => {
+    if (socket) {
+      socket.emit('user-leave', { roomId: meetingId, userId });
+    }
+    router.push('/dashboard');
+  };
+
   // 2. UI panel states
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('People');
@@ -1222,6 +1402,104 @@ function WebRTCMeetingRoomInner({
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const channelRef = useRef<any>(null);
+
+  // ─── Swipe-to-Paginate grid states ───
+  const [currentPage, setCurrentPage] = useState(0);
+  const pageSize = 6;
+  const totalPages = Math.ceil(participants.length / pageSize); // Note: WebRTC renders participants in a grid, local user is first, then remote participants.
+  const touchStartRef = useRef<number>(0);
+
+  // Ensure current page is valid when participant count changes
+  useEffect(() => {
+    if (currentPage >= totalPages && totalPages > 0) {
+      setCurrentPage(totalPages - 1);
+    }
+  }, [participants.length, totalPages, currentPage]);
+
+  const handleGridTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.touches[0].clientX;
+  };
+
+  const handleGridTouchEnd = (e: React.TouchEvent) => {
+    const deltaX = e.changedTouches[0].clientX - touchStartRef.current;
+    if (deltaX < -60) {
+      if (currentPage < totalPages - 1) {
+        setCurrentPage(prev => prev + 1);
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(40);
+        }
+      }
+    } else if (deltaX > 60) {
+      if (currentPage > 0) {
+        setCurrentPage(prev => prev - 1);
+        if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+          navigator.vibrate(40);
+        }
+      }
+    }
+  };
+
+  // ─── Auto Picture-in-Picture on browser tab background ───
+  useEffect(() => {
+    if (typeof document === 'undefined' || !document.pictureInPictureEnabled) return;
+
+    const handleVisibilityChange = async () => {
+      try {
+        if (document.visibilityState === 'hidden') {
+          const video = document.querySelector('video');
+          if (video && video.readyState >= 2 && !document.pictureInPictureElement) {
+            await video.requestPictureInPicture();
+          }
+        } else if (document.visibilityState === 'visible') {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture();
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to toggle Picture-in-Picture state:', err);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // ─── Register W3C MediaSession Actions ───
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: `Meeting fallback: ${meetingId}`,
+        artist: 'AeroMeet',
+        album: 'Video Conferencing Stage'
+      });
+
+      navigator.mediaSession.setActionHandler('togglemicrophone' as any, () => {
+        handleToggleMute();
+      });
+
+      navigator.mediaSession.setActionHandler('togglecamera' as any, () => {
+        handleToggleCamera();
+      });
+
+      navigator.mediaSession.setActionHandler('hangup' as any, () => {
+        handleLeaveMeeting();
+      });
+    } catch (e) {
+      console.warn('MediaSession action registration failed:', e);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+        navigator.mediaSession.setActionHandler('togglemicrophone' as any, null);
+        navigator.mediaSession.setActionHandler('togglecamera' as any, null);
+        navigator.mediaSession.setActionHandler('hangup' as any, null);
+      }
+    };
+  }, [meetingId, isMuted, isCameraOff, handleLeaveMeeting]);
 
   // Fetch Q&A questions from database
   const fetchQuestions = useCallback(async () => {
@@ -1612,6 +1890,9 @@ function WebRTCMeetingRoomInner({
   const handleSendChatMessage = () => {
     if (!chatDraft.trim()) return;
     sendChatMessage(chatDraft.trim());
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(50);
+    }
     setChatDraft('');
   };
 
@@ -1721,12 +2002,7 @@ function WebRTCMeetingRoomInner({
     }
   };
 
-  const handleLeaveMeeting = () => {
-    if (socket) {
-      socket.emit('user-leave', { roomId: meetingId, userId });
-    }
-    router.push('/dashboard');
-  };
+
 
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden text-slate-200 font-outfit relative">
@@ -1954,78 +2230,116 @@ function WebRTCMeetingRoomInner({
               );
             }
 
+            const tiles: Array<{ isLocal: boolean; key: string; participant?: any }> = [
+              { isLocal: true, key: 'local-tile' },
+              ...participants.map(p => ({ isLocal: false, key: p.socketId, participant: p }))
+            ];
+            
+            const paginatedTiles = tiles.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+            const totalPages = Math.ceil(tiles.length / pageSize);
+
             return (
-              <div className={cn(
-                "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
-                participants.length === 0
-                  ? "grid-cols-1 max-h-[480px]"
-                  : participants.length === 1 
-                  ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
-                  : participants.length === 2 
-                  ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
-                  : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
-              )}>
-                {/* Local User Tile */}
-                <div className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
-                  {cameraOn && localStream ? (
-                    <video
-                      ref={el => { if (el && localStream) el.srcObject = localStream; }}
-                      autoPlay
-                      muted
-                      playsInline
-                      className="w-full h-full object-cover"
-                      style={{ transform: 'scaleX(-1)' }}
-                    />
-                  ) : (
-                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                      <Avatar name={userName} src={avatarUrl} size="lg" className="border border-slate-800" />
-                      <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest font-mono">Camera is off</span>
-                    </div>
-                  )}
-                  <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                    <span className="text-[10px] text-slate-200 font-semibold">{userName} (You)</span>
-                    {!micOn && <MicOff size={10} className="text-rose-400 shrink-0" />}
-                  </div>
-                  {localHandRaised && (
-                    <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
-                      <Hand size={14} className="stroke-[2.5]" />
-                    </div>
-                  )}
+              <div 
+                className="flex-1 flex flex-col justify-center min-h-0 select-none relative"
+                onTouchStart={handleGridTouchStart}
+                onTouchEnd={handleGridTouchEnd}
+              >
+                {/* Fallback WebRTC Grid Maps */}
+                <div className={cn(
+                  "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center flex-grow",
+                  paginatedTiles.length === 1 
+                    ? "grid-cols-1 md:grid-cols-1 max-h-[480px]" 
+                    : paginatedTiles.length === 2 
+                    ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
+                    : paginatedTiles.length === 3 
+                    ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
+                    : "grid-cols-2 md:grid-cols-3 lg:grid-cols-3 max-h-[500px]"
+                )}>
+                  {paginatedTiles.map(tile => {
+                    if (tile.isLocal) {
+                      return (
+                        <div key={tile.key} className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
+                          {cameraOn && localStream ? (
+                            <video
+                              ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                              autoPlay
+                              muted
+                              playsInline
+                              className="w-full h-full object-cover"
+                              style={{ transform: 'scaleX(-1)' }}
+                            />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                              <Avatar name={userName} src={avatarUrl} size="lg" className="border border-slate-800" />
+                              <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                            </div>
+                          )}
+                          <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                            <span className="text-[10px] text-slate-200 font-semibold">{userName} (You)</span>
+                            {!micOn && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                          </div>
+                          {localHandRaised && (
+                            <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                              <Hand size={14} className="stroke-[2.5]" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    const p = tile.participant!;
+                    const stream = remoteStreams[p.socketId];
+                    const pCameraOn = !p.isCameraOff;
+                    const isHandRaised = handRaises[p.userId] || false;
+
+                    return (
+                      <div key={tile.key} className="relative bg-slate-900 border border-slate-855 rounded-2xl overflow-hidden aspect-video shadow-lg">
+                        {pCameraOn && stream ? (
+                          <video
+                            ref={el => { if (el && stream) el.srcObject = stream; }}
+                            autoPlay
+                            playsInline
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                            <Avatar name={p.userName} size="lg" className="border border-slate-800" />
+                            <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                          </div>
+                        )}
+                        <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                          <span className="text-[10px] text-slate-252 font-semibold">{p.userName}</span>
+                          {p.isMuted && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                        </div>
+                        {isHandRaised && (
+                          <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                            <Hand size={14} className="stroke-[2.5]" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Remote User Tiles */}
-                {participants.map(p => {
-                  const stream = remoteStreams[p.socketId];
-                  const pCameraOn = !p.isCameraOff;
-                  const isHandRaised = handRaises[p.userId] || false;
-
-                  return (
-                    <div key={p.socketId} className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
-                      {pCameraOn && stream ? (
-                        <video
-                          ref={el => { if (el && stream) el.srcObject = stream; }}
-                          autoPlay
-                          playsInline
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                          <Avatar name={p.userName} size="lg" className="border border-slate-800" />
-                          <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
-                        </div>
-                      )}
-                      <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                        <span className="text-[10px] text-slate-252 font-semibold">{p.userName}</span>
-                        {p.isMuted && <MicOff size={10} className="text-rose-400 shrink-0" />}
-                      </div>
-                      {isHandRaised && (
-                        <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
-                          <Hand size={14} className="stroke-[2.5]" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {/* Grid Pagination Dots */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center gap-2 mt-4 z-20">
+                    {Array.from({ length: totalPages }).map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setCurrentPage(idx);
+                          if (typeof window !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(30);
+                        }}
+                        className={cn(
+                          "w-2.5 h-2.5 rounded-full transition-all duration-150 border border-transparent min-h-[12px] min-w-[12px]",
+                          currentPage === idx ? "bg-cyan-400 w-5 shadow-[0_0_8px_rgba(6,182,212,0.5)]" : "bg-slate-700 hover:bg-slate-650"
+                        )}
+                        title={`Go to grid page ${idx + 1}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -2035,13 +2349,14 @@ function WebRTCMeetingRoomInner({
             
             <div className="flex items-center relative" ref={micMenuRef}>
               <button
-                onClick={toggleMute}
+                onClick={handleToggleMute}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   micOn 
                     ? "bg-slate-800/60 hover:bg-slate-800 text-slate-202" 
                     : "bg-rose-500 text-slate-955 font-bold"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title={micOn ? "Mute Microphone" : "Unmute Microphone"}
               >
                 {micOn ? <Mic size={16} className="stroke-[2.5]" /> : <MicOff size={16} />}
@@ -2063,13 +2378,14 @@ function WebRTCMeetingRoomInner({
 
             <div className="flex items-center relative" ref={cameraMenuRef}>
               <button
-                onClick={toggleCamera}
+                onClick={handleToggleCamera}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   cameraOn 
                     ? "bg-slate-800/60 hover:bg-slate-800 text-slate-202" 
                     : "bg-rose-500 text-slate-955 font-bold"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title={cameraOn ? "Disable Camera" : "Enable Camera"}
               >
                 {cameraOn ? <Video size={16} className="stroke-[2.5]" /> : <VideoOff size={16} />}
@@ -2094,11 +2410,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={sharing ? stopScreenShare : startScreenShare}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sharing 
                   ? "bg-emerald-500 text-slate-950 font-black shadow-[0_0_15px_rgba(16,185,129,0.25)] hover:scale-[1.02]" 
-                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-emerald-450"
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-emerald-455"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={sharing ? "Stop Sharing Screen" : "Share Screen"}
             >
               <Monitor size={16} className="stroke-[2.5]" />
@@ -2107,11 +2424,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => setWhiteboardActive(!whiteboardActive)}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 whiteboardActive 
                   ? "bg-cyan-500 text-slate-955 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02]" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-cyan-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={whiteboardActive ? "Close Whiteboard Stage" : "Open Collaboration Whiteboard"}
             >
               <Pencil size={16} className="stroke-[2.5]" />
@@ -2120,11 +2438,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => { setBreakoutStep(1); setShowBreakoutModal(true); }}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 showBreakoutModal 
                   ? "bg-indigo-500/20 text-indigo-400 border-indigo-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-indigo-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Manage Breakout Rooms"
             >
               <Grid size={16} />
@@ -2133,11 +2452,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => setShowSecurityModal(true)}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 showSecurityModal 
                   ? "bg-rose-500/15 text-rose-455 border-rose-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-202 hover:text-rose-455"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Host Security Settings"
             >
               <Shield size={16} />
@@ -2147,11 +2467,12 @@ function WebRTCMeetingRoomInner({
               <button
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                   showEmojiPicker 
                     ? "bg-slate-800 text-cyan-400 border-slate-850" 
                     : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
                 )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
                 title="Send Reaction"
               >
                 <Smile size={16} />
@@ -2175,11 +2496,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={toggleHandRaise}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 localHandRaised 
                   ? "bg-amber-500 text-slate-955 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)] hover:scale-[1.02]" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-amber-400"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title={localHandRaised ? "Lower Hand" : "Raise Hand"}
             >
               <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
@@ -2188,11 +2510,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('People')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'People'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Participants list"
             >
               <Users size={16} />
@@ -2201,11 +2524,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('Chat')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'Chat'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Channel Chat feed"
             >
               <MessageSquare size={16} />
@@ -2214,11 +2538,12 @@ function WebRTCMeetingRoomInner({
             <button
               onClick={() => handleToggleSidebar('Q&A')}
               className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'Q&A'
                   ? "bg-cyan-500/10 text-cyan-400 border-cyan-555/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
               title="Questions & Answers"
             >
               <HelpCircle size={16} />
@@ -2228,7 +2553,8 @@ function WebRTCMeetingRoomInner({
 
             <button
               onClick={handleLeaveMeeting}
-              className="px-5 h-10 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-slate-955 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/10 transition-all cursor-pointer border-0"
+              className="px-5 h-11 rounded-xl bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-slate-955 font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-rose-500/10 transition-all cursor-pointer border-0 shrink-0"
+              style={{ minWidth: '80px', minHeight: '44px' }}
               title="Leave call room"
             >
               <PhoneOff size={13} className="text-slate-955 stroke-[2.5]" />

@@ -12,6 +12,8 @@ import meetingsRoutes from './routes/meetings';
 import teamsRoutes from './routes/teams';
 import calendarRoutes from './routes/calendar';
 import adminRoutes from './routes/admin';
+import pushRoutes from './routes/push';
+import { initVapidKeys, checkAndSendMeetingReminders } from './services/push';
 import { errorHandler } from './middleware/errorHandler'; // We'll create this next
 
 const app = express();
@@ -49,6 +51,7 @@ app.use('/api/meetings', meetingsRoutes);
 app.use('/api/teams', teamsRoutes);
 app.use('/api/calendar', calendarRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/push', pushRoutes);
 
 // Health check & landing
 app.get('/', (req, res) => {
@@ -268,6 +271,19 @@ async function runStartupMigrations() {
       );
     `);
 
+    // Phase 9 Migrations - Push Notifications
+    console.log('🔄 Running Phase 9 migrations (Web Push Notifications)...');
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        endpoint TEXT UNIQUE NOT NULL,
+        keys_auth TEXT NOT NULL,
+        keys_p256dh TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
+      );
+    `);
+
     // Create RPC analytics functions
     await db.execute(sql`
       CREATE OR REPLACE FUNCTION get_meeting_minutes_last_30_days()
@@ -436,6 +452,14 @@ async function runStartupMigrations() {
     }
 
     console.log('✅ Startup database migrations completed successfully.');
+    
+    // Initialize VAPID Keys
+    initVapidKeys();
+
+    // Start 1-minute meeting reminders check
+    setInterval(() => {
+      checkAndSendMeetingReminders();
+    }, 60 * 1000);
   } catch (err) {
     console.error('❌ Failed running startup database migrations:', err);
   }

@@ -6,6 +6,7 @@ import { AuthGuard } from '../../components/layout/AuthGuard';
 import { Sidebar } from '../../components/layout/Sidebar';
 import { CommandSearch } from '../../components/layout/CommandSearch';
 import { BottomNav } from '../../components/layout/BottomNav';
+import PushNotificationPrompt from '../../components/ui/PushNotificationPrompt';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -52,6 +53,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Global command palette */}
         <CommandSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+
+        {/* Push notification setup banner */}
+        <PushNotificationPrompt />
       </div>
     </AuthGuard>
   );
