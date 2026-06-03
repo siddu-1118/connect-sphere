@@ -80,7 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
         const authUser = session.user;
         const publicUser: User = {
           id: authUser.id,
@@ -93,7 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(publicUser);
       } else {
-        document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`;
+        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
         setUser(null);
       }
       setLoading(false);
@@ -233,7 +235,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLocalUser(demoUser);
         
         // Ensure local tokens and cookies are set for admin console bypass
-        document.cookie = `sb-access-token=demo-admin-token; path=/; max-age=604800; SameSite=Lax; Secure`;
+        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+        document.cookie = `sb-access-token=demo-admin-token; path=/; max-age=604800; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
         setTokens('demo-admin-token', 'demo-admin-token');
         
         router.push('/dashboard');
