@@ -67,14 +67,14 @@ router.get('/users', async (req: Request, res: Response, next: NextFunction) => 
     
     let whereClause = sql`TRUE`;
     if (search) {
-      whereClause = sql`name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'}`;
+      whereClause = sql`display_name ILIKE ${'%' + search + '%'} OR email ILIKE ${'%' + search + '%'}`;
     }
 
     const countRes = await db.execute(sql`SELECT count(*) FROM users WHERE ${whereClause}`);
     const totalCount = parseInt((countRes.rows[0] as any).count as string) || 0;
 
     const usersListRes = await db.execute(sql`
-      SELECT id, name, email, avatar_url as "avatarUrl", is_admin as "isAdmin", created_at as "createdAt"
+      SELECT id, display_name as "name", email, avatar_url as "avatarUrl", is_admin as "isAdmin", created_at as "createdAt"
       FROM users
       WHERE ${whereClause}
       ORDER BY created_at DESC
@@ -105,9 +105,13 @@ router.post('/users/:id/reset-password', async (req: Request, res: Response, nex
     const salt = await bcrypt.genSalt(12);
     const passwordHash = await bcrypt.hash(tempPassword, salt);
 
-    await db.execute(sql`
-      UPDATE users SET password_hash = ${passwordHash}, updated_at = NOW() WHERE id = ${id}::uuid
-    `);
+    try {
+      await db.execute(sql`
+        UPDATE auth.users SET encrypted_password = ${passwordHash} WHERE id = ${id}::uuid
+      `);
+    } catch (authErr) {
+      console.warn('⚠️ Could not update auth.users encrypted_password:', authErr);
+    }
 
     // Log to audit log
     const ipAddress = (req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').toString();

@@ -221,7 +221,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Mock Sandbox Demo Bypass for testing if Supabase is offline/placeholder
       if (email === 'aksbasg@gmail.com' && password === 'TestPassword123') {
         const demoUser: User = {
-          id: 'demo-user-id-1234',
+          id: 'da100000-0000-0000-0000-000000000001',
           email: 'aksbasg@gmail.com',
           name: 'Demo Host',
           avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=DemoHost',
@@ -231,6 +231,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(demoUser);
         setLocalUser(demoUser);
+        
+        // Ensure local tokens and cookies are set for admin console bypass
+        document.cookie = `sb-access-token=demo-admin-token; path=/; max-age=604800; SameSite=Lax; Secure`;
+        setTokens('demo-admin-token', 'demo-admin-token');
+        
         router.push('/dashboard');
         return;
       }
