@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Bell, Grid, MessageSquare, Clock, Settings, LogOut, ChevronUp, Circle
+  Bell, Grid, MessageSquare, Clock, Settings, LogOut, ChevronUp, Circle, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Avatar from '../ui/Avatar';
@@ -95,6 +95,30 @@ export function Sidebar() {
             </Link>
           );
         })}
+        {user?.email === 'aksbasg@gmail.com' && (
+          <Link
+            href="/admin"
+            className="group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300"
+          >
+            <div
+              className={cn(
+                'w-full h-full rounded-xl flex items-center justify-center transition-all duration-300 relative border border-transparent',
+                pathname.startsWith('/admin')
+                  ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 hover:border-slate-800'
+              )}
+            >
+              <ShieldCheck size={20} className={pathname.startsWith('/admin') ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'} />
+              {pathname.startsWith('/admin') && (
+                <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-cyan-400 rounded-r-md shadow-[0_0_8px_#06b6d4]" />
+              )}
+            </div>
+            {/* Tooltip */}
+            <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900/95 border border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-200 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-2xl">
+              Admin Console
+            </div>
+          </Link>
+        )}
       </nav>
 
       {/* Bottom: Settings & Profile */}
