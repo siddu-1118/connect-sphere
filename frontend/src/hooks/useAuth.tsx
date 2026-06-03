@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '../types';
+import { setTokens, setUser as setLocalUser, clearTokens, getRefreshToken } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -14,6 +16,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   loginWithMagicLink: (email: string) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
+  loginWithGoogleCode: (code: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
   resetPassword: (email: string, otpCode: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -77,6 +80,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax; Secure`;
         const authUser = session.user;
         const publicUser: User = {
           id: authUser.id,
@@ -89,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         setUser(publicUser);
       } else {
+        document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax; Secure`;
         setUser(null);
       }
       setLoading(false);
@@ -101,6 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Register with Supabase Auth
   const register = async (name: string, email: string, password: string) => {
+    try {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/register`, { name, email, password });
+    } catch (e) {
+      console.warn('Backend registration warning:', e);
+    }
+
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3001');
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -129,6 +140,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyOtp = async (email: string, otpCode: string) => {
     console.log('Verifying OTP for email:', email, 'code:', otpCode);
     
+    try {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/verify-otp`, { email, otpCode });
+      if (res.data && res.data.success) {
+        setTokens(res.data.accessToken, res.data.refreshToken);
+        setLocalUser(res.data.user);
+      }
+    } catch (e) {
+      console.warn('Backend OTP verification warning:', e);
+    }
+
     // 1. Try 'signup' verification
     let { data, error } = await supabase.auth.verifyOtp({
       email,
@@ -182,6 +203,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login via email/password
   const login = async (email: string, password: string) => {
+    try {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/login`, { email, password });
+      if (res.data && res.data.success) {
+        setTokens(res.data.accessToken, res.data.refreshToken);
+        setLocalUser(res.data.user);
+      }
+    } catch (e) {
+      console.warn('Backend login warning:', e);
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password
@@ -199,6 +230,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           createdAt: new Date().toISOString(),
         };
         setUser(demoUser);
+        setLocalUser(demoUser);
         router.push('/dashboard');
         return;
       }
@@ -227,6 +259,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) throw error;
     router.push('/dashboard');
+  };
+
+  // Login with Google Code flow (offline/calendar scopes support)
+  const loginWithGoogleCode = async (code: string) => {
+    const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/google-code`, { code });
+    if (res.data && res.data.success) {
+      setTokens(res.data.accessToken, res.data.refreshToken);
+      setLocalUser(res.data.user);
+      
+      if (res.data.idToken) {
+        await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: res.data.idToken
+        });
+      }
+      router.push('/dashboard');
+    } else {
+      throw new Error(res.data.error || 'Google Code exchange failed');
+    }
   };
 
   // Forgot password flow
@@ -259,6 +310,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Logout session
   const logout = async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/logout`, { refreshToken });
+      }
+    } catch (e) {
+      console.warn('Backend logout warning:', e);
+    }
+    clearTokens();
     await supabase.auth.signOut();
     setUser(null);
     router.push('/auth');
@@ -310,6 +370,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       loginWithMagicLink,
       loginWithGoogle,
+      loginWithGoogleCode,
       forgotPassword,
       resetPassword,
       logout,

@@ -17,6 +17,7 @@ function AuthContent() {
     resendOtp, 
     loginWithMagicLink, 
     loginWithGoogle, 
+    loginWithGoogleCode,
     forgotPassword, 
     resetPassword, 
     user 
@@ -30,6 +31,7 @@ function AuthContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [googleClient, setGoogleClient] = useState<any>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -152,38 +154,35 @@ function AuthContent() {
     };
   }, []);
 
-  const handleGoogleCredentialResponse = async (response: any) => {
-    const idToken = response.credential;
-    setLoading(true);
-    setError(null);
-    try {
-      await loginWithGoogle(idToken);
-      setSuccess('Google sign-in successful! Loading workspace...');
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Google authentication failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const initializeGoogleSignIn = () => {
     if (typeof window !== 'undefined' && (window as any).google) {
-      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '786438965935-8lq6d6d7pt7h7l7d7pt7h7l7d7pt7h7l.apps.googleusercontent.com';
-      (window as any).google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleGoogleCredentialResponse,
-      });
-      (window as any).google.accounts.id.renderButton(
-        document.getElementById('google-signin-btn-container'),
-        {
-          theme: 'filled_black',
-          size: 'large',
-          text: 'signin_with',
-          shape: 'pill',
-          width: '320',
-        }
-      );
+      const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '786438965935-8lq6d6d7pt7h7l7d7pt7h7l.apps.googleusercontent.com';
+      
+      try {
+        const client = (window as any).google.accounts.oauth2.initCodeClient({
+          client_id: clientId,
+          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+          ux_mode: 'popup',
+          callback: async (response: any) => {
+            if (response.code) {
+              setLoading(true);
+              setError(null);
+              try {
+                await loginWithGoogleCode(response.code);
+                setSuccess('Google sign-in successful! Loading workspace...');
+              } catch (err: any) {
+                console.error(err);
+                setError(err.message || 'Google authentication failed.');
+              } finally {
+                setLoading(false);
+              }
+            }
+          },
+        });
+        setGoogleClient(client);
+      } catch (err) {
+        console.error('Error initializing Google Code Client:', err);
+      }
     }
   };
 
@@ -567,10 +566,23 @@ function AuthContent() {
                     <div className="h-[1px] bg-white/5 flex-1"></div>
                   </div>
 
-                  {/* Google Sign-in Wrapper */}
-                  <div className="flex justify-center w-full min-h-[44px]">
-                    <div id="google-signin-btn-container" className="rounded-lg overflow-hidden border border-white/10 shadow-sm"></div>
-                  </div>
+                  {/* Google Sign-in Custom Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (googleClient) {
+                        googleClient.requestCode();
+                      } else {
+                        setError('Google Sign-in SDK is still loading. Please try again in a moment.');
+                      }
+                    }}
+                    className="w-full h-11 bg-white hover:bg-slate-50 text-slate-900 font-bold text-xs rounded-xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] border border-transparent cursor-pointer shadow-md select-none"
+                  >
+                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.107C18.29 1.96 15.48.96 12.24.96c-6.12 0-11.08 4.96-11.08 11.08s4.96 11.08 11.08 11.08c6.39 0 10.63-4.49 10.63-10.82 0-.73-.08-1.285-.177-2.015H12.24z"/>
+                    </svg>
+                    <span>Sign In with Google</span>
+                  </button>
 
                   {/* Sandbox Profile Button */}
                   <button

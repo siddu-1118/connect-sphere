@@ -18,6 +18,7 @@ interface ParticipantInfo {
   socketId: string;
   isMuted?: boolean;
   isCameraOff?: boolean;
+  isScreenSharing?: boolean;
 }
 
 const rtcConfig: RTCConfiguration = {
@@ -295,6 +296,12 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
       );
     });
 
+    socket.on('screen-share-update', ({ userId: peerUserId, isSharing }: { userId: string; isSharing: boolean }) => {
+      setParticipants((prev) =>
+        prev.map((p) => (p.userId === peerUserId ? { ...p, isScreenSharing: isSharing } : p))
+      );
+    });
+
     // 7. Listen for instant meeting chat messages
     socket.on('chat-message', (message: MeetingMessage) => {
       setChatMessages((prev) => [...prev, message]);
@@ -423,10 +430,10 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
     if (!localStreamRef.current || isScreenSharing) return;
 
     try {
-      console.log('🖥️ Accessing system display capture...');
+      console.log('🖥️ Accessing system display capture with audio support...');
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
+        audio: true, // Request system/tab audio
       });
 
       const screenTrack = screenStream.getVideoTracks()[0];
@@ -446,17 +453,48 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
 
       // Update local state visuals
       const nextStream = localStreamRef.current.clone();
-      nextStream.removeTrack(localVideoTrack);
+      if (localVideoTrack) {
+        nextStream.removeTrack(localVideoTrack);
+      }
       nextStream.addTrack(screenTrack);
+
+      // Handle system audio track if present
+      const screenAudioTrack = screenStream.getAudioTracks()[0];
+      if (screenAudioTrack) {
+        const localAudioTrack = localStreamRef.current.getAudioTracks()[0];
+        if (localAudioTrack) {
+          nextStream.removeTrack(localAudioTrack);
+        }
+        nextStream.addTrack(screenAudioTrack);
+
+        Object.keys(peersRef.current).forEach((sockId) => {
+          const pc = peersRef.current[sockId];
+          const senders = pc.getSenders();
+          const audioSender = senders.find((sender) => sender.track?.kind === 'audio');
+          if (audioSender) {
+            audioSender.replaceTrack(screenAudioTrack);
+          }
+        });
+      }
+
       setLocalStream(nextStream);
       setIsScreenSharing(true);
+
+      if (socket) {
+        socket.emit('screen-share-toggle', { roomId, userId, isSharing: true });
+      }
 
       // Listen for screen sharing stop from native browser UI
       screenTrack.onended = () => {
         stopScreenShare();
       };
-    } catch (e) {
-      console.error('❌ Failed to capture screen:', e);
+    } catch (e: any) {
+      if (e.name === 'NotAllowedError') {
+        console.log('🛡️ User cancelled the screen-sharing prompt.');
+      } else {
+        console.error('❌ Failed to capture screen:', e);
+      }
+      setIsScreenSharing(false);
     }
   };
 
@@ -470,39 +508,52 @@ export function useWebRTC(roomId: string, socket: Socket | null, userId: string,
         screenShareTrackRef.current = null;
       }
 
-      // Re-capture webcam video track
+      // Re-capture webcam video/audio tracks
       const originalStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 640 },
           height: { ideal: 360 },
         },
+        audio: true,
       });
 
       const originalVideoTrack = originalStream.getVideoTracks()[0];
+      const originalAudioTrack = originalStream.getAudioTracks()[0];
 
       // Update local tracks
       const currentTracks = localStreamRef.current.getTracks();
-      const currentVideoTrack = currentTracks.find((t) => t.kind === 'video');
-      
-      if (currentVideoTrack) {
-        localStreamRef.current.removeTrack(currentVideoTrack);
-        currentVideoTrack.stop();
+      currentTracks.forEach(t => {
+        localStreamRef.current?.removeTrack(t);
+        t.stop();
+      });
+
+      if (originalVideoTrack) {
+        localStreamRef.current.addTrack(originalVideoTrack);
+      }
+      if (originalAudioTrack) {
+        localStreamRef.current.addTrack(originalAudioTrack);
       }
 
-      localStreamRef.current.addTrack(originalVideoTrack);
-
-      // Replace track on all active connections
+      // Replace tracks on all active connections
       Object.keys(peersRef.current).forEach((sockId) => {
         const pc = peersRef.current[sockId];
         const senders = pc.getSenders();
         const videoSender = senders.find((sender) => sender.track?.kind === 'video');
-        if (videoSender) {
+        if (videoSender && originalVideoTrack) {
           videoSender.replaceTrack(originalVideoTrack);
+        }
+        const audioSender = senders.find((sender) => sender.track?.kind === 'audio');
+        if (audioSender && originalAudioTrack) {
+          audioSender.replaceTrack(originalAudioTrack);
         }
       });
 
       setLocalStream(localStreamRef.current.clone());
       setIsScreenSharing(false);
+
+      if (socket) {
+        socket.emit('screen-share-toggle', { roomId, userId, isSharing: false });
+      }
     } catch (err) {
       console.error('❌ Failed to restore webcam after screen sharing:', err);
     }

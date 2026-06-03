@@ -159,6 +159,8 @@ export default function TeamDetailPage() {
       )}>
         {activeChannel ? (
           <ChannelChat
+            teamId={teamId}
+            channelId={activeChannel.id}
             channelName={activeChannel.name}
             messages={messages}
             loading={loadingChat}

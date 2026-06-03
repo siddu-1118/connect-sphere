@@ -23,10 +23,75 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
 import { cn } from '@/lib/utils';
+import { getAccessToken } from '@/lib/auth';
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
+
+  // Calendar states
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(true);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+
+  // User meetings state
+  const [meetingsList, setMeetingsList] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadMeetings() {
+      const token = getAccessToken();
+      if (!token) return;
+      try {
+        const res = await fetch('/api/meetings', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setMeetingsList(data.meetings || []);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching user meetings:', err);
+      }
+    }
+    loadMeetings();
+  }, [user]);
+
+  useEffect(() => {
+    async function loadCalendar() {
+      const token = getAccessToken();
+      if (!token) {
+        setCalendarLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/calendar', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success) {
+            setCalendarEvents(data.events || []);
+          } else {
+            setCalendarError(data.error || 'Failed to fetch calendar');
+          }
+        } else {
+          setCalendarError('Failed to connect to Google Calendar');
+        }
+      } catch (err) {
+        console.error('Error fetching calendar:', err);
+        setCalendarError('Failed to retrieve agenda events');
+      } finally {
+        setCalendarLoading(false);
+      }
+    }
+    loadCalendar();
+  }, [user]);
 
   // State controls for modals & dropdowns
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -168,28 +233,56 @@ export default function DashboardPage() {
       {/* Main Two-Panel Layout */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         
-        {/* LEFT WING: Activity & Spaces */}
+        {/* LEFT WING: Past Meetings & Recordings */}
         <section className="w-full lg:w-[320px] xl:w-[360px] shrink-0 border-b lg:border-b-0 lg:border-r border-slate-900 bg-slate-950/15 flex flex-col h-[280px] lg:h-full">
           <div className="px-5 py-4 border-b border-slate-900/60 flex items-center justify-between shrink-0">
-            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Inbox & Workspaces</h2>
-            <span className="px-2 py-0.5 rounded-full bg-slate-900 text-[9px] font-bold text-slate-500 border border-slate-850">0 Active</span>
+            <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Past Meetings</h2>
+            <span className="px-2 py-0.5 rounded-full bg-slate-900 text-[9px] font-bold text-slate-500 border border-slate-850">
+              {meetingsList.length} Total
+            </span>
           </div>
 
-          {/* Premium Empty State */}
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center p-6 text-center select-none relative">
-            <div className="relative mb-5 flex items-center justify-center">
-              {/* Rotating outer ring */}
-              <div className="w-16 h-16 rounded-full border border-dashed border-cyan-500/25 flex items-center justify-center animate-[spin_20s_linear_infinite]" />
-              
-              {/* Inner glowing icon box */}
-              <div className="absolute w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500/10 to-indigo-500/10 border border-cyan-500/20 flex items-center justify-center shadow-lg shadow-cyan-500/5 text-cyan-400">
-                <BellOff className="w-5 h-5 text-cyan-400" />
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-thin">
+            {meetingsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-6 text-center h-full select-none">
+                <div className="relative mb-4 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500/10 to-indigo-500/10 border border-cyan-500/20 flex items-center justify-center shadow-lg text-cyan-400">
+                    <BellOff className="w-5 h-5 text-cyan-400" />
+                  </div>
+                </div>
+                <h3 className="text-slate-200 font-bold text-xs">No past meetings</h3>
+                <p className="text-slate-600 text-[10px] mt-1 max-w-[180px] leading-relaxed">
+                  Your past meetings and uploaded recordings will appear here.
+                </p>
               </div>
-            </div>
-            <h3 className="text-slate-200 font-bold text-sm tracking-tight">You're all caught up</h3>
-            <p className="text-slate-500 text-xs mt-1.5 max-w-[200px] leading-relaxed">
-              No new activity or incoming space calls right now.
-            </p>
+            ) : (
+              meetingsList.map(meeting => {
+                const date = new Date(meeting.createdAt || Date.now());
+                const formattedDate = date.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                return (
+                  <div key={meeting.id} className="p-3.5 bg-slate-900/35 border border-slate-900 rounded-xl hover:border-slate-850 transition-all flex flex-col gap-1.5 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-cyan-400 font-mono tracking-wider">{meeting.code}</span>
+                      <span className="text-[9px] text-slate-550">{formattedDate}</span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-200 truncate">{meeting.title}</h4>
+                    {meeting.recordingUrl ? (
+                      <a
+                        href={meeting.recordingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 w-full py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 rounded-lg text-[9px] font-black uppercase tracking-wider text-indigo-400 flex items-center justify-center gap-1.5 transition-all text-center"
+                      >
+                        <Video size={10} className="stroke-[2.5]" />
+                        Download Recording
+                      </a>
+                    ) : (
+                      <span className="text-[9px] text-slate-600 italic block">No recording saved</span>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
 
@@ -313,38 +406,111 @@ export default function DashboardPage() {
 
             {/* AGENDA TIMELINE CONTAINER */}
             <div className="flex-1 flex flex-col min-h-[320px]">
-              <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Today's Agenda</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Today's Agenda</h2>
+                {calendarEvents.length > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 text-[9px] font-bold">
+                    {calendarEvents.length} Sync{calendarEvents.length > 1 ? 's' : ''} Today
+                  </span>
+                )}
+              </div>
               
-              {/* Premium Empty Stage Panel */}
-              <div className="flex-1 backdrop-blur-xl bg-slate-900/10 border border-slate-900 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/2 to-transparent pointer-events-none" />
-                
-                {/* Visual Calendar off illustration */}
-                <div className="relative mb-6 select-none">
-                  {/* Glowing background */}
-                  <div className="absolute inset-0 bg-indigo-500/5 rounded-full blur-2xl scale-75 animate-pulse" />
+              {calendarLoading ? (
+                <div className="flex-1 backdrop-blur-xl bg-slate-900/10 border border-slate-900 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
+                  <div className="w-8 h-8 rounded-full border-2 border-t-cyan-500 border-white/5 animate-spin" />
+                  <p className="text-xs text-slate-500 mt-3 font-semibold">Retrieving your Google Calendar agenda...</p>
+                </div>
+              ) : calendarError ? (
+                <div className="flex-1 backdrop-blur-xl bg-slate-900/10 border border-slate-900 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
+                  <div className="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-3 animate-pulse">
+                    <CalendarX className="w-5 h-5 text-red-400" />
+                  </div>
+                  <h3 className="text-slate-200 font-bold text-sm tracking-tight">Calendar Sync Required</h3>
+                  <p className="text-slate-500 text-xs mt-1.5 max-w-[280px] leading-relaxed">
+                    {calendarError === 'Google Calendar not connected' 
+                      ? 'Please sign in with Google to synchronize your daily calendar agenda.'
+                      : 'We were unable to load your calendar events. Make sure your Google Auth client is configured with offline calendar scopes.'}
+                  </p>
+                </div>
+              ) : calendarEvents.length === 0 ? (
+                /* Premium Empty Stage Panel */
+                <div className="flex-1 backdrop-blur-xl bg-slate-900/10 border border-slate-900 rounded-3xl p-8 flex flex-col items-center justify-center text-center shadow-lg relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/2 to-transparent pointer-events-none" />
                   
-                  {/* Visual container */}
-                  <div className="w-20 h-20 rounded-full border border-slate-900 flex items-center justify-center bg-slate-900/60 shadow-2xl relative z-10 ring-1 ring-white/5">
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 flex items-center justify-center shadow-lg text-indigo-400">
-                      <CalendarX className="w-6 h-6 text-indigo-400" />
+                  {/* Visual Calendar off illustration */}
+                  <div className="relative mb-6 select-none">
+                    {/* Glowing background */}
+                    <div className="absolute inset-0 bg-indigo-500/5 rounded-full blur-2xl scale-75 animate-pulse" />
+                    
+                    {/* Visual container */}
+                    <div className="w-20 h-20 rounded-full border border-slate-900 flex items-center justify-center bg-slate-900/60 shadow-2xl relative z-10 ring-1 ring-white/5">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 flex items-center justify-center shadow-lg text-indigo-400">
+                        <CalendarX className="w-6 h-6 text-indigo-400" />
+                      </div>
                     </div>
                   </div>
+
+                  <h3 className="text-slate-200 font-bold text-base tracking-tight">Your schedule is clear today.</h3>
+                  <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
+                    Enjoy your focused flow time! You don't have any sync sessions scheduled.
+                  </p>
+
+                  <button
+                    onClick={() => setShowScheduleModal(true)}
+                    className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(99,102,241,0.35)] hover:scale-[1.03] active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/35 border border-indigo-500/20"
+                  >
+                    <Plus size={14} className="stroke-[2.5] text-slate-100" />
+                    Schedule a Meeting
+                  </button>
                 </div>
-
-                <h3 className="text-slate-200 font-bold text-base tracking-tight">Your schedule is clear today.</h3>
-                <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
-                  Enjoy your focused flow time! You don't have any sync sessions scheduled.
-                </p>
-
-                <button
-                  onClick={() => setShowScheduleModal(true)}
-                  className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all duration-300 shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:shadow-[0_0_25px_rgba(99,102,241,0.35)] hover:scale-[1.03] active:scale-[0.98] cursor-pointer focus:outline-none focus:ring-1 focus:ring-indigo-500/35 border border-indigo-500/20"
-                >
-                  <Plus size={14} className="stroke-[2.5] text-slate-100" />
-                  Schedule a Meeting
-                </button>
-              </div>
+              ) : (
+                /* Dynamic Calendar Agenda Timeline */
+                <div className="flex-1 backdrop-blur-xl bg-slate-900/10 border border-slate-900 rounded-3xl p-6 shadow-lg relative overflow-y-auto max-h-[350px] scrollbar-thin">
+                  <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/2 to-transparent pointer-events-none" />
+                  <div className="relative pl-6 border-l border-slate-800 space-y-6">
+                    {calendarEvents.map((event: any) => {
+                      const startTime = new Date(event.start);
+                      const endTime = new Date(event.end);
+                      const timeStr = startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' - ' + endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      
+                      return (
+                        <div key={event.id} className="relative group text-left">
+                          {/* Timeline node */}
+                          <div className="absolute -left-[30px] top-1.5 w-2 h-2 rounded-full bg-cyan-400 border-2 border-slate-950 group-hover:bg-cyan-300 transition-colors shadow-[0_0_8px_#00f0ff]" />
+                          
+                          <div className="bg-slate-900/45 border border-slate-900 hover:border-slate-800 rounded-2xl p-4 transition-all hover:scale-[1.005]">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <span className="text-[9px] font-mono font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-md border border-cyan-500/10 uppercase tracking-wider flex items-center gap-1.5 w-fit">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {timeStr}
+                                </span>
+                                <h3 className="text-sm font-bold text-slate-100 tracking-tight mt-2">{event.summary}</h3>
+                                {event.description && (
+                                  <p className="text-slate-500 text-xs mt-1 line-clamp-2 leading-relaxed">{event.description}</p>
+                                )}
+                                {event.location && (
+                                  <span className="text-[10px] text-slate-600 block mt-2">📍 {event.location}</span>
+                                )}
+                              </div>
+                              {event.meetLink && (
+                                <a
+                                  href={event.meetLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-3.5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-slate-955 font-black text-[9px] uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-lg shrink-0"
+                                >
+                                  Join Call
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Nominal Status Stats Bar */}

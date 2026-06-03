@@ -5,6 +5,11 @@ import {
   Pointer, Pencil, Square, Circle, Eraser, Trash2, Undo, Redo, ZoomIn, ZoomOut, 
   Download, Layers, Type, SquareDot, Palette, Grab, X, Sparkles, Check, HelpCircle
 } from 'lucide-react';
+import { useParams } from 'next/navigation';
+import { useAuth } from '@/hooks/useAuth';
+import { useSocket } from '@/hooks/useSocket';
+import { supabase } from '@/lib/supabaseClient';
+import * as Y from 'yjs';
 
 interface DrawingElement {
   id: string;
@@ -30,6 +35,13 @@ interface MultiplayerCursor {
 }
 
 export default function Whiteboard() {
+  const { user } = useAuth();
+  const socket = useSocket();
+  const params = useParams();
+  const roomId = (params?.id as string) || 'lobby';
+  const userId = user?.id || `user-${Math.random().toString(36).substring(2, 9)}`;
+  const userName = user?.name || 'Collaborator';
+
   const [tool, setTool] = useState<'select' | 'pan' | 'pencil' | 'rect' | 'circle' | 'text' | 'sticky' | 'eraser'>('pencil');
   const [color, setColor] = useState('#06B6D4'); // Electric Cyan default
   const [stickyBg, setStickyBg] = useState('#fbbf24'); // Yellow default for sticky notes
@@ -38,8 +50,6 @@ export default function Whiteboard() {
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [elements, setElements] = useState<DrawingElement[]>([]);
-  const [undoStack, setUndoStack] = useState<DrawingElement[][]>([]);
-  const [redoStack, setRedoStack] = useState<DrawingElement[][]>([]);
 
   // Interactive drawing/dragging states
   const [isDrawing, setIsDrawing] = useState(false);
@@ -53,81 +63,187 @@ export default function Whiteboard() {
   const [modalInputVal, setModalInputVal] = useState('');
   const [modalCoords, setModalCoords] = useState({ x: 0, y: 0 });
 
-  // Multiplayer cursor positions (simulated drifting)
-  const [remoteCursors, setRemoteCursors] = useState<MultiplayerCursor[]>([
-    { id: '1', name: 'Sarah (UX)', color: '#ec4899', x: 250, y: 180, role: 'Designer' },
-    { id: '2', name: 'Alex (Tech)', color: '#10b981', x: 500, y: 350, role: 'Developer' }
-  ]);
+  // Multiplayer cursor positions (Presence)
+  const [remoteCursors, setRemoteCursors] = useState<MultiplayerCursor[]>([]);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Drift remote cursors to represent active multiplayer presence
-  useEffect(() => {
-    let animationFrameId: number;
-    let angle = 0;
+  // Yjs document references
+  const ydocRef = useRef<Y.Doc | null>(null);
+  const undoManagerRef = useRef<Y.UndoManager | null>(null);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
-    const drift = () => {
-      angle += 0.02;
-      setRemoteCursors(prev => prev.map((cursor, idx) => {
-        const speed = idx === 0 ? 0.8 : 1.2;
-        const dx = Math.sin(angle * speed) * 1.5;
-        const dy = Math.cos(angle * speed) * 1.5;
-        return {
-          ...cursor,
-          x: cursor.x + dx,
-          y: cursor.y + dy
-        };
-      }));
-      animationFrameId = requestAnimationFrame(drift);
+  // Generate local user's cursor color
+  const [localCursorColor] = useState(() => {
+    const colors = ['#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#06b6d4'];
+    return colors[Math.floor(Math.random() * colors.length)];
+  });
+
+  // 1. Initialize Collaborative Whiteboard CRDT (Yjs) & connect via Socket.IO
+  useEffect(() => {
+    const ydoc = new Y.Doc();
+    ydocRef.current = ydoc;
+
+    const yElements = ydoc.getArray<DrawingElement>('elements');
+    const undoManager = new Y.UndoManager(yElements);
+    undoManagerRef.current = undoManager;
+
+    // Local Yjs array observe
+    const handleObserve = () => {
+      setElements(yElements.toArray());
+      setCanUndo(undoManager.canUndo());
+      setCanRedo(undoManager.canRedo());
+    };
+    yElements.observe(handleObserve);
+
+    undoManager.on('stack-item-added', () => {
+      setCanUndo(undoManager.canUndo());
+      setCanRedo(undoManager.canRedo());
+    });
+    undoManager.on('stack-item-popped', () => {
+      setCanUndo(undoManager.canUndo());
+      setCanRedo(undoManager.canRedo());
+    });
+
+    // Handle updates (broadcast to signaling server)
+    const handleYjsUpdate = (update: Uint8Array, origin: any) => {
+      if (origin === 'socket') return; // do not send back what we received
+      if (socket) {
+        socket.emit('whiteboard-update', {
+          roomId,
+          update: Buffer.from(update),
+        });
+      }
+    };
+    ydoc.on('update', handleYjsUpdate);
+
+    if (socket) {
+      // Sync on join
+      const handleSync = (update: ArrayBuffer) => {
+        try {
+          Y.applyUpdate(ydoc, new Uint8Array(update), 'socket');
+          setElements(yElements.toArray());
+        } catch (e) {
+          console.error('Error applying initial sync:', e);
+        }
+      };
+
+      // Apply increments
+      const handleUpdate = (update: ArrayBuffer) => {
+        try {
+          Y.applyUpdate(ydoc, new Uint8Array(update), 'socket');
+          setElements(yElements.toArray());
+        } catch (e) {
+          console.error('Error applying whiteboard update:', e);
+        }
+      };
+
+      socket.on('whiteboard-sync', handleSync);
+      socket.on('whiteboard-update', handleUpdate);
+
+      // Trigger server initial sync request
+      socket.emit('whiteboard-sync-request', { roomId });
+
+      return () => {
+        socket.off('whiteboard-sync', handleSync);
+        socket.off('whiteboard-update', handleUpdate);
+        ydoc.off('update', handleYjsUpdate);
+        yElements.unobserve(handleObserve);
+        undoManager.destroy();
+        ydoc.destroy();
+      };
+    }
+
+    return () => {
+      ydoc.off('update', handleYjsUpdate);
+      yElements.unobserve(handleObserve);
+      undoManager.destroy();
+      ydoc.destroy();
+    };
+  }, [socket, roomId]);
+
+  // 2. Initialize Multiplayer Cursors (Supabase Presence)
+  useEffect(() => {
+    if (!supabase) return;
+    
+    console.log(`🔌 Initializing Supabase Presence for whiteboard: presence:${roomId}`);
+    const presenceChannel = supabase.channel(`presence:${roomId}`, {
+      config: {
+        presence: {
+          key: userId,
+        },
+      },
+    });
+
+    const handleSync = () => {
+      const state = presenceChannel.presenceState();
+      const cursors: MultiplayerCursor[] = [];
+      Object.keys(state).forEach((key) => {
+        if (key !== userId) {
+          const presences = state[key] as any[];
+          if (presences && presences.length > 0) {
+            const latest = presences[presences.length - 1];
+            if (typeof latest.x === 'number' && typeof latest.y === 'number') {
+              cursors.push({
+                id: key,
+                name: latest.name || 'Anonymous',
+                color: latest.color || '#cccccc',
+                x: latest.x,
+                y: latest.y,
+                role: latest.role || 'Collaborator',
+              });
+            }
+          }
+        }
+      });
+      setRemoteCursors(cursors);
     };
 
-    drift();
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
+    presenceChannel
+      .on('presence', { event: 'sync' }, handleSync)
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({
+            name: userName,
+            color: localCursorColor,
+            role: 'Collaborator',
+            x: 0,
+            y: 0,
+          });
+        }
+      });
 
-  // Hydrate drawings from localStorage if present
-  useEffect(() => {
-    const saved = localStorage.getItem('cs_whiteboard_elements');
-    if (saved) {
-      try {
-        setElements(JSON.parse(saved));
-      } catch (e) {
-        console.error('Failed to load whiteboard elements', e);
-      }
-    }
-  }, []);
+    return () => {
+      presenceChannel.unsubscribe();
+    };
+  }, [roomId, userId, userName, localCursorColor]);
 
-  // Save changes helper
-  const saveElements = (newElements: DrawingElement[]) => {
-    setElements(newElements);
-    localStorage.setItem('cs_whiteboard_elements', JSON.stringify(newElements));
-  };
-
-  // Clear all elements
+  // Clear all elements via Yjs
   const handleClear = () => {
-    setUndoStack(prev => [...prev, [...elements]]);
-    setRedoStack([]);
-    saveElements([]);
+    const ydoc = ydocRef.current;
+    if (ydoc) {
+      const yElements = ydoc.getArray<DrawingElement>('elements');
+      ydoc.transact(() => {
+        if (yElements.length > 0) {
+          yElements.delete(0, yElements.length);
+        }
+      });
+    }
   };
 
-  // Undo/Redo logic
+  // Undo/Redo logic using local UndoManager
   const handleUndo = () => {
-    if (undoStack.length === 0) return;
-    const previous = undoStack[undoStack.length - 1];
-    setUndoStack(prev => prev.slice(0, -1));
-    setRedoStack(prev => [...prev, [...elements]]);
-    setElements(previous);
-    localStorage.setItem('cs_whiteboard_elements', JSON.stringify(previous));
+    if (undoManagerRef.current && undoManagerRef.current.canUndo()) {
+      undoManagerRef.current.undo();
+    }
   };
 
   const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const nextState = redoStack[redoStack.length - 1];
-    setRedoStack(prev => prev.slice(0, -1));
-    setUndoStack(prev => [...prev, [...elements]]);
-    setElements(nextState);
-    localStorage.setItem('cs_whiteboard_elements', JSON.stringify(nextState));
+    if (undoManagerRef.current && undoManagerRef.current.canRedo()) {
+      undoManagerRef.current.redo();
+    }
   };
 
   // Canvas drawing effect
@@ -137,19 +253,15 @@ export default function Whiteboard() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Reset dimensions to cover container
     canvas.width = canvas.parentElement?.clientWidth || 1000;
     canvas.height = canvas.parentElement?.clientHeight || 650;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
 
-    // 1. Apply zoom scale (centered around screen center or origin)
     ctx.scale(zoom / 100, zoom / 100);
-    // 2. Apply translation pan offsets
     ctx.translate(panX, panY);
 
-    // Render drawings
     elements.forEach(el => {
       ctx.strokeStyle = el.color;
       ctx.fillStyle = el.color;
@@ -198,6 +310,20 @@ export default function Whiteboard() {
     };
   };
 
+  // Broadcast local cursor positions
+  const trackCursor = useCallback((clientX: number, clientY: number) => {
+    if (!supabase) return;
+    const coords = getCanvasCoords(clientX, clientY);
+    const presenceChannel = supabase.channel(`presence:${roomId}`);
+    presenceChannel.track({
+      name: userName,
+      color: localCursorColor,
+      role: 'Collaborator',
+      x: coords.x,
+      y: coords.y,
+    }).catch(() => {});
+  }, [roomId, userName, localCursorColor, zoom, panX, panY]);
+
   // Pointer event start handlers
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const coords = getCanvasCoords(e.clientX, e.clientY);
@@ -209,34 +335,45 @@ export default function Whiteboard() {
       return;
     }
 
-    // Eraser behavior: delete clicked element
+    // Eraser behavior: delete clicked element in Yjs array
     if (tool === 'eraser') {
-      setUndoStack(prev => [...prev, [...elements]]);
       const threshold = 15;
-      const filtered = elements.filter(el => {
-        // Distance check
-        if (el.type === 'freehand' && el.points) {
-          return !el.points.some(p => Math.hypot(p.x - coords.x, p.y - coords.y) < threshold);
+      const ydoc = ydocRef.current;
+      if (ydoc) {
+        const yElements = ydoc.getArray<DrawingElement>('elements');
+        const elementsArr = yElements.toArray();
+        const indicesToDelete: number[] = [];
+
+        elementsArr.forEach((el, idx) => {
+          if (el.type === 'freehand' && el.points) {
+            if (el.points.some(p => Math.hypot(p.x - coords.x, p.y - coords.y) < threshold)) {
+              indicesToDelete.push(idx);
+            }
+          } else if (el.type === 'rect' || el.type === 'circle') {
+            const w = el.width || 0;
+            const h = el.height || 0;
+            const minX = Math.min(el.x, el.x + w);
+            const maxX = Math.max(el.x, el.x + w);
+            const minY = Math.min(el.y, el.y + h);
+            const maxY = Math.max(el.y, el.y + h);
+            if (coords.x >= minX - threshold && coords.x <= maxX + threshold && coords.y >= minY - threshold && coords.y <= maxY + threshold) {
+              indicesToDelete.push(idx);
+            }
+          } else if (el.type === 'text' || el.type === 'sticky') {
+            const size = el.type === 'sticky' ? 140 : 100;
+            if (coords.x >= el.x && coords.x <= el.x + size && coords.y >= el.y && coords.y <= el.y + size) {
+              indicesToDelete.push(idx);
+            }
+          }
+        });
+
+        if (indicesToDelete.length > 0) {
+          ydoc.transact(() => {
+            indicesToDelete.sort((a, b) => b - a).forEach((idx) => {
+              yElements.delete(idx, 1);
+            });
+          });
         }
-        if (el.type === 'rect' || el.type === 'circle') {
-          const w = el.width || 0;
-          const h = el.height || 0;
-          // check box range
-          const minX = Math.min(el.x, el.x + w);
-          const maxX = Math.max(el.x, el.x + w);
-          const minY = Math.min(el.y, el.y + h);
-          const maxY = Math.max(el.y, el.y + h);
-          return !(coords.x >= minX - threshold && coords.x <= maxX + threshold && coords.y >= minY - threshold && coords.y <= maxY + threshold);
-        }
-        if (el.type === 'text' || el.type === 'sticky') {
-          const size = el.type === 'sticky' ? 140 : 100;
-          return !(coords.x >= el.x && coords.x <= el.x + size && coords.y >= el.y && coords.y <= el.y + size);
-        }
-        return true;
-      });
-      if (filtered.length !== elements.length) {
-        setRedoStack([]);
-        saveElements(filtered);
       }
       return;
     }
@@ -252,12 +389,13 @@ export default function Whiteboard() {
 
     // Drawing elements start
     setIsDrawing(true);
-    setUndoStack(prev => [...prev, [...elements]]);
-    setRedoStack([]);
+
+    const entropy = Math.random().toString(36).substring(2, 6);
+    const elementId = `el-${Date.now()}-${entropy}`;
 
     if (tool === 'pencil') {
       const newEl: DrawingElement = {
-        id: `el-${Date.now()}`,
+        id: elementId,
         type: 'freehand',
         points: [{ x: coords.x, y: coords.y }],
         x: coords.x,
@@ -265,11 +403,13 @@ export default function Whiteboard() {
         color,
         lineWidth
       };
-      setElements(prev => [...prev, newEl]);
+      if (ydocRef.current) {
+        ydocRef.current.getArray<DrawingElement>('elements').push([newEl]);
+      }
       setActiveElement(newEl);
     } else if (tool === 'rect' || tool === 'circle') {
       const newEl: DrawingElement = {
-        id: `el-${Date.now()}`,
+        id: elementId,
         type: tool,
         x: coords.x,
         y: coords.y,
@@ -278,13 +418,18 @@ export default function Whiteboard() {
         color,
         lineWidth
       };
-      setElements(prev => [...prev, newEl]);
+      if (ydocRef.current) {
+        ydocRef.current.getArray<DrawingElement>('elements').push([newEl]);
+      }
       setActiveElement(newEl);
     }
   };
 
   // Pointer move handlers
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    // Broadcast cursor position
+    trackCursor(e.clientX, e.clientY);
+
     if (isPanning) {
       const dx = (e.clientX - dragStart.x) / (zoom / 100);
       const dy = (e.clientY - dragStart.y) / (zoom / 100);
@@ -297,16 +442,24 @@ export default function Whiteboard() {
     if (!isDrawing || !activeElement) return;
     const coords = getCanvasCoords(e.clientX, e.clientY);
 
-    setElements(prev => prev.map(el => {
-      if (el.id === activeElement.id) {
+    const ydoc = ydocRef.current;
+    if (ydoc) {
+      const yElements = ydoc.getArray<DrawingElement>('elements');
+      const idx = yElements.toArray().findIndex(el => el.id === activeElement.id);
+      if (idx !== -1) {
+        const el = yElements.get(idx);
+        let updatedEl: DrawingElement;
         if (el.type === 'freehand' && el.points) {
-          return { ...el, points: [...el.points, { x: coords.x, y: coords.y }] };
-        } else if (el.type === 'rect' || el.type === 'circle') {
-          return { ...el, width: coords.x - el.x, height: coords.y - el.y };
+          updatedEl = { ...el, points: [...el.points, { x: coords.x, y: coords.y }] };
+        } else {
+          updatedEl = { ...el, width: coords.x - el.x, height: coords.y - el.y };
         }
+        ydoc.transact(() => {
+          yElements.delete(idx, 1);
+          yElements.insert(idx, [updatedEl]);
+        });
       }
-      return el;
-    }));
+    }
   };
 
   // Pointer end
@@ -314,7 +467,6 @@ export default function Whiteboard() {
     setIsDrawing(false);
     setIsPanning(false);
     setActiveElement(null);
-    localStorage.setItem('cs_whiteboard_elements', JSON.stringify(elements));
   };
 
   // Complete adding text or sticky note
@@ -324,8 +476,9 @@ export default function Whiteboard() {
       return;
     }
 
+    const entropy = Math.random().toString(36).substring(2, 6);
     const newEl: DrawingElement = {
-      id: `el-${Date.now()}`,
+      id: `el-${Date.now()}-${entropy}`,
       type: modalTextType,
       x: modalCoords.x,
       y: modalCoords.y,
@@ -335,9 +488,9 @@ export default function Whiteboard() {
       text: modalInputVal.trim()
     };
 
-    setUndoStack(prev => [...prev, [...elements]]);
-    setRedoStack([]);
-    saveElements([...elements, newEl]);
+    if (ydocRef.current) {
+      ydocRef.current.getArray<DrawingElement>('elements').push([newEl]);
+    }
     setTextModalOpen(false);
     setModalInputVal('');
   };
@@ -371,7 +524,7 @@ export default function Whiteboard() {
         <div className="flex items-center gap-2 bg-slate-900/50 border border-slate-850 px-3 py-1.5 rounded-2xl">
           <button 
             onClick={handleUndo} 
-            disabled={undoStack.length === 0}
+            disabled={!canUndo}
             className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
             title="Undo"
           >
@@ -379,7 +532,7 @@ export default function Whiteboard() {
           </button>
           <button 
             onClick={handleRedo} 
-            disabled={redoStack.length === 0}
+            disabled={!canRedo}
             className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:pointer-events-none cursor-pointer transition-colors"
             title="Redo"
           >

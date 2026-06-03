@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, boolean, timestamp, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, timestamp, pgEnum, integer } from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', ['owner', 'admin', 'member']);
 
@@ -14,6 +14,10 @@ export const users = pgTable('users', {
   refreshToken: text('refresh_token'),
   notificationEmail: boolean('notification_email').default(true),
   notificationPush: boolean('notification_push').default(true),
+  googleAccessToken: text('google_access_token'),
+  googleRefreshToken: text('google_refresh_token'),
+  googleTokenExpiresAt: timestamp('google_token_expires_at'),
+  isAdmin: boolean('is_admin').default(false),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
 });
@@ -26,6 +30,7 @@ export const meetings = pgTable('meetings', {
   scheduledAt: timestamp('scheduled_at'),
   endedAt: timestamp('ended_at'),
   isActive: boolean('is_active').default(true),
+  recordingUrl: text('recording_url'),
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow()
 });
@@ -90,4 +95,30 @@ export const calendarEvents = pgTable('calendar_events', {
   startsAt: timestamp('starts_at').notNull(),
   endsAt: timestamp('ends_at').notNull(),
   createdAt: timestamp('created_at').defaultNow()
+});
+
+export const meetingQuestions = pgTable('meeting_questions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  meetingId: uuid('meeting_id').references(() => meetings.id, { onDelete: 'cascade' }).notNull(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  authorName: varchar('author_name', { length: 255 }).notNull(),
+  text: text('text').notNull(),
+  upvotes: text('upvotes').array().notNull().default([]),
+  createdAt: timestamp('created_at').defaultNow().notNull()
+});
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  userEmail: varchar('user_email', { length: 255 }),
+  action: varchar('action', { length: 255 }).notNull(),
+  targetId: varchar('target_id', { length: 255 }),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  timestamp: timestamp('timestamp').defaultNow().notNull()
+});
+
+export const concurrentUsersLog = pgTable('concurrent_users_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  activeUsers: integer('active_users').notNull()
 });

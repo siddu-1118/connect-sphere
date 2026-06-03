@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { eq, and, desc, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db';
-import { meetings, meetingParticipants, users } from '../db/schema';
+import { meetings, meetingParticipants, users, meetingQuestions } from '../db/schema';
 import { authenticate } from '../middleware/authenticate';
 import { validate } from '../middleware/validate';
 
@@ -46,6 +46,7 @@ router.get('/', async (req, res, next) => {
         scheduledAt: meetings.scheduledAt,
         endedAt: meetings.endedAt,
         isActive: meetings.isActive,
+        recordingUrl: meetings.recordingUrl,
         createdAt: meetings.createdAt,
       })
       .from(meetings)
@@ -111,6 +112,15 @@ router.post('/', validate(createMeetingSchema), async (req, res, next) => {
   }
 });
 
+// GET /sync/time - Fetch server current time for NTP sync
+router.get('/sync/time', async (req, res, next) => {
+  try {
+    res.status(200).json({ success: true, serverTime: Date.now() });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /:code - Fetch a meeting by code
 router.get('/:code', async (req, res, next) => {
   try {
@@ -125,6 +135,7 @@ router.get('/:code', async (req, res, next) => {
         scheduledAt: meetings.scheduledAt,
         endedAt: meetings.endedAt,
         isActive: meetings.isActive,
+        recordingUrl: meetings.recordingUrl,
         createdAt: meetings.createdAt,
         hostName: users.name,
         hostAvatar: users.avatarUrl,
@@ -272,6 +283,133 @@ router.post('/:code/end', async (req, res, next) => {
       success: true,
       message: 'Meeting terminated successfully',
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /:code/questions - Fetch questions for a meeting code
+router.get('/:code/questions', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.code, code)).limit(1);
+    if (!meeting) {
+      res.status(404).json({ success: false, error: 'Meeting not found' });
+      return;
+    }
+
+    const questions = await db
+      .select()
+      .from(meetingQuestions)
+      .where(eq(meetingQuestions.meetingId, meeting.id))
+      .orderBy(desc(meetingQuestions.createdAt));
+
+    res.status(200).json({ success: true, questions });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /:code/questions - Add a question to the meeting
+router.post('/:code/questions', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { text } = req.body;
+    const userId = req.user!.id;
+
+    if (!text || !text.trim()) {
+      res.status(400).json({ success: false, error: 'Question content is required' });
+      return;
+    }
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.code, code)).limit(1);
+    if (!meeting) {
+      res.status(404).json({ success: false, error: 'Meeting not found' });
+      return;
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const authorName = user?.name || 'Anonymous';
+
+    const [newQuestion] = await db
+      .insert(meetingQuestions)
+      .values({
+        meetingId: meeting.id,
+        userId,
+        authorName,
+        text: text.trim(),
+        upvotes: [],
+      })
+      .returning();
+
+    res.status(201).json({ success: true, question: newQuestion });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /:code/questions/:questionId/upvote - Toggle upvote on a question
+router.post('/:code/questions/:questionId/upvote', async (req, res, next) => {
+  try {
+    const { questionId } = req.params;
+    const userId = req.user!.id;
+
+    const [question] = await db
+      .select()
+      .from(meetingQuestions)
+      .where(eq(meetingQuestions.id, questionId))
+      .limit(1);
+
+    if (!question) {
+      res.status(404).json({ success: false, error: 'Question not found' });
+      return;
+    }
+
+    let nextUpvotes = [...(question.upvotes || [])];
+    const userIndex = nextUpvotes.indexOf(userId);
+
+    if (userIndex !== -1) {
+      nextUpvotes.splice(userIndex, 1);
+    } else {
+      nextUpvotes.push(userId);
+    }
+
+    const [updatedQuestion] = await db
+      .update(meetingQuestions)
+      .set({ upvotes: nextUpvotes })
+      .where(eq(meetingQuestions.id, questionId))
+      .returning();
+
+    res.status(200).json({ success: true, question: updatedQuestion });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /:code/recording - Update meeting recording URL
+router.put('/:code/recording', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { recordingUrl } = req.body;
+
+    if (!recordingUrl) {
+      res.status(400).json({ success: false, error: 'recordingUrl is required' });
+      return;
+    }
+
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.code, code)).limit(1);
+    if (!meeting) {
+      res.status(404).json({ success: false, error: 'Meeting not found' });
+      return;
+    }
+
+    const [updatedMeeting] = await db
+      .update(meetings)
+      .set({ recordingUrl })
+      .where(eq(meetings.code, code))
+      .returning();
+
+    res.status(200).json({ success: true, meeting: updatedMeeting });
   } catch (error) {
     next(error);
   }

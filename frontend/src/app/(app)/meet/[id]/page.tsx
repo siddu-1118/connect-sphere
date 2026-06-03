@@ -33,7 +33,8 @@ import {
   Check,
   Zap,
   AlertTriangle,
-  CornerDownRight
+  CornerDownRight,
+  Hand
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -41,6 +42,8 @@ import Whiteboard from '@/components/meeting/Whiteboard';
 import { useSocket } from '@/hooks/useSocket';
 import { useWebRTC } from '@/hooks/useWebRTC';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabaseClient';
+import api from '@/lib/api';
 
 // LiveKit Imports
 import {
@@ -189,6 +192,31 @@ function LiveKitMeetingRoomInner({
   const [qaDraft, setQaDraft] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [localHandRaised, setLocalHandRaised] = useState(false);
+  const [handRaises, setHandRaises] = useState<Record<string, boolean>>({});
+
+  const channelRef = useRef<any>(null);
+
+  // Fetch Q&A questions from database
+  const fetchQuestions = useCallback(async () => {
+    if (!meetingId) return;
+    try {
+      const res = await api.get(`/meetings/${meetingId}/questions`);
+      if (res.data && res.data.success) {
+        const mapped = res.data.questions.map((q: any) => ({
+          id: q.id,
+          author: q.authorName,
+          text: q.text,
+          upvotes: q.upvotes ? q.upvotes.length : 0,
+          upvoted: q.upvotes ? q.upvotes.includes(userId) : false,
+          createdAt: q.createdAt
+        }));
+        setQuestions(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch meeting questions:', err);
+    }
+  }, [meetingId, userId]);
 
   // Meeting duration timer
   const [duration, setDuration] = useState(0);
@@ -213,7 +241,7 @@ function LiveKitMeetingRoomInner({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Listen to Socket Signaling updates for Reactions/Chat/Breakouts
+  // Listen to Socket Signaling updates for Chat/Sync
   useEffect(() => {
     if (!socket) return;
 
@@ -228,15 +256,52 @@ function LiveKitMeetingRoomInner({
       }]);
     });
 
-    socket.on('user-reaction', ({ emoji }: { emoji: string }) => {
-      triggerReaction(emoji);
-    });
+    if (userId) {
+      fetchQuestions();
+    }
 
     return () => {
       socket.off('chat-message');
-      socket.off('user-reaction');
     };
-  }, [socket, meetingId, userId, userName]);
+  }, [socket, meetingId, userId, userName, fetchQuestions]);
+
+  // Connect to Supabase Realtime channel for ephemeral states (reactions & hand raises)
+  useEffect(() => {
+    if (!meetingId) return;
+
+    const channel = supabase.channel(`meet-ephemeral:${meetingId}`, {
+      config: {
+        broadcast: { self: false }
+      }
+    });
+
+    channelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'reaction' }, ({ payload }) => {
+        triggerReaction(payload.emoji);
+      })
+      .on('broadcast', { event: 'hand-raise' }, ({ payload }) => {
+        const { userId: peerUserId, isHandRaised } = payload;
+        setHandRaises(prev => ({ ...prev, [peerUserId]: isHandRaised }));
+      })
+      .on('broadcast', { event: 'qa-update' }, () => {
+        fetchQuestions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [meetingId, fetchQuestions]);
+
+  // Refresh Q&A when sidebar becomes active
+  useEffect(() => {
+    if (activeTab === 'Q&A' && meetingId) {
+      fetchQuestions();
+    }
+  }, [activeTab, meetingId, fetchQuestions]);
 
   // Floating reaction emitter
   const triggerReaction = (emoji: string) => {
@@ -250,8 +315,24 @@ function LiveKitMeetingRoomInner({
 
   const handleBroadcastReaction = (emoji: string) => {
     triggerReaction(emoji);
-    if (socket) {
-      socket.emit('reaction', { roomId: meetingId, emoji });
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { emoji, userId, userName }
+      });
+    }
+  };
+
+  const toggleHandRaise = () => {
+    const nextState = !localHandRaised;
+    setLocalHandRaised(nextState);
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'hand-raise',
+        payload: { userId, isHandRaised: nextState }
+      });
     }
   };
 
@@ -288,21 +369,54 @@ function LiveKitMeetingRoomInner({
   };
 
   // Submit Q&A Question
-  const handleSendQuestion = () => {
-    if (!qaDraft.trim()) return;
-    const newQ: QAQuestion = {
-      id: `qa-${Date.now()}`,
+  const handleSendQuestion = async () => {
+    if (!qaDraft.trim() || !meetingId) return;
+    
+    const draftText = qaDraft.trim();
+    setQaDraft('');
+
+    const tempId = `qa-temp-${Date.now()}`;
+    const tempQ: QAQuestion = {
+      id: tempId,
       author: userName,
-      text: qaDraft.trim(),
+      text: draftText,
       upvotes: 0,
       upvoted: false,
       createdAt: new Date().toISOString()
     };
-    setQuestions(prev => [newQ, ...prev]);
-    setQaDraft('');
+    setQuestions(prev => [tempQ, ...prev]);
+
+    try {
+      const res = await api.post(`/meetings/${meetingId}/questions`, { text: draftText });
+      if (res.data && res.data.success) {
+        const realQ = res.data.question;
+        const mappedQ: QAQuestion = {
+          id: realQ.id,
+          author: realQ.authorName,
+          text: realQ.text,
+          upvotes: realQ.upvotes ? realQ.upvotes.length : 0,
+          upvoted: realQ.upvotes ? realQ.upvotes.includes(userId) : false,
+          createdAt: realQ.createdAt
+        };
+        setQuestions(prev => prev.map(q => q.id === tempId ? mappedQ : q));
+
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'qa-update',
+            payload: {}
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to submit question:', err);
+      setQuestions(prev => prev.filter(q => q.id !== tempId));
+    }
   };
 
-  const handleUpvoteQuestion = (id: string) => {
+  const handleUpvoteQuestion = async (id: string) => {
+    if (!meetingId) return;
+
     setQuestions(prev => prev.map(q => {
       if (q.id === id) {
         return {
@@ -313,6 +427,42 @@ function LiveKitMeetingRoomInner({
       }
       return q;
     }));
+
+    try {
+      const res = await api.post(`/meetings/${meetingId}/questions/${id}/upvote`);
+      if (res.data && res.data.success) {
+        const realQ = res.data.question;
+        const mappedQ: QAQuestion = {
+          id: realQ.id,
+          author: realQ.authorName,
+          text: realQ.text,
+          upvotes: realQ.upvotes ? realQ.upvotes.length : 0,
+          upvoted: realQ.upvotes ? realQ.upvotes.includes(userId) : false,
+          createdAt: realQ.createdAt
+        };
+        setQuestions(prev => prev.map(q => q.id === id ? mappedQ : q));
+
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'qa-update',
+            payload: {}
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle upvote:', err);
+      setQuestions(prev => prev.map(q => {
+        if (q.id === id) {
+          return {
+            ...q,
+            upvotes: q.upvoted ? q.upvotes - 1 : q.upvotes + 1,
+            upvoted: !q.upvoted
+          };
+        }
+        return q;
+      }));
+    }
   };
 
   const handleToggleSidebar = (tab: SidebarTab) => {
@@ -393,61 +543,122 @@ function LiveKitMeetingRoomInner({
                 ))}
               </div>
             </div>
-          ) : (
-            /* LiveKit Grid Maps */
-            <div className={cn(
-              "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
-              tracks.length === 1 
-                ? "grid-cols-1 md:grid-cols-1 max-h-[480px]" 
-                : tracks.length === 2 
-                ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
-                : tracks.length === 3 
-                ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
-                : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
-            )}>
-              {tracks.map(track => {
-                const p = track.participant;
-                const isLocal = p.isLocal;
-                const isSpeaking = p.isSpeaking;
-                const cameraEnabled = p.isCameraEnabled;
-                const micEnabled = p.isMicrophoneEnabled;
-                const isScreenShare = track.source === Track.Source.ScreenShare;
+          ) : (() => {
+            const screenShareTracks = tracks.filter(t => t.source === Track.Source.ScreenShare);
+            const isPresenterMode = screenShareTracks.length > 0;
 
-                // Load custom avatar meta details if applicable
-                const meta = p.metadata ? JSON.parse(p.metadata) : null;
-                const pAvatar = isLocal ? avatarUrl : (meta?.avatarUrl || null);
-
-                return (
-                  <div 
-                    key={track.publication?.trackSid || p.sid + '-' + track.source} 
-                    className={cn(
-                      "relative bg-slate-900 border rounded-2xl overflow-hidden aspect-video shadow-lg transition-all duration-300",
-                      isSpeaking ? "border-cyan-400 ring-2 ring-cyan-500/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] scale-[1.01]" : "border-slate-850"
-                    )}
-                  >
-                    {cameraEnabled || isScreenShare ? (
-                      <VideoTrack 
-                        trackRef={track as any} 
-                        className="w-full h-full object-cover"
-                        style={isLocal && !isScreenShare ? { transform: 'scaleX(-1)' } : undefined}
-                      />
-                    ) : (
-                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                        <Avatar name={p.identity || 'Aero User'} src={pAvatar} size="lg" className="border border-slate-800" />
-                        <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest font-mono">Camera is off</span>
-                      </div>
-                    )}
-                    <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                      <span className="text-[10px] text-slate-202 font-semibold">
-                        {p.identity} {isLocal ? '(You)' : ''} {isScreenShare ? '(Screen)' : ''}
+            if (isPresenterMode) {
+              return (
+                <div className="flex-1 flex flex-col md:flex-row gap-4 w-full h-full max-h-[600px] select-none text-left">
+                  {/* Big Main Screen Share */}
+                  <div className="flex-[4] relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-2xl">
+                    <VideoTrack trackRef={screenShareTracks[0] as any} className="w-full h-full object-contain" />
+                    <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-955/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 select-none">
+                      <span className="text-[10px] text-slate-200 font-semibold">
+                        {screenShareTracks[0].participant.identity}'s Screen
                       </span>
-                      {!micEnabled && !isScreenShare && <MicOff size={10} className="text-rose-400 shrink-0" />}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  
+                  {/* Filmstrip Camera Tiles */}
+                  <div className="flex-1 flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[140px] md:max-h-none md:w-56 shrink-0 scrollbar-thin">
+                    {tracks.filter(t => t.source === Track.Source.Camera).map(track => {
+                      const p = track.participant;
+                      const cameraEnabled = p.isCameraEnabled;
+                      const isSpeaking = p.isSpeaking;
+                      const isLocal = p.isLocal;
+                      const meta = p.metadata ? JSON.parse(p.metadata) : null;
+                      const pAvatar = isLocal ? avatarUrl : (meta?.avatarUrl || null);
+                      const isHandRaised = isLocal ? localHandRaised : (handRaises[p.identity] || handRaises[meta?.userId] || false);
+
+                      return (
+                        <div key={p.sid} className={cn("relative bg-slate-900 border rounded-xl overflow-hidden aspect-video w-36 md:w-full shrink-0", isSpeaking ? "border-cyan-400" : "border-slate-850")}>
+                          {cameraEnabled ? (
+                            <VideoTrack trackRef={track as any} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-1.5">
+                              <Avatar name={p.identity || 'User'} src={pAvatar} size="sm" className="border border-slate-800" />
+                              <span className="text-[8px] text-slate-600 font-black uppercase tracking-wider">Off</span>
+                            </div>
+                          )}
+                          <div className="absolute bottom-2 left-2 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-1.5 py-0.5 rounded text-[8px] z-10 select-none">
+                            {p.identity} {isLocal ? '(You)' : ''}
+                          </div>
+                          {isHandRaised && (
+                            <div className="absolute top-2 right-2 bg-amber-500 text-slate-950 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                              <Hand size={12} className="stroke-[2.5]" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              /* LiveKit Grid Maps */
+              <div className={cn(
+                "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
+                tracks.length === 1 
+                  ? "grid-cols-1 md:grid-cols-1 max-h-[480px]" 
+                  : tracks.length === 2 
+                  ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
+                  : tracks.length === 3 
+                  ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
+                  : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
+              )}>
+                {tracks.map(track => {
+                  const p = track.participant;
+                  const isLocal = p.isLocal;
+                  const isSpeaking = p.isSpeaking;
+                  const cameraEnabled = p.isCameraEnabled;
+                  const micEnabled = p.isMicrophoneEnabled;
+                  const isScreenShare = track.source === Track.Source.ScreenShare;
+
+                  // Load custom avatar meta details if applicable
+                  const meta = p.metadata ? JSON.parse(p.metadata) : null;
+                  const pAvatar = isLocal ? avatarUrl : (meta?.avatarUrl || null);
+                  const isHandRaised = isLocal ? localHandRaised : (handRaises[p.identity] || handRaises[meta?.userId] || false);
+
+                  return (
+                    <div 
+                      key={track.publication?.trackSid || p.sid + '-' + track.source} 
+                      className={cn(
+                        "relative bg-slate-900 border rounded-2xl overflow-hidden aspect-video shadow-lg transition-all duration-300",
+                        isSpeaking ? "border-cyan-400 ring-2 ring-cyan-500/20 shadow-[0_0_12px_rgba(6,182,212,0.15)] scale-[1.01]" : "border-slate-850"
+                      )}
+                    >
+                      {cameraEnabled || isScreenShare ? (
+                        <VideoTrack 
+                          trackRef={track as any} 
+                          className="w-full h-full object-cover"
+                          style={isLocal && !isScreenShare ? { transform: 'scaleX(-1)' } : undefined}
+                        />
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                          <Avatar name={p.identity || 'Aero User'} src={pAvatar} size="lg" className="border border-slate-800" />
+                          <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-955/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                        <span className="text-[10px] text-slate-202 font-semibold">
+                          {p.identity} {isLocal ? '(You)' : ''} {isScreenShare ? '(Screen)' : ''}
+                        </span>
+                        {!micEnabled && !isScreenShare && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                      </div>
+                      {isHandRaised && !isScreenShare && (
+                        <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                          <Hand size={14} className="stroke-[2.5]" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* ── 3. CONTROL DOCK ── */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-full px-5 py-3 flex items-center gap-4.5 z-30 shadow-2xl shadow-slate-950/60 select-none">
@@ -598,6 +809,20 @@ function LiveKitMeetingRoomInner({
               )}
             </div>
 
+            {/* Hand Raise toggle */}
+            <button
+              onClick={toggleHandRaise}
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                localHandRaised 
+                  ? "bg-amber-500 text-slate-955 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)] hover:scale-[1.02]" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-amber-400"
+              )}
+              title={localHandRaised ? "Lower Hand" : "Raise Hand"}
+            >
+              <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
+            </button>
+
             {/* Sidebar Triggers */}
             <button
               onClick={() => handleToggleSidebar('People')}
@@ -710,22 +935,36 @@ function LiveKitMeetingRoomInner({
                     <span className="text-xs font-bold text-slate-200 block truncate">{userName}</span>
                     <span className="text-[8px] font-bold text-indigo-400 tracking-wider uppercase mt-1 block">Host</span>
                   </div>
+                  {localHandRaised && (
+                    <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5 text-[8px] font-bold flex items-center gap-1 shrink-0 mr-1">
+                      ✋ Raised
+                    </span>
+                  )}
                   <span className="text-[9px] text-slate-600 pr-1">(You)</span>
                 </div>
 
                 {/* Remote users */}
                 {remoteParticipants
                   .filter(p => p.identity.toLowerCase().includes(peopleSearch.toLowerCase()))
-                  .map(p => (
-                    <div key={p.sid} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-900/20 transition-all border border-transparent hover:border-slate-900/30">
-                      <Avatar name={p.identity} size="sm" className="border border-slate-850" />
-                      <div className="flex-1 leading-none text-left min-w-0">
-                        <span className="text-xs font-bold text-slate-300 block truncate">{p.identity}</span>
-                        <span className="text-[8px] font-bold text-slate-500 tracking-wider uppercase mt-1 block">Caller</span>
+                  .map(p => {
+                    const meta = p.metadata ? JSON.parse(p.metadata) : null;
+                    const isHandRaised = handRaises[p.identity] || handRaises[meta?.userId] || false;
+                    return (
+                      <div key={p.sid} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-900/20 transition-all border border-transparent hover:border-slate-900/30">
+                        <Avatar name={p.identity} size="sm" className="border border-slate-855" />
+                        <div className="flex-1 leading-none text-left min-w-0">
+                          <span className="text-xs font-bold text-slate-300 block truncate">{p.identity}</span>
+                          <span className="text-[8px] font-bold text-slate-500 tracking-wider uppercase mt-1 block">Caller</span>
+                        </div>
+                        {isHandRaised && (
+                          <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5 text-[8px] font-bold flex items-center gap-1 shrink-0 mr-1">
+                            ✋ Raised
+                          </span>
+                        )}
+                        {!p.isMicrophoneEnabled && <MicOff size={11} className="text-rose-455 pr-1 shrink-0" />}
                       </div>
-                      {!p.isMicrophoneEnabled && <MicOff size={11} className="text-rose-455 pr-1 shrink-0" />}
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
 
               <div className="p-4 border-t border-slate-900 shrink-0 select-none">
@@ -862,7 +1101,7 @@ function LiveKitMeetingRoomInner({
 
       {/* Security Modals & Breakouts */}
       {showSecurityModal && (
-        <SecurityModal setSecuritySettings={setSecuritySettings} securitySettings={securitySettings} setShowSecurityModal={setShowSecurityModal} />
+        <SecurityModal meetingId={meetingId} setSecuritySettings={setSecuritySettings} securitySettings={securitySettings} setShowSecurityModal={setShowSecurityModal} />
       )}
       {showBreakoutModal && (
         <BreakoutModal 
@@ -902,6 +1141,11 @@ function WebRTCMeetingRoomInner({
   avatarUrl: string | null; 
   router: any;
 }) {
+  const [currentRoomId, setCurrentRoomId] = useState(meetingId);
+  const [breakoutExpiresAt, setBreakoutExpiresAt] = useState<number | null>(null);
+  const [breakoutMyRoom, setBreakoutMyRoom] = useState<string | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
+
   const {
     localStream,
     remoteStreams,
@@ -915,7 +1159,7 @@ function WebRTCMeetingRoomInner({
     startScreenShare,
     stopScreenShare,
     sendChatMessage,
-  } = useWebRTC(meetingId, socket, userId, userName);
+  } = useWebRTC(currentRoomId, socket, userId, userName);
 
   const micOn = !isMuted;
   const cameraOn = !isCameraOff;
@@ -964,12 +1208,41 @@ function WebRTCMeetingRoomInner({
     setBreakoutRoomsData(newRooms);
   }, [roomCount]);
 
-  // Lists and compose drafts
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
   const [questions, setQuestions] = useState<QAQuestion[]>([]);
   const [chatDraft, setChatDraft] = useState('');
   const [qaDraft, setQaDraft] = useState('');
   const [peopleSearch, setPeopleSearch] = useState('');
+  const [localHandRaised, setLocalHandRaised] = useState(false);
+  const [handRaises, setHandRaises] = useState<Record<string, boolean>>({});
+  const [captions, setCaptions] = useState<{ id: string; speakerName: string; text: string; timestamp: number }[]>([]);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isUploadingRecording, setIsUploadingRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+
+  const channelRef = useRef<any>(null);
+
+  // Fetch Q&A questions from database
+  const fetchQuestions = useCallback(async () => {
+    if (!meetingId) return;
+    try {
+      const res = await api.get(`/meetings/${meetingId}/questions`);
+      if (res.data && res.data.success) {
+        const mapped = res.data.questions.map((q: any) => ({
+          id: q.id,
+          author: q.authorName,
+          text: q.text,
+          upvotes: q.upvotes ? q.upvotes.length : 0,
+          upvoted: q.upvotes ? q.upvotes.includes(userId) : false,
+          createdAt: q.createdAt
+        }));
+        setQuestions(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch meeting questions:', err);
+    }
+  }, [meetingId, userId]);
 
   // Timer duration
   const [duration, setDuration] = useState(0);
@@ -977,6 +1250,81 @@ function WebRTCMeetingRoomInner({
     const timer = setInterval(() => setDuration(d => d + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const startRecording = () => {
+    const streamToRecord = localStream;
+    if (!streamToRecord) {
+      alert("No audio/video streams available to record.");
+      return;
+    }
+    recordedChunksRef.current = [];
+    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(streamToRecord, options);
+    } catch (e) {
+      try {
+        recorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm' });
+      } catch (e2) {
+        recorder = new MediaRecorder(streamToRecord);
+      }
+    }
+    
+    recorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedChunksRef.current.push(event.data);
+      }
+    };
+
+    recorder.onstop = async () => {
+      console.log("🎥 MediaRecorder stopped. Compiling blob...");
+      const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+      
+      setIsUploadingRecording(true);
+      try {
+        const file = new File([blob], `${meetingId}-${Date.now()}.webm`, { type: 'video/webm' });
+        const filePath = `${meetingId}/${file.name}`;
+        
+        console.log("🎥 Uploading recording to Supabase Storage:", filePath);
+        const { data, error } = await supabase.storage
+          .from('meeting_recordings')
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: true
+          });
+
+        if (error) throw error;
+
+        // Get public URL
+        const { data: { publicUrl } } = supabase.storage
+          .from('meeting_recordings')
+          .getPublicUrl(filePath);
+
+        console.log("🎥 Recording uploaded. Syncing database record...");
+        await api.put(`/meetings/${meetingId}/recording`, { recordingUrl: publicUrl });
+        
+        alert("Meeting recording uploaded to cloud successfully!");
+      } catch (err) {
+        console.error("❌ Failed to upload meeting recording:", err);
+        alert("Could not upload meeting recording.");
+      } finally {
+        setIsUploadingRecording(false);
+      }
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start(1000);
+    setIsRecording(true);
+    console.log("🎥 Meeting recording started.");
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      console.log("🎥 Meeting recording stopped.");
+    }
+  };
 
   const micMenuRef = useRef<HTMLDivElement>(null);
   const cameraMenuRef = useRef<HTMLDivElement>(null);
@@ -994,6 +1342,224 @@ function WebRTCMeetingRoomInner({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Connect to Supabase Realtime channel for ephemeral states (reactions & hand raises)
+  useEffect(() => {
+    if (!meetingId) return;
+
+    const channel = supabase.channel(`meet-ephemeral:${meetingId}`, {
+      config: {
+        broadcast: { self: false }
+      }
+    });
+
+    channelRef.current = channel;
+
+    channel
+      .on('broadcast', { event: 'reaction' }, ({ payload }) => {
+        triggerReaction(payload.emoji);
+      })
+      .on('broadcast', { event: 'hand-raise' }, ({ payload }) => {
+        const { userId: peerUserId, isHandRaised } = payload;
+        setHandRaises(prev => ({ ...prev, [peerUserId]: isHandRaised }));
+      })
+      .on('broadcast', { event: 'caption' }, ({ payload }) => {
+        console.log('🎙️ Caption event received:', payload);
+        const newCap = {
+          id: `${payload.speakerId}-${payload.timestamp}-${Math.random()}`,
+          speakerName: payload.speakerName,
+          text: payload.text,
+          timestamp: payload.timestamp
+        };
+        setCaptions(prev => [...prev.slice(-4), newCap]);
+      })
+      .on('broadcast', { event: 'qa-update' }, () => {
+        fetchQuestions();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      channelRef.current = null;
+    };
+  }, [meetingId, fetchQuestions]);
+
+  // ─── Breakout Room Routing handlers ───
+  const handleToggleRoomsActive = (active: boolean) => {
+    setRoomsActive(active);
+    if (active) {
+      if (socket) {
+        socket.emit('start-breakout-rooms', {
+          roomId: meetingId,
+          rooms: breakoutRoomsData,
+          durationMinutes: autoCloseMinutes
+        });
+      }
+    } else {
+      if (socket) {
+        socket.emit('close-breakout-rooms', {
+          roomId: meetingId
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('breakout-rooms-started', ({ rooms, expiresAt }: { rooms: Record<string, string[]>; expiresAt: number }) => {
+      console.log('📡 Breakout rooms started:', rooms, expiresAt);
+      setBreakoutExpiresAt(expiresAt);
+      setRoomsActive(true);
+
+      // Find my assigned room
+      const myAssignedRoomEntry = Object.entries(rooms).find(([rName, members]) => {
+        return members.some(mName => mName.toLowerCase() === userName.toLowerCase());
+      });
+
+      if (myAssignedRoomEntry) {
+        const roomName = myAssignedRoomEntry[0];
+        setBreakoutMyRoom(roomName);
+        const subRoomId = `${meetingId}-breakout-${roomName.replace(/\s+/g, '-').toLowerCase()}`;
+        console.log(`➡️ Routing to breakout sub-room: ${roomName} (${subRoomId})`);
+        setCurrentRoomId(subRoomId);
+      } else {
+        console.log('ℹ️ Local user not assigned to any breakout room. Staying in Main Room.');
+        setBreakoutMyRoom(null);
+        setCurrentRoomId(meetingId);
+      }
+    });
+
+    socket.on('breakout-rooms-ended', () => {
+      console.log('📡 Breakout rooms ended. Returning to Main Room.');
+      setBreakoutExpiresAt(null);
+      setBreakoutMyRoom(null);
+      setRoomsActive(false);
+      setCurrentRoomId(meetingId);
+    });
+
+    return () => {
+      socket.off('breakout-rooms-started');
+      socket.off('breakout-rooms-ended');
+    };
+  }, [socket, userName, meetingId, breakoutRoomsData, autoCloseMinutes]);
+
+  useEffect(() => {
+    if (!breakoutExpiresAt) {
+      setTimeRemaining('');
+      return;
+    }
+
+    const interval = setInterval(() => {
+      const remainingMs = breakoutExpiresAt - Date.now();
+      if (remainingMs <= 0) {
+        setTimeRemaining('00:00');
+        setCurrentRoomId(meetingId);
+        setBreakoutExpiresAt(null);
+        setBreakoutMyRoom(null);
+        setRoomsActive(false);
+        clearInterval(interval);
+      } else {
+        const totalSecs = Math.floor(remainingMs / 1000);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        setTimeRemaining(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [breakoutExpiresAt, meetingId]);
+
+  // Speech Recognition hook for live captions
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("⚠️ Web Speech API is not supported in this browser.");
+      return;
+    }
+
+    if (!micOn) return;
+
+    console.log("🎙️ Initializing Speech Recognition for live captions...");
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onresult = (event: any) => {
+      const resultIndex = event.resultIndex;
+      const transcript = event.results[resultIndex][0].transcript.trim();
+      
+      if (transcript && channelRef.current) {
+        console.log(`🎙️ Local caption: "${transcript}"`);
+        
+        channelRef.current.send({
+          type: 'broadcast',
+          event: 'caption',
+          payload: {
+            speakerId: userId,
+            speakerName: userName,
+            text: transcript,
+            timestamp: Date.now()
+          }
+        });
+
+        const newCap = {
+          id: `${userId}-${Date.now()}-${Math.random()}`,
+          speakerName: userName,
+          text: transcript,
+          timestamp: Date.now()
+        };
+        setCaptions(prev => [...prev.slice(-4), newCap]);
+      }
+    };
+
+    recognition.onerror = (err: any) => {
+      console.warn("🎙️ Speech Recognition error:", err);
+      if (micOn && err.error !== 'not-allowed') {
+        try { recognition.start(); } catch (e) {}
+      }
+    };
+
+    recognition.onend = () => {
+      console.log("🎙️ Speech Recognition ended.");
+      if (micOn) {
+        try { recognition.start(); } catch (e) {}
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start Speech Recognition:", e);
+    }
+
+    return () => {
+      recognition.abort();
+    };
+  }, [micOn, userId, userName]);
+
+  // Captions auto-fadeout timer (silence cleanup after 5s)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCaptions(prev => prev.filter(c => Date.now() - c.timestamp < 5000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch initial questions on mount
+  useEffect(() => {
+    if (userId) {
+      fetchQuestions();
+    }
+  }, [userId, fetchQuestions]);
+
+  // Refresh Q&A when sidebar becomes active
+  useEffect(() => {
+    if (activeTab === 'Q&A' && meetingId) {
+      fetchQuestions();
+    }
+  }, [activeTab, meetingId, fetchQuestions]);
+
   // Floating reaction emitter
   const triggerReaction = (emoji: string) => {
     const id = crypto.randomUUID();
@@ -1006,21 +1572,26 @@ function WebRTCMeetingRoomInner({
 
   const handleBroadcastReaction = (emoji: string) => {
     triggerReaction(emoji);
-    if (socket) {
-      socket.emit('reaction', { roomId: meetingId, emoji });
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'reaction',
+        payload: { emoji, userId, userName }
+      });
     }
   };
 
-  // Listen for broadcast reactions via socket
-  useEffect(() => {
-    if (!socket) return;
-    socket.on('user-reaction', ({ emoji }: { emoji: string }) => {
-      triggerReaction(emoji);
-    });
-    return () => {
-      socket.off('user-reaction');
-    };
-  }, [socket]);
+  const toggleHandRaise = () => {
+    const nextState = !localHandRaised;
+    setLocalHandRaised(nextState);
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'hand-raise',
+        payload: { userId, isHandRaised: nextState }
+      });
+    }
+  };
 
   // Direct DM messages parsing
   const chatMessages = webrtcChatMessages.map((msg, idx) => ({
@@ -1045,21 +1616,54 @@ function WebRTCMeetingRoomInner({
   };
 
   // Direct Q&A Submitting
-  const handleSendQuestion = () => {
-    if (!qaDraft.trim()) return;
-    const newQ: QAQuestion = {
-      id: `qa-${Date.now()}`,
+  const handleSendQuestion = async () => {
+    if (!qaDraft.trim() || !meetingId) return;
+    
+    const draftText = qaDraft.trim();
+    setQaDraft('');
+
+    const tempId = `qa-temp-${Date.now()}`;
+    const tempQ: QAQuestion = {
+      id: tempId,
       author: userName,
-      text: qaDraft.trim(),
+      text: draftText,
       upvotes: 0,
       upvoted: false,
       createdAt: new Date().toISOString()
     };
-    setQuestions(prev => [newQ, ...prev]);
-    setQaDraft('');
+    setQuestions(prev => [tempQ, ...prev]);
+
+    try {
+      const res = await api.post(`/meetings/${meetingId}/questions`, { text: draftText });
+      if (res.data && res.data.success) {
+        const realQ = res.data.question;
+        const mappedQ: QAQuestion = {
+          id: realQ.id,
+          author: realQ.authorName,
+          text: realQ.text,
+          upvotes: realQ.upvotes ? realQ.upvotes.length : 0,
+          upvoted: realQ.upvotes ? realQ.upvotes.includes(userId) : false,
+          createdAt: realQ.createdAt
+        };
+        setQuestions(prev => prev.map(q => q.id === tempId ? mappedQ : q));
+
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'qa-update',
+            payload: {}
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to submit question:', err);
+      setQuestions(prev => prev.filter(q => q.id !== tempId));
+    }
   };
 
-  const handleUpvoteQuestion = (id: string) => {
+  const handleUpvoteQuestion = async (id: string) => {
+    if (!meetingId) return;
+
     setQuestions(prev => prev.map(q => {
       if (q.id === id) {
         return {
@@ -1070,6 +1674,42 @@ function WebRTCMeetingRoomInner({
       }
       return q;
     }));
+
+    try {
+      const res = await api.post(`/meetings/${meetingId}/questions/${id}/upvote`);
+      if (res.data && res.data.success) {
+        const realQ = res.data.question;
+        const mappedQ: QAQuestion = {
+          id: realQ.id,
+          author: realQ.authorName,
+          text: realQ.text,
+          upvotes: realQ.upvotes ? realQ.upvotes.length : 0,
+          upvoted: realQ.upvotes ? realQ.upvotes.includes(userId) : false,
+          createdAt: realQ.createdAt
+        };
+        setQuestions(prev => prev.map(q => q.id === id ? mappedQ : q));
+
+        if (channelRef.current) {
+          channelRef.current.send({
+            type: 'broadcast',
+            event: 'qa-update',
+            payload: {}
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to toggle upvote:', err);
+      setQuestions(prev => prev.map(q => {
+        if (q.id === id) {
+          return {
+            ...q,
+            upvotes: q.upvoted ? q.upvotes - 1 : q.upvotes + 1,
+            upvoted: !q.upvoted
+          };
+        }
+        return q;
+      }));
+    }
   };
 
   const handleToggleSidebar = (tab: SidebarTab) => {
@@ -1109,8 +1749,32 @@ function WebRTCMeetingRoomInner({
           </span>
         </div>
 
-        {/* Right participants summary */}
+        {/* Right participants summary & recording */}
         <div className="flex items-center gap-3">
+          {/* Host Recording Action */}
+          {isUploadingRecording ? (
+            <div className="flex items-center gap-1.5 bg-slate-905 border border-slate-800 px-3 py-1.5 rounded-full select-none shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-spin" />
+              <span className="text-[10px] font-bold text-cyan-400">Uploading...</span>
+            </div>
+          ) : isRecording ? (
+            <button
+              onClick={stopRecording}
+              className="flex items-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/35 border border-rose-500/30 px-3 py-1.5 rounded-full shadow-lg transition-all shrink-0 cursor-pointer text-rose-455 font-bold"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Recording</span>
+            </button>
+          ) : (
+            <button
+              onClick={startRecording}
+              className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 px-3 py-1.5 rounded-full shadow-inner transition-all shrink-0 cursor-pointer text-slate-400 hover:text-white"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+              <span className="text-[10px] font-black uppercase tracking-wider">Record</span>
+            </button>
+          )}
+
           <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-850 px-3 py-1.5 rounded-full shadow-inner select-none shrink-0">
             <Users className="w-3.5 h-3.5 text-slate-450" />
             <span className="text-[10px] font-black text-slate-300">{participants.length + 1} Online</span>
@@ -1129,6 +1793,35 @@ function WebRTCMeetingRoomInner({
               <FloatingReactionItem key={r.id} emoji={r.emoji} left={r.left} />
             ))}
           </div>
+
+          {breakoutExpiresAt && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-35 flex items-center gap-3 bg-indigo-950/85 border border-indigo-550/30 backdrop-blur-xl px-5 py-2.5 rounded-2xl shadow-2xl">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+              <span className="text-xs font-bold text-slate-200">
+                {breakoutMyRoom ? `Joined Breakout: ${breakoutMyRoom}` : 'Breakout Session Active (Host / Lobby)'}
+              </span>
+              <div className="h-4 w-px bg-indigo-500/30" />
+              <span className="font-mono text-xs font-black text-indigo-400 tabular-nums">
+                {timeRemaining}
+              </span>
+            </div>
+          )}
+
+          {/* Live Captions Floating Overlay */}
+          {captions.length > 0 && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-35 flex flex-col items-center gap-2 max-w-[80%] md:max-w-2xl pointer-events-none">
+              <div className="flex flex-col gap-1.5 p-4 rounded-2xl bg-black/65 border border-white/5 backdrop-blur-md shadow-2xl">
+                {captions.map(c => (
+                  <div key={c.id} className="text-left text-xs leading-relaxed animate-fadeIn">
+                    <span className="font-extrabold text-cyan-400 mr-2 uppercase tracking-wide text-[10px] bg-cyan-950/40 border border-cyan-500/10 px-1.5 py-0.5 rounded-md">
+                      {c.speakerName}:
+                    </span>
+                    <span className="text-slate-100 font-medium font-outfit">{c.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {whiteboardActive ? (
             <div className="flex-1 w-full h-full p-2 min-h-0 relative select-none">
@@ -1160,67 +1853,182 @@ function WebRTCMeetingRoomInner({
                 Waiting for others to join... Invite teammates by sharing the meeting room code in the panel.
               </p>
             </div>
-          ) : (
-            <div className={cn(
-              "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
-              participants.length === 1 
-                ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
-                : participants.length === 2 
-                ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
-                : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
-            )}>
-              {/* Local User Tile */}
-              <div className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
-                {cameraOn && localStream ? (
-                  <video
-                    ref={el => { if (el && localStream) el.srcObject = localStream; }}
-                    autoPlay
-                    muted
-                    playsInline
-                    className="w-full h-full object-cover"
-                    style={{ transform: 'scaleX(-1)' }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                    <Avatar name={userName} src={avatarUrl} size="lg" className="border border-slate-800" />
-                    <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest font-mono">Camera is off</span>
-                  </div>
-                )}
-                <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                  <span className="text-[10px] text-slate-200 font-semibold">{userName} (You)</span>
-                  {!micOn && <MicOff size={10} className="text-rose-400 shrink-0" />}
-                </div>
-              </div>
+          ) : (() => {
+            const screenSharingUser = participants.find(p => p.isScreenSharing) || (sharing ? { socketId: 'local', userName } : null);
+            const isPresenterMode = !!screenSharingUser;
 
-              {/* Remote User Tiles */}
-              {participants.map(p => {
-                const stream = remoteStreams[p.socketId];
-                const pCameraOn = !p.isCameraOff;
-
-                return (
-                  <div key={p.socketId} className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
-                    {pCameraOn && stream ? (
-                      <video
-                        ref={el => { if (el && stream) el.srcObject = stream; }}
-                        autoPlay
-                        playsInline
-                        className="w-full h-full object-cover"
-                      />
+            if (isPresenterMode) {
+              return (
+                <div className="flex-1 flex flex-col md:flex-row gap-4 w-full h-full max-h-[600px] select-none text-left">
+                  {/* Big Main Screen Share */}
+                  <div className="flex-[4] relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-2xl">
+                    {screenSharingUser.socketId === 'local' ? (
+                      localStream && (
+                        <video
+                          ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                          autoPlay
+                          muted
+                          playsInline
+                          className="w-full h-full object-contain"
+                        />
+                      )
                     ) : (
-                      <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
-                        <Avatar name={p.userName} size="lg" className="border border-slate-800" />
-                        <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
-                      </div>
+                      remoteStreams[screenSharingUser.socketId] && (
+                        <video
+                          ref={el => { if (el && remoteStreams[screenSharingUser.socketId]) el.srcObject = remoteStreams[screenSharingUser.socketId]; }}
+                          autoPlay
+                          playsInline
+                          className="w-full h-full object-contain"
+                        />
+                      )
                     )}
-                    <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
-                      <span className="text-[10px] text-slate-252 font-semibold">{p.userName}</span>
-                      {p.isMuted && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                    <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-955/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 select-none">
+                      <span className="text-[10px] text-slate-200 font-semibold">
+                        {screenSharingUser.userName}'s Screen
+                      </span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  
+                  {/* Filmstrip Camera Tiles */}
+                  <div className="flex-1 flex flex-row md:flex-col gap-3 overflow-x-auto md:overflow-y-auto max-h-[140px] md:max-h-none md:w-56 shrink-0 scrollbar-thin">
+                    {screenSharingUser.socketId !== 'local' && (
+                      <div className="relative bg-slate-900 border border-slate-850 rounded-xl overflow-hidden aspect-video w-36 md:w-full shrink-0">
+                        {cameraOn && localStream ? (
+                          <video
+                            ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                            autoPlay
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                            style={{ transform: 'scaleX(-1)' }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-955">
+                            <Avatar name={userName} src={avatarUrl} size="sm" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-2 left-2 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-1.5 py-0.5 rounded text-[8px] z-10 select-none">
+                          {userName} (You)
+                        </div>
+                        {localHandRaised && (
+                          <div className="absolute top-2 right-2 bg-amber-500 text-slate-950 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                            <Hand size={12} className="stroke-[2.5]" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {participants.map(p => {
+                      if (p.socketId === screenSharingUser.socketId) return null;
+                      const stream = remoteStreams[p.socketId];
+                      const pCameraOn = !p.isCameraOff;
+                      const isHandRaised = handRaises[p.userId] || false;
+
+                      return (
+                        <div key={p.socketId} className="relative bg-slate-900 border border-slate-850 rounded-xl overflow-hidden aspect-video w-36 md:w-full shrink-0">
+                          {pCameraOn && stream ? (
+                            <video
+                              ref={el => { if (el && stream) el.srcObject = stream; }}
+                              autoPlay
+                              playsInline
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-slate-955">
+                              <Avatar name={p.userName} size="sm" />
+                            </div>
+                          )}
+                          <div className="absolute bottom-2 left-2 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-1.5 py-0.5 rounded text-[8px] z-10 select-none">
+                            {p.userName}
+                          </div>
+                          {isHandRaised && (
+                            <div className="absolute top-2 right-2 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                              <Hand size={12} className="stroke-[2.5]" />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div className={cn(
+                "grid gap-4 w-full h-full max-w-6xl mx-auto content-center justify-center",
+                participants.length === 0
+                  ? "grid-cols-1 max-h-[480px]"
+                  : participants.length === 1 
+                  ? "grid-cols-1 md:grid-cols-2 max-h-[480px]" 
+                  : participants.length === 2 
+                  ? "grid-cols-1 md:grid-cols-3 max-h-[380px]" 
+                  : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-h-[500px]"
+              )}>
+                {/* Local User Tile */}
+                <div className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
+                  {cameraOn && localStream ? (
+                    <video
+                      ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                      autoPlay
+                      muted
+                      playsInline
+                      className="w-full h-full object-cover"
+                      style={{ transform: 'scaleX(-1)' }}
+                    />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                      <Avatar name={userName} src={avatarUrl} size="lg" className="border border-slate-800" />
+                      <span className="text-[9px] text-slate-550 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                    <span className="text-[10px] text-slate-200 font-semibold">{userName} (You)</span>
+                    {!micOn && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                  </div>
+                  {localHandRaised && (
+                    <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                      <Hand size={14} className="stroke-[2.5]" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Remote User Tiles */}
+                {participants.map(p => {
+                  const stream = remoteStreams[p.socketId];
+                  const pCameraOn = !p.isCameraOff;
+                  const isHandRaised = handRaises[p.userId] || false;
+
+                  return (
+                    <div key={p.socketId} className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
+                      {pCameraOn && stream ? (
+                        <video
+                          ref={el => { if (el && stream) el.srcObject = stream; }}
+                          autoPlay
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center bg-slate-955 gap-3">
+                          <Avatar name={p.userName} size="lg" className="border border-slate-800" />
+                          <span className="text-[9px] text-slate-555 font-black uppercase tracking-widest font-mono">Camera is off</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
+                        <span className="text-[10px] text-slate-252 font-semibold">{p.userName}</span>
+                        {p.isMuted && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                      </div>
+                      {isHandRaised && (
+                        <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
+                          <Hand size={14} className="stroke-[2.5]" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* ── 3. FLOATING LOWER CONTROL DOCK ── */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl rounded-full px-5 py-3 flex items-center gap-4.5 z-30 shadow-2xl shadow-slate-950/60 select-none">
@@ -1349,7 +2157,7 @@ function WebRTCMeetingRoomInner({
                 <Smile size={16} />
               </button>
               {showEmojiPicker && (
-                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-850 rounded-xl p-2 shadow-2xl z-50 flex gap-1.5 animate-fadeIn">
+                <div className="absolute bottom-12 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-855 rounded-xl p-2 shadow-2xl z-50 flex gap-1.5 animate-fadeIn">
                   {['👍', '❤️', '😂', '😮', '🎉', '🔥'].map(emoji => (
                     <button
                       key={emoji}
@@ -1362,6 +2170,20 @@ function WebRTCMeetingRoomInner({
                 </div>
               )}
             </div>
+
+            {/* Hand Raise toggle */}
+            <button
+              onClick={toggleHandRaise}
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm",
+                localHandRaised 
+                  ? "bg-amber-500 text-slate-955 font-black shadow-[0_0_15px_rgba(245,158,11,0.25)] hover:scale-[1.02]" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-amber-400"
+              )}
+              title={localHandRaised ? "Lower Hand" : "Raise Hand"}
+            >
+              <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
+            </button>
 
             <button
               onClick={() => handleToggleSidebar('People')}
@@ -1471,21 +2293,34 @@ function WebRTCMeetingRoomInner({
                     <span className="text-xs font-bold text-slate-200 block truncate">{userName}</span>
                     <span className="text-[8px] font-bold text-indigo-400 tracking-wider uppercase mt-1 block">Host</span>
                   </div>
+                  {localHandRaised && (
+                    <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5 text-[8px] font-bold flex items-center gap-1 shrink-0 mr-1">
+                      ✋ Raised
+                    </span>
+                  )}
                   <span className="text-[9px] text-slate-600 pr-1">(You)</span>
                 </div>
 
                 {participants
                   .filter(p => p.userName.toLowerCase().includes(peopleSearch.toLowerCase()))
-                  .map(p => (
-                    <div key={p.socketId} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-900/20 transition-all border border-transparent hover:border-slate-900/30">
-                      <Avatar name={p.userName} size="sm" className="border border-slate-850" />
-                      <div className="flex-1 leading-none text-left min-w-0">
-                        <span className="text-xs font-bold text-slate-300 block truncate">{p.userName}</span>
-                        <span className="text-[8px] font-bold text-slate-500 tracking-wider uppercase mt-1 block">Caller</span>
+                  .map(p => {
+                    const isHandRaised = handRaises[p.userId] || false;
+                    return (
+                      <div key={p.socketId} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-slate-900/20 transition-all border border-transparent hover:border-slate-900/30">
+                        <Avatar name={p.userName} size="sm" className="border border-slate-850" />
+                        <div className="flex-1 leading-none text-left min-w-0">
+                          <span className="text-xs font-bold text-slate-300 block truncate">{p.userName}</span>
+                          <span className="text-[8px] font-bold text-slate-500 tracking-wider uppercase mt-1 block">Caller</span>
+                        </div>
+                        {isHandRaised && (
+                          <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded px-1.5 py-0.5 text-[8px] font-bold flex items-center gap-1 shrink-0 mr-1">
+                            ✋ Raised
+                          </span>
+                        )}
+                        {p.isMuted && <MicOff size={11} className="text-rose-455 pr-1 shrink-0" />}
                       </div>
-                      {p.isMuted && <MicOff size={11} className="text-rose-455 pr-1 shrink-0" />}
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
 
               <div className="p-4 border-t border-slate-900 shrink-0 select-none">
@@ -1621,7 +2456,7 @@ function WebRTCMeetingRoomInner({
       </div>
 
       {showSecurityModal && (
-        <SecurityModal setSecuritySettings={setSecuritySettings} securitySettings={securitySettings} setShowSecurityModal={setShowSecurityModal} />
+        <SecurityModal meetingId={meetingId} setSecuritySettings={setSecuritySettings} securitySettings={securitySettings} setShowSecurityModal={setShowSecurityModal} />
       )}
       {showBreakoutModal && (
         <BreakoutModal 
@@ -1636,9 +2471,10 @@ function WebRTCMeetingRoomInner({
           breakoutRoomsData={breakoutRoomsData} 
           setBreakoutRoomsData={setBreakoutRoomsData} 
           roomsActive={roomsActive} 
-          setRoomsActive={setRoomsActive} 
+          setRoomsActive={handleToggleRoomsActive} 
           setShowBreakoutModal={setShowBreakoutModal}
           userName={userName}
+          participantsList={[userName, ...participants.map(p => p.userName)]}
         />
       )}
     </div>
@@ -1646,7 +2482,7 @@ function WebRTCMeetingRoomInner({
 }
 
 // ─── S H A R E D   S E C U R I T Y   M O D A L ───────────────────────────────
-function SecurityModal({ securitySettings, setSecuritySettings, setShowSecurityModal }: any) {
+function SecurityModal({ meetingId, securitySettings, setSecuritySettings, setShowSecurityModal }: any) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6.5 shadow-2xl relative">
@@ -1676,7 +2512,17 @@ function SecurityModal({ securitySettings, setSecuritySettings, setShowSecurityM
               <span className="text-[10px] text-slate-500 leading-normal block">Prevent new participants from joining this call stage</span>
             </div>
             <button
-              onClick={() => setSecuritySettings((prev: any) => ({ ...prev, lockMeeting: !prev.lockMeeting }))}
+              onClick={async () => {
+                const nextVal = !securitySettings.lockMeeting;
+                setSecuritySettings((prev: any) => ({ ...prev, lockMeeting: nextVal }));
+                if (nextVal) {
+                  try {
+                    await api.post('/admin/audit-logs', { action: 'meeting_locked', targetId: meetingId });
+                  } catch (e) {
+                    console.warn('Failed to audit log lock meeting:', e);
+                  }
+                }
+              }}
               className={cn("w-11 h-6 rounded-full p-1 transition-colors duration-200 cursor-pointer relative shrink-0", securitySettings.lockMeeting ? "bg-rose-500" : "bg-slate-800")}
             >
               <div className={cn("w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md", securitySettings.lockMeeting ? "translate-x-5" : "translate-x-0")} />
@@ -1721,18 +2567,11 @@ function SecurityModal({ securitySettings, setSecuritySettings, setShowSecurityM
             );
           })}
         </div>
-
-        <div className="mt-7 border-t border-slate-850 pt-4 flex select-none">
-          <button onClick={() => setShowSecurityModal(false)} className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-[10px] font-black uppercase tracking-widest text-slate-350 transition-all cursor-pointer border border-slate-750">
-            Close Settings
-          </button>
-        </div>
       </div>
     </div>
   );
 }
 
-// ─── S H A R E D   B R E A K O U T   M O D A L ───────────────────────────────
 function BreakoutModal({ 
   breakoutStep, setBreakoutStep, 
   roomCount, setRoomCount, 
@@ -1740,8 +2579,11 @@ function BreakoutModal({
   autoCloseMinutes, setAutoCloseMinutes, 
   breakoutRoomsData, setBreakoutRoomsData, 
   roomsActive, setRoomsActive, 
-  setShowBreakoutModal, userName 
+  setShowBreakoutModal, userName,
+  participantsList
 }: any) {
+  const allNames = participantsList || ['Sarah Chen', 'David Miller', 'Alex Mercer', 'Marcus Aurelius', userName];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl p-6.5 shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -1835,7 +2677,7 @@ function BreakoutModal({
                 <span className="text-[8px] font-black text-slate-555 uppercase tracking-widest border-b border-slate-850/60 pb-1.5">Lobby Caller List</span>
                 {(() => {
                   const allAssigned = Object.values(breakoutRoomsData).flat();
-                  const lobbyTeammates = ['Sarah Chen', 'David Miller', 'Alex Mercer', 'Marcus Aurelius', userName].filter(name => !allAssigned.includes(name));
+                  const lobbyTeammates = allNames.filter((name: string) => !allAssigned.includes(name));
 
                   if (lobbyTeammates.length === 0) {
                     return (
@@ -1846,7 +2688,7 @@ function BreakoutModal({
                     );
                   }
 
-                  return lobbyTeammates.map(name => (
+                  return lobbyTeammates.map((name: string) => (
                     <div key={name} className="bg-slate-905 border border-slate-850 p-2 rounded-xl flex items-center justify-between gap-1.5">
                       <span className="text-[11px] text-slate-350 font-semibold truncate leading-tight flex-1">{name}</span>
                       <div className="flex gap-0.5">
@@ -1873,12 +2715,11 @@ function BreakoutModal({
             <div className="border-t border-slate-850 pt-5 flex gap-3 shrink-0 select-none">
               <button onClick={() => setBreakoutStep(1)} className="px-4 py-2.5 rounded-xl border border-slate-850 hover:bg-slate-850 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-200 transition-all cursor-pointer">Back</button>
               <button onClick={() => {
-                const allNames = ['Sarah Chen', 'David Miller', 'Alex Mercer', 'Marcus Aurelius', userName];
                 const newRooms: Record<string, string[]> = {};
                 for (let i = 1; i <= roomCount; i++) {
                   newRooms[`Room ${i}`] = [];
                 }
-                allNames.forEach((name, idx) => {
+                allNames.forEach((name: string, idx: number) => {
                   const roomIdx = (idx % roomCount) + 1;
                   newRooms[`Room ${roomIdx}`].push(name);
                 });
