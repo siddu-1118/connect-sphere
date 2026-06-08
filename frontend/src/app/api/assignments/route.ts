@@ -12,7 +12,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Authorization header is required' }, { status: 401 });
     }
 
-    const { workspaceId, title, description, dueDate, recipientIds } = await request.json();
+    const { workspaceId, title, description, dueDate, recipientIds, referenceMaterials } = await request.json();
 
     if (!workspaceId || !title || !recipientIds || !Array.isArray(recipientIds) || recipientIds.length === 0) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         title,
         description,
         due_date: dueDate || null,
+        reference_materials: referenceMaterials || [],
       })
       .select()
       .single();

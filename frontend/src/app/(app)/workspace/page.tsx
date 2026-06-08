@@ -124,21 +124,29 @@ export default function WorkspacePage() {
     dueDate?: string | null;
     createdAt: string;
     teacherName: string;
+    referenceMaterials?: { name: string; url: string; size?: number; type?: string }[];
     recipients: {
       studentId: string;
       studentName: string;
       status: 'pending' | 'submitted' | 'graded';
+      submittedWork?: { name: string; url: string; size?: number; type?: string }[];
+      submissionText?: string;
+      submittedAt?: string | null;
     }[];
   }
   const [assignments, setAssignments] = useState<LocalAssignment[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   
-  // Assignment Form State
   const [assignmentTitle, setAssignmentTitle] = useState('');
   const [assignmentDesc, setAssignmentDesc] = useState('');
   const [assignmentDueDate, setAssignmentDueDate] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [assignmentFiles, setAssignmentFiles] = useState<{ name: string; url: string; size?: number; type?: string }[]>([]);
+  const [uploadingAssFile, setUploadingAssFile] = useState(false);
+  const [submissionText, setSubmissionText] = useState<Record<string, string>>({});
+  const [submissionFiles, setSubmissionFiles] = useState<Record<string, { name: string; url: string; size?: number; type?: string }[]>>({});
+  const [uploadingSubFile, setUploadingSubFile] = useState<Record<string, boolean>>({});
   
   // Message Alert Recipients state (Option B)
   const [selectedMessageRecipientIds, setSelectedMessageRecipientIds] = useState<string[]>([]);
@@ -458,6 +466,7 @@ export default function WorkspacePage() {
           description,
           due_date,
           created_at,
+          reference_materials,
           users (
             display_name
           )
@@ -476,6 +485,9 @@ export default function WorkspacePage() {
             assignment_id,
             student_id,
             status,
+            submitted_work,
+            submission_text,
+            submitted_at,
             users (
               display_name
             )
@@ -494,10 +506,14 @@ export default function WorkspacePage() {
           dueDate: a.due_date,
           createdAt: a.created_at,
           teacherName: a.users?.display_name || 'Teacher',
+          referenceMaterials: a.reference_materials || [],
           recipients: filterRecipients.map((r: any) => ({
             studentId: r.student_id,
             studentName: r.users?.display_name || 'Student',
-            status: r.status as any
+            status: r.status as any,
+            submittedWork: r.submitted_work || [],
+            submissionText: r.submission_text || '',
+            submittedAt: r.submitted_at || null
           }))
         };
       });
@@ -1429,6 +1445,7 @@ export default function WorkspacePage() {
                             setAssignmentDesc('');
                             setAssignmentDueDate('');
                             setSelectedStudentIds([]);
+                            setAssignmentFiles([]);
                             setShowAssignmentModal(true);
                           }}
                           className="flex items-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)]"
@@ -1453,15 +1470,14 @@ export default function WorkspacePage() {
                         <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
                           {isTeacher 
                             ? 'Assign homework or tasks to students and track their completion status.' 
-                            : 'All clear! No assignments have been posted to this workspace yet.'}
+                            : 'All clear! No assignments have been posted to this workspace.'}
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {assignments.map(ass => {
                           const isAssignedToMe = ass.recipients.some(r => r.studentId === user?.id);
-                          const myStatus = ass.recipients.find(r => r.studentId === user?.id)?.status;
-                          
+                          const myStatus = ass.recipients.find(r => r.studentId === user?.id)?.status || 'pending';
                           return (
                             <div key={ass.id} className="p-5 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-xl flex flex-col gap-4 text-left select-text">
                               <div className="flex justify-between items-start gap-4">
@@ -1472,7 +1488,7 @@ export default function WorkspacePage() {
 
                                 {/* Due Date Badge */}
                                 {ass.dueDate && (
-                                  <div className="px-3 py-1 bg-slate-900 border border-slate-850 rounded-xl text-[9px] font-bold text-slate-400">
+                                  <div className="px-3 py-1 bg-slate-900 border border-slate-855 rounded-xl text-[9px] font-bold text-slate-400">
                                     Due: {new Date(ass.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
                                   </div>
                                 )}
@@ -1480,40 +1496,189 @@ export default function WorkspacePage() {
 
                               <p className="text-slate-350 text-xs leading-relaxed">{ass.description || 'No description provided.'}</p>
 
+                              {/* Reference Materials */}
+                              {ass.referenceMaterials && ass.referenceMaterials.length > 0 && (
+                                <div className="text-left mt-2">
+                                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Reference Materials:</span>
+                                  <div className="flex flex-wrap gap-2">
+                                    {ass.referenceMaterials.map((f: any, i: number) => (
+                                      <a
+                                        key={i}
+                                        href={f.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-2.5 py-1.5 bg-slate-950 border border-slate-900 rounded-lg text-xs text-cyan-405 hover:text-cyan-300 hover:border-cyan-500/20 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                      >
+                                        <FileText size={12} />
+                                        <span className="truncate max-w-[150px]">{f.name}</span>
+                                      </a>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Student View (Submit status controls) */}
                               {isAssignedToMe && (
-                                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-955/40 border border-slate-900/50 mt-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Status:</span>
-                                    <span className={cn(
-                                      "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
-                                      myStatus === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                      myStatus === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-                                      myStatus === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
-                                    )}>
-                                      {myStatus}
-                                    </span>
+                                <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-955/40 border border-slate-900/50 mt-1">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Status:</span>
+                                      <span className={cn(
+                                        "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
+                                        myStatus === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                        myStatus === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+                                        myStatus === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                      )}>
+                                        {myStatus}
+                                      </span>
+                                    </div>
+
+                                    {/* Submitted At */}
+                                    {myStatus !== 'pending' && (
+                                      <span className="text-[9px] text-slate-550">
+                                        Submitted: {new Date(ass.recipients.find(r => r.studentId === user?.id)?.submittedAt || ass.createdAt).toLocaleString()}
+                                      </span>
+                                    )}
                                   </div>
 
-                                  {myStatus === 'pending' && (
-                                    <button
-                                      onClick={async () => {
-                                        try {
-                                          const { error } = await supabase
-                                            .from('assignment_recipients')
-                                            .update({ status: 'submitted' })
-                                            .eq('assignment_id', ass.id)
-                                            .eq('student_id', user?.id);
-                                          if (error) throw error;
-                                          loadAssignments();
-                                        } catch (e) {
-                                          console.error('Error submitting assignment:', e);
-                                        }
-                                      }}
-                                      className="px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/20 text-cyan-400 text-[10px] font-bold uppercase rounded-lg transition-all cursor-pointer"
-                                    >
-                                      Submit Work
-                                    </button>
+                                  {myStatus === 'pending' ? (
+                                    <div className="space-y-3 mt-1.5">
+                                      <div>
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Submission Note</label>
+                                        <textarea
+                                          value={submissionText[ass.id] || ''}
+                                          onChange={e => setSubmissionText(prev => ({ ...prev, [ass.id]: e.target.value }))}
+                                          placeholder="Add a comment or note about your submission..."
+                                          rows={2}
+                                          className="w-full bg-slate-955 border border-slate-855 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-700 outline-none focus:border-cyan-500/40 transition-all font-outfit resize-none"
+                                        />
+                                      </div>
+
+                                      {/* Work Upload */}
+                                      <div>
+                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Work Files</label>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="file"
+                                            multiple
+                                            id={`sub-file-${ass.id}`}
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                              if (!e.target.files) return;
+                                              setUploadingSubFile(prev => ({ ...prev, [ass.id]: true }));
+                                              const uploaded = [...(submissionFiles[ass.id] || [])];
+                                              for (const file of Array.from(e.target.files)) {
+                                                try {
+                                                  const filePath = `${activeWorkspaceId}/submissions/${Date.now()}-${file.name}`;
+                                                  const { data, error } = await supabase.storage
+                                                    .from('workspace_files')
+                                                    .upload(filePath, file);
+                                                  if (error) throw error;
+                                                  const { data: { publicUrl } } = supabase.storage
+                                                    .from('workspace_files')
+                                                    .getPublicUrl(filePath);
+                                                  uploaded.push({
+                                                    name: file.name,
+                                                    url: publicUrl,
+                                                    size: file.size,
+                                                    type: file.type
+                                                  });
+                                                } catch (err) {
+                                                  console.error('File upload failed:', err);
+                                                }
+                                              }
+                                              setSubmissionFiles(prev => ({ ...prev, [ass.id]: uploaded }));
+                                              setUploadingSubFile(prev => ({ ...prev, [ass.id]: false }));
+                                            }}
+                                          />
+                                          <label
+                                            htmlFor={`sub-file-${ass.id}`}
+                                            className="flex items-center justify-center gap-2 w-full py-2 bg-slate-950 border border-slate-855 rounded-xl text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer hover:border-cyan-500/30 transition-all font-outfit"
+                                          >
+                                            {uploadingSubFile[ass.id] ? (
+                                              <div className="w-3.5 h-3.5 border-2 border-t-cyan-500 border-white/10 rounded-full animate-spin" />
+                                            ) : (
+                                              <Plus size={12} />
+                                            )}
+                                            <span>{uploadingSubFile[ass.id] ? 'Uploading work files...' : 'Upload Work Files'}</span>
+                                          </label>
+                                        </div>
+
+                                        {(submissionFiles[ass.id] || []).length > 0 && (
+                                          <div className="mt-2 space-y-1.5 text-left">
+                                            {(submissionFiles[ass.id] || []).map((f, idx) => (
+                                              <div key={idx} className="flex justify-between items-center bg-slate-955/40 border border-slate-900 px-3 py-1.5 rounded-xl text-[10px] text-slate-350">
+                                                <span className="truncate flex-1 pr-2">{f.name}</span>
+                                                <button
+                                                  onClick={() => setSubmissionFiles(prev => ({
+                                                    ...prev,
+                                                    [ass.id]: prev[ass.id].filter((_, i) => i !== idx)
+                                                  }))}
+                                                  className="text-rose-455 hover:text-rose-500 font-bold cursor-pointer"
+                                                >
+                                                  Remove
+                                                </button>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      <button
+                                        onClick={async () => {
+                                          try {
+                                            const subFiles = submissionFiles[ass.id] || [];
+                                            const subText = submissionText[ass.id] || '';
+                                            const { error } = await supabase
+                                              .from('assignment_recipients')
+                                              .update({ 
+                                                status: 'submitted',
+                                                submitted_work: subFiles,
+                                                submission_text: subText,
+                                                submitted_at: new Date().toISOString()
+                                              })
+                                              .eq('assignment_id', ass.id)
+                                              .eq('student_id', user?.id);
+                                            if (error) throw error;
+                                            loadAssignments();
+                                          } catch (e) {
+                                            console.error('Error submitting assignment:', e);
+                                          }
+                                        }}
+                                        className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-550 hover:to-cyan-450 text-slate-955 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-pointer border-0"
+                                      >
+                                        Turn In Assignment
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    /* Submitted View */
+                                    <div className="space-y-2 mt-1.5 bg-slate-955/30 border border-slate-900/60 p-3 rounded-xl text-left select-text">
+                                      {ass.recipients.find(r => r.studentId === user?.id)?.submissionText && (
+                                        <div>
+                                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Your Note:</span>
+                                          <p className="text-xs text-slate-350 leading-relaxed font-outfit select-text">{ass.recipients.find(r => r.studentId === user?.id)?.submissionText}</p>
+                                        </div>
+                                      )}
+                                      {ass.recipients.find(r => r.studentId === user?.id)?.submittedWork && (ass.recipients.find(r => r.studentId === user?.id)?.submittedWork || []).length > 0 && (
+                                        <div className="mt-2">
+                                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Your Work Files:</span>
+                                          <div className="flex flex-wrap gap-2">
+                                            {(ass.recipients.find(r => r.studentId === user?.id)?.submittedWork || []).map((file: any, i: number) => (
+                                              <a
+                                                key={i}
+                                                href={file.url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="px-2.5 py-1.5 bg-slate-955 border border-slate-900 rounded-lg text-xs text-cyan-400 hover:text-cyan-300 hover:border-cyan-550/20 flex items-center gap-1.5 transition-colors cursor-pointer"
+                                              >
+                                                <FileText size={12} />
+                                                <span className="truncate max-w-[150px]">{file.name}</span>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               )}
@@ -1522,47 +1687,79 @@ export default function WorkspacePage() {
                               {isTeacher && (
                                 <div className="border-t border-slate-900/60 pt-4 mt-2">
                                   <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5">Student Statuses ({ass.recipients.length})</h4>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                                     {ass.recipients.map(rec => (
-                                      <div key={rec.studentId} className="flex justify-between items-center px-3 py-2 bg-slate-950/20 border border-slate-900 rounded-xl">
-                                        <span className="text-xs text-slate-300 truncate max-w-[130px]">{rec.studentName}</span>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className={cn(
-                                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
-                                            rec.status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                            rec.status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-                                            rec.status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
-                                          )}>
-                                            {rec.status}
-                                          </span>
-                                          {rec.status === 'submitted' && (
-                                            <button
-                                              onClick={async () => {
-                                                try {
-                                                  const { error } = await supabase
-                                                    .from('assignment_recipients')
-                                                    .update({ status: 'graded' })
-                                                    .eq('assignment_id', ass.id)
-                                                    .eq('student_id', rec.studentId);
-                                                  if (error) throw error;
-                                                  loadAssignments();
-                                                } catch (e) {
-                                                  console.error('Error grading assignment:', e);
-                                                }
-                                              }}
-                                              className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded"
-                                              title="Mark as Graded"
-                                            >
-                                              Grade
-                                            </button>
-                                          )}
+                                      <div key={rec.studentId} className="flex flex-col gap-2 p-3 bg-slate-950/20 border border-slate-900 rounded-2xl text-left select-text">
+                                        <div className="flex justify-between items-center">
+                                          <span className="text-xs text-slate-205 font-bold truncate max-w-[130px]">{rec.studentName}</span>
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={cn(
+                                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
+                                              rec.status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
+                                              rec.status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
+                                              rec.status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                            )}>
+                                              {rec.status}
+                                            </span>
+                                            {rec.status === 'submitted' && (
+                                              <button
+                                                onClick={async () => {
+                                                  try {
+                                                    const { error } = await supabase
+                                                      .from('assignment_recipients')
+                                                      .update({ status: 'graded' })
+                                                      .eq('assignment_id', ass.id)
+                                                      .eq('student_id', rec.studentId);
+                                                    if (error) throw error;
+                                                    loadAssignments();
+                                                  } catch (e) {
+                                                    console.error('Error grading assignment:', e);
+                                                  }
+                                                }}
+                                                className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded cursor-pointer"
+                                                title="Mark as Graded"
+                                              >
+                                                Grade
+                                              </button>
+                                            )}
+                                          </div>
                                         </div>
+
+                                        {/* Display submission details if submitted/graded */}
+                                        {rec.status !== 'pending' && (
+                                          <div className="mt-1 space-y-1.5 bg-slate-950/30 border border-slate-900 rounded-xl p-2.5 text-xs text-slate-350 select-text">
+                                            {rec.submissionText && (
+                                              <div>
+                                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Note:</span>
+                                                <p className="text-slate-300 select-text">{rec.submissionText}</p>
+                                              </div>
+                                            )}
+                                            {rec.submittedWork && rec.submittedWork.length > 0 && (
+                                              <div className="mt-1.5">
+                                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Files:</span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                  {rec.submittedWork.map((file: any, idx: number) => (
+                                                    <a
+                                                      key={idx}
+                                                      href={file.url}
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      className="px-2 py-1 bg-slate-950 border border-slate-900 rounded text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
+                                                    >
+                                                      <FileText size={10} />
+                                                      <span className="truncate max-w-[100px]">{file.name}</span>
+                                                    </a>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
                                       </div>
                                     ))}
                                   </div>
                                 </div>
                               )}
-
                             </div>
                           );
                         })}
@@ -2193,6 +2390,75 @@ export default function WorkspacePage() {
                   )}
                 </div>
               </div>
+
+              {/* Reference Materials Upload */}
+              <div>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1.5 block">Reference Materials (Attachments)</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    multiple
+                    id="ass-file-uploader"
+                    className="hidden"
+                    onChange={async (e) => {
+                      if (!e.target.files) return;
+                      setUploadingAssFile(true);
+                      const uploaded = [...assignmentFiles];
+                      for (const file of Array.from(e.target.files)) {
+                        try {
+                          const filePath = `${activeWorkspaceId}/assignments/${Date.now()}-${file.name}`;
+                          const { data, error } = await supabase.storage
+                            .from('workspace_files')
+                            .upload(filePath, file);
+                          if (error) throw error;
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('workspace_files')
+                            .getPublicUrl(filePath);
+                          uploaded.push({
+                            name: file.name,
+                            url: publicUrl,
+                            size: file.size,
+                            type: file.type
+                          });
+                        } catch (err) {
+                          console.error('File upload failed:', err);
+                        }
+                      }
+                      setAssignmentFiles(uploaded);
+                      setUploadingAssFile(false);
+                    }}
+                  />
+                  <label
+                    htmlFor="ass-file-uploader"
+                    className="flex items-center justify-center gap-2 w-full min-h-[44px] py-3 bg-slate-950 border border-slate-855 rounded-xl text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer hover:border-cyan-500/30 transition-all font-outfit"
+                  >
+                    {uploadingAssFile ? (
+                      <div className="w-3.5 h-3.5 border-2 border-t-cyan-500 border-white/10 rounded-full animate-spin" />
+                    ) : (
+                      <Plus size={12} />
+                    )}
+                    <span>{uploadingAssFile ? 'Uploading reference files...' : 'Upload Reference Materials'}</span>
+                  </label>
+                </div>
+
+                {assignmentFiles.length > 0 && (
+                  <div className="mt-2 space-y-1.5 text-left max-h-32 overflow-y-auto scrollbar-thin">
+                    {assignmentFiles.map((f, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-slate-955/40 border border-slate-900 px-3 py-1 rounded-xl text-[10px] text-slate-350">
+                        <span className="truncate flex-1 pr-2">{f.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setAssignmentFiles(prev => prev.filter((_, i) => i !== idx))}
+                          className="w-11 h-11 flex items-center justify-center text-rose-455 hover:text-rose-400 cursor-pointer transition-colors"
+                          title="Remove file"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex gap-3 mt-6 select-none">
@@ -2221,7 +2487,8 @@ export default function WorkspacePage() {
                         title: assignmentTitle,
                         description: assignmentDesc,
                         dueDate: assignmentDueDate || null,
-                        recipientIds: selectedStudentIds
+                        recipientIds: selectedStudentIds,
+                        referenceMaterials: assignmentFiles
                       })
                     });
 

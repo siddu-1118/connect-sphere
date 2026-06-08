@@ -436,3 +436,194 @@ OTP Code: ${otp}
     return true;
   }
 }
+
+export async function sendAssignmentReminderEmail(email: string, studentName: string, assignmentTitle: string, dueDate: Date | string): Promise<boolean> {
+  const subject = `[AeroMeet] Reminder: Assignment Due Soon - ${assignmentTitle}`;
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0B0F19;
+            color: #E2E8F0;
+            padding: 40px 20px;
+            margin: 0;
+          }
+          .container {
+            max-width: 520px;
+            background: linear-gradient(135deg, #111827 0%, #0F172A 100%);
+            border: 1px solid rgba(6, 182, 212, 0.1);
+            border-radius: 16px;
+            padding: 40px;
+            margin: 0 auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+          }
+          .logo {
+            text-align: center;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to right, #22D3EE, #06B6D4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 30px;
+          }
+          h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #FFFFFF;
+            margin-top: 0;
+            margin-bottom: 12px;
+          }
+          p {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #94A3B8;
+            margin-bottom: 24px;
+          }
+          .due-box {
+            text-align: center;
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 30px 0;
+          }
+          .due-date {
+            font-size: 18px;
+            font-weight: 700;
+            color: #22D3EE;
+            margin: 0;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #1E293B;
+            font-size: 12px;
+            color: #64748B;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo">AeroMeet</div>
+          <h2>Assignment Due Soon</h2>
+          <p>Hi ${studentName},</p>
+          <p>This is a reminder that the assignment <strong>${assignmentTitle}</strong> is due in less than 24 hours.</p>
+          <div class="due-box">
+            <div class="due-date">Due: ${new Date(dueDate).toLocaleString()}</div>
+          </div>
+          <p>Please make sure to complete and submit your work before the deadline.</p>
+          <div class="footer">
+            © 2026 AeroMeet. Built for premium real-time collaboration.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Brevo API integration
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    console.log(`📬 Sending assignment reminder email via Brevo API to ${email}...`);
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'AeroMeet',
+            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+          },
+          to: [
+            {
+              email: email,
+              name: studentName
+            }
+          ],
+          subject: subject,
+          htmlContent: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ Assignment reminder email sent successfully via Brevo to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Brevo API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send reminder email via Brevo:`, err);
+    }
+  }
+
+  // Resend API integration
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    console.log(`📬 Sending assignment reminder email via Resend API to ${email}...`);
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM_EMAIL || 'AeroMeet <onboarding@resend.dev>',
+          to: email,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+
+      if (response.ok) {
+        console.log(`✉️ Assignment reminder email sent successfully via Resend to ${email}`);
+        return true;
+      } else {
+        const errText = await response.text();
+        console.error(`❌ Resend API failed: ${response.status} - ${errText}`);
+      }
+    } catch (err) {
+      console.error(`❌ Failed to send reminder email via Resend:`, err);
+    }
+  }
+
+  const mailOptions = {
+    from: EMAIL_FROM,
+    to: email,
+    subject,
+    html: htmlContent,
+  };
+
+  const client = getTransporter();
+  if (client) {
+    try {
+      await client.sendMail(mailOptions);
+      console.log(`✉️ Assignment reminder email sent successfully to ${email}`);
+      return true;
+    } catch (err) {
+      console.error(`❌ Failed to send reminder email to ${email}:`, err);
+      return false;
+    }
+  } else {
+    console.log(`
+===================================================
+📬 [AeroMeet Email Reminder Simulator]
+To: ${email}
+Subject: ${subject}
+Name: ${studentName}
+Assignment: ${assignmentTitle}
+===================================================
+`);
+    return true;
+  }
+}

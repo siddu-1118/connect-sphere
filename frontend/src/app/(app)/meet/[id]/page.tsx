@@ -34,7 +34,9 @@ import {
   Zap,
   AlertTriangle,
   CornerDownRight,
-  Hand
+  Hand,
+  FileText,
+  Radio
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -58,7 +60,7 @@ import {
 import { Track } from 'livekit-client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type SidebarTab = 'People' | 'Chat' | 'Q&A';
+type SidebarTab = 'People' | 'Chat' | 'Q&A' | 'Notes' | 'Backstage';
 
 interface FloatingReaction {
   id: string;
@@ -174,6 +176,108 @@ function LiveKitMeetingRoomInner({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('People');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Collaborative document states
+  const [documentText, setDocumentText] = useState<string>('');
+
+  // Backstage states
+  const [meetingHostId, setMeetingHostId] = useState<string>('');
+  const [backstageActive, setBackstageActive] = useState<boolean>(false);
+  const [backstageMessages, setBackstageMessages] = useState<any[]>([]);
+  const [backstageDraft, setBackstageDraft] = useState<string>('');
+
+  // Battery & Data Saver state
+  const [dataSaverActive, setDataSaverActive] = useState<boolean>(false);
+
+  // Fetch meeting host details
+  useEffect(() => {
+    async function fetchMeetingDetails() {
+      try {
+        const res = await api.get(`/meetings/${meetingId}`);
+        if (res.data?.success && res.data?.meeting) {
+          setMeetingHostId(res.data.meeting.hostId);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch meeting details:", err);
+      }
+    }
+    fetchMeetingDetails();
+  }, [meetingId]);
+
+  // Socket sync listeners for notes and backstage whispers
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDocSync = (text: string) => {
+      setDocumentText(text);
+    };
+
+    const handleDocChange = (text: string) => {
+      setDocumentText(text);
+    };
+
+    const handleBackstageRecv = (msg: any) => {
+      setBackstageMessages(prev => [...prev, msg]);
+    };
+
+    socket.on('document-sync', handleDocSync);
+    socket.on('document-change', handleDocChange);
+    socket.on('backstage-msg-recv', handleBackstageRecv);
+
+    return () => {
+      socket.off('document-sync', handleDocSync);
+      socket.off('document-change', handleDocChange);
+      socket.off('backstage-msg-recv', handleBackstageRecv);
+    };
+  }, [socket]);
+
+  // Adjust camera constraints dynamically for Battery & Data Saver
+  useEffect(() => {
+    try {
+      const pub = localParticipant.getTrackPublication(Track.Source.Camera);
+      const track = pub?.videoTrack?.mediaStreamTrack;
+      if (track) {
+        if (dataSaverActive) {
+          track.applyConstraints({ width: 320, height: 180, frameRate: 15 }).catch(err => {
+            console.warn("Could not apply low bandwidth constraints:", err);
+          });
+        } else {
+          track.applyConstraints({ width: 640, height: 360, frameRate: 24 }).catch(err => {
+            console.warn("Could not apply standard bandwidth constraints:", err);
+          });
+        }
+      }
+    } catch (err) {
+      console.warn("Could not adjust LiveKit video constraints:", err);
+    }
+  }, [dataSaverActive, localParticipant]);
+
+  const handleDocumentChange = (text: string) => {
+    setDocumentText(text);
+    socket?.emit('document-change', { roomId: meetingId, text });
+  };
+
+  const handleToggleBackstage = () => {
+    if (!socket) return;
+    const nextActive = !backstageActive;
+    setBackstageActive(nextActive);
+    if (nextActive) {
+      socket.emit('join-backstage', { roomId: meetingId, userId, userName });
+    } else {
+      socket.emit('leave-backstage', { roomId: meetingId });
+    }
+  };
+
+  const handleSendBackstageWhisper = () => {
+    if (!socket || !backstageDraft.trim()) return;
+    socket.emit('backstage-msg-send', {
+      roomId: meetingId,
+      userId,
+      userName,
+      content: backstageDraft.trim()
+    });
+    setBackstageDraft('');
+  };
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCameraMenu, setShowCameraMenu] = useState(false);
 
@@ -870,9 +974,6 @@ function LiveKitMeetingRoomInner({
               )}
             </div>
 
-            {/* Separator */}
-            <div className="w-[1px] h-6 bg-slate-800" />
-
             {/* Screen share */}
             <button
               onClick={toggleScreenShare}
@@ -887,6 +988,9 @@ function LiveKitMeetingRoomInner({
             >
               <Monitor size={16} className="stroke-[2.5]" />
             </button>
+
+            {/* Separator */}
+            <div className="w-[1px] h-6 bg-slate-800" />
 
             {/* Whiteboard */}
             <button
@@ -964,6 +1068,7 @@ function LiveKitMeetingRoomInner({
             </div>
 
             {/* Hand Raise toggle */}
+            {/* Hand Raise toggle */}
             <button
               onClick={toggleHandRaise}
               className={cn(
@@ -976,6 +1081,21 @@ function LiveKitMeetingRoomInner({
               title={localHandRaised ? "Lower Hand" : "Raise Hand"}
             >
               <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
+            </button>
+
+            {/* Battery & Data Saver */}
+            <button
+              onClick={() => setDataSaverActive(!dataSaverActive)}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                dataSaverActive 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-black shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:scale-[1.02]" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-emerald-400"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title={dataSaverActive ? "Disable Battery & Data Saver" : "Enable Battery & Data Saver (Cap FPS & Resolution)"}
+            >
+              <Zap size={16} className={cn(dataSaverActive && "animate-bounce")} />
             </button>
 
             {/* Sidebar Triggers */}
@@ -1021,6 +1141,36 @@ function LiveKitMeetingRoomInner({
               <HelpCircle size={16} />
             </button>
 
+            <button
+              onClick={() => handleToggleSidebar('Notes')}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                sidebarOpen && activeTab === 'Notes'
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title="Shared Notes Pad"
+            >
+              <FileText size={16} />
+            </button>
+
+            {(userId === meetingHostId || meetingHostId === '') && (
+              <button
+                onClick={() => handleToggleSidebar('Backstage')}
+                className={cn(
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                  sidebarOpen && activeTab === 'Backstage'
+                    ? "bg-rose-500/10 text-rose-400 border-rose-550/20" 
+                    : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+                )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
+                title="Virtual Backstage Room"
+              >
+                <Radio size={16} className={cn(backstageActive && "text-rose-500 animate-pulse")} />
+              </button>
+            )}
+
             <div className="w-[1px] h-6 bg-slate-800" />
 
             {/* Leave button */}
@@ -1050,15 +1200,21 @@ function LiveKitMeetingRoomInner({
               </button>
             </div>
             
-            <div className="flex gap-4">
-              {(['People', 'Chat', 'Q&A'] as SidebarTab[]).map(tab => {
+            <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+              {([
+                'People',
+                'Chat',
+                'Q&A',
+                'Notes',
+                ...(userId === meetingHostId || meetingHostId === '' ? ['Backstage'] : [])
+              ] as SidebarTab[]).map(tab => {
                 const isTabActive = activeTab === tab;
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer",
+                      "pb-2 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap",
                       isTabActive ? "border-cyan-400 text-cyan-400" : "border-transparent text-slate-500 hover:text-slate-350"
                     )}
                   >
@@ -1255,6 +1411,107 @@ function LiveKitMeetingRoomInner({
               </div>
             </div>
           )}
+
+          {/* TAB 4: Notes */}
+          {activeTab === 'Notes' && (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-905/20 text-left">
+              <div className="p-3 bg-slate-900/40 border-b border-slate-900 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">Real-Time Shared Document</span>
+                <p className="text-[9px] text-slate-500 mt-0.5">Collab edits sync instantly to everyone in room.</p>
+              </div>
+              <div className="flex-1 p-3.5 flex flex-col min-h-0">
+                <textarea
+                  value={documentText}
+                  onChange={e => handleDocumentChange(e.target.value)}
+                  placeholder="Collaborate on meeting notes, outline, or code snippet here..."
+                  className="flex-1 w-full bg-slate-950 border border-slate-855 rounded-xl p-3 text-xs text-slate-202 placeholder-slate-700 outline-none resize-none font-mono focus:border-cyan-500/40 transition-colors"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: Backstage whispers */}
+          {activeTab === 'Backstage' && (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-905/20 text-left">
+              <div className="p-3 bg-rose-950/20 border-b border-rose-900/30 shrink-0 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-rose-400">Virtual Backstage</span>
+                  <p className="text-[9px] text-slate-500 mt-0.5">Whisper and chat privately with co-hosts.</p>
+                </div>
+                <button
+                  onClick={handleToggleBackstage}
+                  className={cn(
+                    "px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider border cursor-pointer transition-colors",
+                    backstageActive 
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                      : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-300"
+                  )}
+                >
+                  {backstageActive ? "Active" : "Go Backstage"}
+                </button>
+              </div>
+
+              {backstageActive ? (
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin">
+                    {backstageMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full">
+                        <Radio size={24} className="text-rose-500 mb-3 opacity-40 animate-pulse" />
+                        <p className="text-xs font-bold text-rose-455">Backstage room is silent</p>
+                        <p className="text-[9px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+                          Send a co-host whisper below. Only backstage active users see this.
+                        </p>
+                      </div>
+                    ) : (
+                      backstageMessages.map((msg, idx) => (
+                        <div key={idx} className="flex flex-col gap-0.5 leading-tight select-text text-left">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-bold text-rose-400">{msg.userName}</span>
+                            <span className="text-[8px] text-slate-600 font-semibold">
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 text-xs leading-normal mt-1 break-words bg-rose-955/10 border border-rose-900/10 rounded-lg p-2">{msg.content}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-4 border-t border-slate-900 bg-slate-905 shrink-0 select-none font-outfit">
+                    <div className="flex items-end gap-2 bg-slate-950 border border-slate-855 rounded-xl px-3 py-2.5 focus-within:border-rose-500/40 transition-colors">
+                      <textarea
+                        rows={1}
+                        value={backstageDraft}
+                        onChange={e => setBackstageDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendBackstageWhisper(); } }}
+                        placeholder="Send private backstage whisper..."
+                        className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-700 outline-none resize-none max-h-24 leading-normal select-text font-outfit"
+                        style={{ minHeight: '18px' }}
+                      />
+                      <button
+                        onClick={handleSendBackstageWhisper}
+                        disabled={!backstageDraft.trim()}
+                        className={cn(
+                          "shrink-0 p-1.5 rounded-lg transition-colors cursor-pointer",
+                          backstageDraft.trim() ? "text-rose-400 hover:bg-slate-900" : "text-slate-800 cursor-not-allowed"
+                        )}
+                      >
+                        <Send size={13} className="stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center select-none text-left h-full">
+                  <Radio size={28} className="text-slate-700 mb-3 opacity-40" />
+                  <p className="text-xs font-bold text-slate-450">Backstage is currently inactive</p>
+                  <p className="text-[9px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+                    Click "Go Backstage" to connect to the private communication frequency.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </aside>
       </div>
 
@@ -1349,6 +1606,108 @@ function WebRTCMeetingRoomInner({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('People');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  // Collaborative document states
+  const [documentText, setDocumentText] = useState<string>('');
+
+  // Backstage states
+  const [meetingHostId, setMeetingHostId] = useState<string>('');
+  const [backstageActive, setBackstageActive] = useState<boolean>(false);
+  const [backstageMessages, setBackstageMessages] = useState<any[]>([]);
+  const [backstageDraft, setBackstageDraft] = useState<string>('');
+
+  // Battery & Data Saver state
+  const [dataSaverActive, setDataSaverActive] = useState<boolean>(false);
+
+  // Fetch meeting host details
+  useEffect(() => {
+    async function fetchMeetingDetails() {
+      try {
+        const res = await api.get(`/meetings/${meetingId}`);
+        if (res.data?.success && res.data?.meeting) {
+          setMeetingHostId(res.data.meeting.hostId);
+        }
+      } catch (err) {
+        console.warn("Failed to fetch meeting details:", err);
+      }
+    }
+    fetchMeetingDetails();
+  }, [meetingId]);
+
+  // Socket sync listeners for notes and backstage whispers
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDocSync = (text: string) => {
+      setDocumentText(text);
+    };
+
+    const handleDocChange = (text: string) => {
+      setDocumentText(text);
+    };
+
+    const handleBackstageRecv = (msg: any) => {
+      setBackstageMessages(prev => [...prev, msg]);
+    };
+
+    socket.on('document-sync', handleDocSync);
+    socket.on('document-change', handleDocChange);
+    socket.on('backstage-msg-recv', handleBackstageRecv);
+
+    return () => {
+      socket.off('document-sync', handleDocSync);
+      socket.off('document-change', handleDocChange);
+      socket.off('backstage-msg-recv', handleBackstageRecv);
+    };
+  }, [socket]);
+
+  // Adjust camera constraints dynamically for Battery & Data Saver
+  useEffect(() => {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+      try {
+        if (dataSaverActive) {
+          videoTrack.applyConstraints({ width: 320, height: 180, frameRate: 15 }).catch(err => {
+            console.warn("Could not apply low bandwidth constraints:", err);
+          });
+        } else {
+          videoTrack.applyConstraints({ width: 640, height: 360, frameRate: 24 }).catch(err => {
+            console.warn("Could not apply standard bandwidth constraints:", err);
+          });
+        }
+      } catch (err) {
+        console.warn("Could not adjust WebRTC video constraints:", err);
+      }
+    }
+  }, [dataSaverActive, localStream]);
+
+  const handleDocumentChange = (text: string) => {
+    setDocumentText(text);
+    socket?.emit('document-change', { roomId: meetingId, text });
+  };
+
+  const handleToggleBackstage = () => {
+    if (!socket) return;
+    const nextActive = !backstageActive;
+    setBackstageActive(nextActive);
+    if (nextActive) {
+      socket.emit('join-backstage', { roomId: meetingId, userId, userName });
+    } else {
+      socket.emit('leave-backstage', { roomId: meetingId });
+    }
+  };
+
+  const handleSendBackstageWhisper = () => {
+    if (!socket || !backstageDraft.trim()) return;
+    socket.emit('backstage-msg-send', {
+      roomId: meetingId,
+      userId,
+      userName,
+      content: backstageDraft.trim()
+    });
+    setBackstageDraft('');
+  };
   const [showMicMenu, setShowMicMenu] = useState(false);
   const [showCameraMenu, setShowCameraMenu] = useState(false);
 
@@ -1530,11 +1889,108 @@ function WebRTCMeetingRoomInner({
   }, []);
 
   const startRecording = () => {
-    const streamToRecord = localStream;
-    if (!streamToRecord) {
+    // 1. Gather all active audio tracks
+    const audioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    let mixedAudioTrack: MediaStreamTrack | null = null;
+    let audioContext: AudioContext | null = null;
+    let audioDest: MediaStreamAudioDestinationNode | null = null;
+    const audioSources: any[] = [];
+
+    try {
+      const audioStreams: MediaStream[] = [];
+      if (localStream && localStream.getAudioTracks().length > 0 && !isMuted) {
+        audioStreams.push(localStream);
+      }
+      Object.values(remoteStreams).forEach((rStream: any) => {
+        if (rStream && rStream.getAudioTracks().length > 0) {
+          audioStreams.push(rStream);
+        }
+      });
+
+      if (audioStreams.length > 0) {
+        audioContext = new audioContextClass();
+        audioDest = audioContext.createMediaStreamDestination();
+        audioStreams.forEach(stream => {
+          try {
+            const source = audioContext!.createMediaStreamSource(stream);
+            source.connect(audioDest!);
+            audioSources.push(source);
+          } catch (e) {
+            console.warn("Failed to connect audio stream source:", e);
+          }
+        });
+        mixedAudioTrack = audioDest.stream.getAudioTracks()[0];
+      }
+    } catch (err) {
+      console.warn("Could not mix audio streams for recording:", err);
+    }
+
+    // 2. Gather active video track
+    let videoTrack: MediaStreamTrack | null = null;
+    let dummyIntervalId: any = null;
+
+    // A. Local screen share
+    if (isScreenSharing && localStream) {
+      videoTrack = localStream.getVideoTracks()[0] || null;
+    }
+    // B. Remote screen share
+    if (!videoTrack) {
+      const presenter = participants.find(p => p.isScreenSharing);
+      if (presenter && remoteStreams[presenter.socketId]) {
+        videoTrack = remoteStreams[presenter.socketId].getVideoTracks()[0] || null;
+      }
+    }
+    // C. Local webcam
+    if (!videoTrack && localStream && localStream.getVideoTracks().length > 0) {
+      videoTrack = localStream.getVideoTracks()[0] || null;
+    }
+    // D. Remote webcam
+    if (!videoTrack) {
+      const remoteWithVideo = Object.values(remoteStreams).find(s => s && s.getVideoTracks().length > 0);
+      if (remoteWithVideo) {
+        videoTrack = remoteWithVideo.getVideoTracks()[0] || null;
+      }
+    }
+    // E. Fallback dummy black canvas
+    if (!videoTrack) {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(0, 0, 640, 360);
+          ctx.fillStyle = '#64748b';
+          ctx.font = '16px sans-serif';
+          ctx.fillText('Recording Active (No Video)', 220, 180);
+        }
+        dummyIntervalId = setInterval(() => {
+          if (ctx) {
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(0, 0, 640, 360);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '16px sans-serif';
+            ctx.fillText('Recording Active (No Video)', 220, 180);
+          }
+        }, 1000);
+        const canvasStream = (canvas as any).captureStream(10);
+        videoTrack = canvasStream.getVideoTracks()[0];
+      } catch (err) {
+        console.warn("Failed to create dummy video track:", err);
+      }
+    }
+
+    const tracksToRecord: MediaStreamTrack[] = [];
+    if (videoTrack) tracksToRecord.push(videoTrack);
+    if (mixedAudioTrack) tracksToRecord.push(mixedAudioTrack);
+
+    if (tracksToRecord.length === 0) {
       alert("No audio/video streams available to record.");
       return;
     }
+
+    const streamToRecord = new MediaStream(tracksToRecord);
     recordedChunksRef.current = [];
     const options = { mimeType: 'video/webm;codecs=vp9,opus' };
     let recorder: MediaRecorder;
@@ -1544,7 +2000,11 @@ function WebRTCMeetingRoomInner({
       try {
         recorder = new MediaRecorder(streamToRecord, { mimeType: 'video/webm' });
       } catch (e2) {
-        recorder = new MediaRecorder(streamToRecord);
+        try {
+          recorder = new MediaRecorder(streamToRecord, { mimeType: 'video/mp4' });
+        } catch (e3) {
+          recorder = new MediaRecorder(streamToRecord);
+        }
       }
     }
     
@@ -1555,8 +2015,38 @@ function WebRTCMeetingRoomInner({
     };
 
     recorder.onstop = async () => {
+      if (dummyIntervalId) {
+        clearInterval(dummyIntervalId);
+      }
+      try {
+        audioSources.forEach(src => src.disconnect());
+        if (audioContext) {
+          audioContext.close();
+        }
+      } catch (err) {
+        console.warn("Error cleaning up audio mixer context:", err);
+      }
+
       console.log("🎥 MediaRecorder stopped. Compiling blob...");
       const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+
+      // Trigger local browser download
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
+        a.download = `meeting-recording-${meetingId}-${Date.now()}.${extension}`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 150);
+      } catch (err) {
+        console.warn("Failed to trigger local recording download:", err);
+      }
       
       setIsUploadingRecording(true);
       try {
@@ -1581,7 +2071,7 @@ function WebRTCMeetingRoomInner({
         console.log("🎥 Recording uploaded. Syncing database record...");
         await api.put(`/meetings/${meetingId}/recording`, { recordingUrl: publicUrl });
         
-        alert("Meeting recording uploaded to cloud successfully!");
+        alert("Meeting recording uploaded to cloud and saved to your device successfully!");
       } catch (err) {
         console.error("❌ Failed to upload meeting recording:", err);
         alert("Could not upload meeting recording.");
@@ -2405,8 +2895,6 @@ function WebRTCMeetingRoomInner({
               )}
             </div>
 
-            <div className="w-[1px] h-6 bg-slate-800" />
-
             <button
               onClick={sharing ? stopScreenShare : startScreenShare}
               className={cn(
@@ -2420,6 +2908,8 @@ function WebRTCMeetingRoomInner({
             >
               <Monitor size={16} className="stroke-[2.5]" />
             </button>
+
+            <div className="w-[1px] h-6 bg-slate-800" />
 
             <button
               onClick={() => setWhiteboardActive(!whiteboardActive)}
@@ -2507,12 +2997,28 @@ function WebRTCMeetingRoomInner({
               <Hand size={16} className={cn("transition-transform duration-200", localHandRaised && "scale-110")} />
             </button>
 
+            {/* Battery & Data Saver */}
+            <button
+              onClick={() => setDataSaverActive(!dataSaverActive)}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                dataSaverActive 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 font-black shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:scale-[1.02]" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-emerald-400"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title={dataSaverActive ? "Disable Battery & Data Saver" : "Enable Battery & Data Saver (Cap FPS & Resolution)"}
+            >
+              <Zap size={16} className={cn(dataSaverActive && "animate-bounce")} />
+            </button>
+
+            {/* Sidebar Triggers */}
             <button
               onClick={() => handleToggleSidebar('People')}
               className={cn(
                 "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'People'
-                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-555/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
               style={{ minWidth: '44px', minHeight: '44px' }}
@@ -2526,7 +3032,7 @@ function WebRTCMeetingRoomInner({
               className={cn(
                 "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
                 sidebarOpen && activeTab === 'Chat'
-                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-555/20" 
                   : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
               )}
               style={{ minWidth: '44px', minHeight: '44px' }}
@@ -2548,6 +3054,36 @@ function WebRTCMeetingRoomInner({
             >
               <HelpCircle size={16} />
             </button>
+
+            <button
+              onClick={() => handleToggleSidebar('Notes')}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                sidebarOpen && activeTab === 'Notes'
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-555/20" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title="Shared Notes Pad"
+            >
+              <FileText size={16} />
+            </button>
+
+            {(userId === meetingHostId || meetingHostId === '') && (
+              <button
+                onClick={() => handleToggleSidebar('Backstage')}
+                className={cn(
+                  "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                  sidebarOpen && activeTab === 'Backstage'
+                    ? "bg-rose-500/10 text-rose-400 border-rose-555/20" 
+                    : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+                )}
+                style={{ minWidth: '44px', minHeight: '44px' }}
+                title="Virtual Backstage Room"
+              >
+                <Radio size={16} className={cn(backstageActive && "text-rose-500 animate-pulse")} />
+              </button>
+            )}
 
             <div className="w-[1px] h-6 bg-slate-800" />
 
@@ -2576,15 +3112,21 @@ function WebRTCMeetingRoomInner({
               </button>
             </div>
             
-            <div className="flex gap-4">
-              {(['People', 'Chat', 'Q&A'] as SidebarTab[]).map(tab => {
+            <div className="flex gap-2.5 overflow-x-auto scrollbar-none pb-1">
+              {([
+                'People',
+                'Chat',
+                'Q&A',
+                'Notes',
+                ...(userId === meetingHostId || meetingHostId === '' ? ['Backstage'] : [])
+              ] as SidebarTab[]).map(tab => {
                 const isTabActive = activeTab === tab;
                 return (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer",
+                      "pb-2 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer shrink-0 whitespace-nowrap",
                       isTabActive ? "border-cyan-400 text-cyan-400" : "border-transparent text-slate-505 hover:text-slate-355"
                     )}
                   >
@@ -2776,6 +3318,107 @@ function WebRTCMeetingRoomInner({
                   </button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 4: Notes */}
+          {activeTab === 'Notes' && (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-905/20 text-left">
+              <div className="p-3 bg-slate-900/40 border-b border-slate-900 shrink-0">
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">Real-Time Shared Document</span>
+                <p className="text-[9px] text-slate-500 mt-0.5">Collab edits sync instantly to everyone in room.</p>
+              </div>
+              <div className="flex-1 p-3.5 flex flex-col min-h-0">
+                <textarea
+                  value={documentText}
+                  onChange={e => handleDocumentChange(e.target.value)}
+                  placeholder="Collaborate on meeting notes, outline, or code snippet here..."
+                  className="flex-1 w-full bg-slate-950 border border-slate-855 rounded-xl p-3 text-xs text-slate-202 placeholder-slate-700 outline-none resize-none font-mono focus:border-cyan-500/40 transition-colors"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: Backstage whispers */}
+          {activeTab === 'Backstage' && (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-905/20 text-left">
+              <div className="p-3 bg-rose-950/20 border-b border-rose-900/30 shrink-0 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-rose-400">Virtual Backstage</span>
+                  <p className="text-[9px] text-slate-500 mt-0.5">Whisper and chat privately with co-hosts.</p>
+                </div>
+                <button
+                  onClick={handleToggleBackstage}
+                  className={cn(
+                    "px-2 py-1 rounded text-[8px] font-bold uppercase tracking-wider border cursor-pointer transition-colors",
+                    backstageActive 
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                      : "bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-300"
+                  )}
+                >
+                  {backstageActive ? "Active" : "Go Backstage"}
+                </button>
+              </div>
+
+              {backstageActive ? (
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3.5 scrollbar-thin">
+                    {backstageMessages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full">
+                        <Radio size={24} className="text-rose-500 mb-3 opacity-40 animate-pulse" />
+                        <p className="text-xs font-bold text-rose-455">Backstage room is silent</p>
+                        <p className="text-[9px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+                          Send a co-host whisper below. Only backstage active users see this.
+                        </p>
+                      </div>
+                    ) : (
+                      backstageMessages.map((msg, idx) => (
+                        <div key={idx} className="flex flex-col gap-0.5 leading-tight select-text text-left">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-bold text-rose-400">{msg.userName}</span>
+                            <span className="text-[8px] text-slate-600 font-semibold">
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-slate-300 text-xs leading-normal mt-1 break-words bg-rose-955/10 border border-rose-900/10 rounded-lg p-2">{msg.content}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="p-4 border-t border-slate-900 bg-slate-905 shrink-0 select-none font-outfit">
+                    <div className="flex items-end gap-2 bg-slate-950 border border-slate-855 rounded-xl px-3 py-2.5 focus-within:border-rose-500/40 transition-colors">
+                      <textarea
+                        rows={1}
+                        value={backstageDraft}
+                        onChange={e => setBackstageDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendBackstageWhisper(); } }}
+                        placeholder="Send private backstage whisper..."
+                        className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-700 outline-none resize-none max-h-24 leading-normal select-text font-outfit"
+                        style={{ minHeight: '18px' }}
+                      />
+                      <button
+                        onClick={handleSendBackstageWhisper}
+                        disabled={!backstageDraft.trim()}
+                        className={cn(
+                          "shrink-0 p-1.5 rounded-lg transition-colors cursor-pointer",
+                          backstageDraft.trim() ? "text-rose-400 hover:bg-slate-900" : "text-slate-800 cursor-not-allowed"
+                        )}
+                      >
+                        <Send size={13} className="stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center py-20 px-4 text-center select-none text-left h-full">
+                  <Radio size={28} className="text-slate-700 mb-3 opacity-40" />
+                  <p className="text-xs font-bold text-slate-455">Backstage is currently inactive</p>
+                  <p className="text-[9px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+                    Click "Go Backstage" to connect to the private communication frequency.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </aside>

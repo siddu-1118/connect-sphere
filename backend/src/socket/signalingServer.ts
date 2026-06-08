@@ -36,6 +36,7 @@ async function logActiveUsersCount(io: Server) {
 }
 
 const roomWhiteboards = new Map<string, Y.Doc>();
+const roomDocuments = new Map<string, string>();
 
 interface BreakoutState {
   mainRoomId: string;
@@ -136,6 +137,10 @@ export function setupSocketIO(server: HttpServer) {
         socket.emit('whiteboard-sync', Buffer.from(stateUpdate));
       }
 
+      // Send existing document text to joining user
+      const currentDocText = roomDocuments.get(roomId) || '';
+      socket.emit('document-sync', currentDocText);
+
       // Check if breakout rooms are active for this main room
       const breakout = activeBreakouts.get(roomId);
       if (breakout) {
@@ -197,6 +202,26 @@ export function setupSocketIO(server: HttpServer) {
       } catch (err) {
         console.error('Yjs update error:', err);
       }
+    });
+
+    // Document editing sync
+    socket.on('document-change', ({ roomId, text }: { roomId: string; text: string }) => {
+      roomDocuments.set(roomId, text);
+      socket.to(`meet:${roomId}`).emit('document-change', text);
+    });
+
+    // Backstage events
+    socket.on('join-backstage', ({ roomId, userId, userName }: { roomId: string; userId: string; userName: string }) => {
+      socket.join(`backstage:${roomId}`);
+      console.log(`🕵️ User ${userName} joined backstage for room ${roomId}`);
+    });
+
+    socket.on('leave-backstage', ({ roomId }: { roomId: string }) => {
+      socket.leave(`backstage:${roomId}`);
+    });
+
+    socket.on('backstage-msg-send', ({ roomId, userId, userName, content }: { roomId: string; userId: string; userName: string; content: string }) => {
+      io.to(`backstage:${roomId}`).emit('backstage-msg-recv', { userId, userName, content, timestamp: new Date().toISOString() });
     });
 
     // Relay screen share status updates

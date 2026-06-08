@@ -20,7 +20,14 @@ import {
   Zap,
   AlertTriangle,
   MessageSquare,
-  LogOut
+  LogOut,
+  Image,
+  Film,
+  FileText,
+  FileArchive,
+  FileAudio,
+  File,
+  Download
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -46,7 +53,85 @@ interface LocalDMMessage {
   content: string;
   createdAt: string;
   priority: 'Standard' | 'Important' | 'Urgent';
+  attachments?: { name: string; url: string; size?: number; type?: string; path: string }[];
 }
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
+const FileCard = ({ file }: { file: any }) => {
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('workspace_files')
+        .createSignedUrl(file.path, 60);
+
+      if (error) throw error;
+      if (data?.signedUrl) {
+        const link = document.createElement('a');
+        link.href = data.signedUrl;
+        link.download = file.name;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } catch (err) {
+      console.error('Failed to generate download URL:', err);
+      alert('Could not download file.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  const getIcon = (type: string) => {
+    const t = type.toLowerCase();
+    if (t.includes('image/')) return <Image className="w-5 h-5 text-cyan-400" />;
+    if (t.includes('video/')) return <Film className="w-5 h-5 text-indigo-400" />;
+    if (t.includes('audio/')) return <FileAudio className="w-5 h-5 text-purple-400" />;
+    if (t.includes('pdf') || t.includes('word') || t.includes('document')) return <FileText className="w-5 h-5 text-emerald-400" />;
+    if (t.includes('zip') || t.includes('rar') || t.includes('tar') || t.includes('archive')) return <FileArchive className="w-5 h-5 text-amber-500" />;
+    return <File className="w-5 h-5 text-slate-400" />;
+  };
+
+  return (
+    <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/60 rounded-2xl p-4 flex items-center justify-between gap-4 max-w-sm w-full transition-all shadow-md group mt-1">
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center shrink-0 border border-slate-800/80">
+          {getIcon(file.type)}
+        </div>
+        <div className="min-w-0 text-left">
+          <p className="text-xs font-bold text-slate-200 truncate group-hover:text-white transition-colors" title={file.name}>
+            {file.name}
+          </p>
+          <p className="text-[10px] text-slate-500 font-semibold mt-0.5 uppercase tracking-wider">
+            {formatFileSize(file.size)}
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={handleDownload}
+        disabled={downloading}
+        className="p-2 bg-slate-950 border border-slate-800 hover:border-blue-500/30 text-slate-400 hover:text-blue-400 rounded-xl transition-all cursor-pointer hover:bg-slate-900 shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px]"
+        title="Download file"
+      >
+        {downloading ? (
+          <span className="w-4 h-4 rounded-full border-2 border-slate-750 border-t-blue-500 animate-spin block" />
+        ) : (
+          <Download className="w-4 h-4" />
+        )}
+      </button>
+    </div>
+  );
+};
 
 // Synthetic Directory contacts (to start conversations with)
 const SYNTHETIC_CONTACTS = [
@@ -113,6 +198,8 @@ export default function ChatPage() {
 
   // Compose inputs
   const [draftText, setDraftText] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<{ name: string; url: string; size?: number; type?: string; path: string }[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [priority, setPriority] = useState<'Standard' | 'Important' | 'Urgent'>('Standard');
   const [showPriorityMenu, setShowPriorityMenu] = useState(false);
   const [showEmojiMenu, setShowEmojiMenu] = useState(false);
@@ -209,7 +296,7 @@ export default function ChatPage() {
 
   // Send message
   const handleSendMessage = () => {
-    if (!draftText.trim() || !activeUserId) return;
+    if ((!draftText.trim() && attachedFiles.length === 0) || !activeUserId) return;
 
     const newMessage: LocalDMMessage = {
       id: `dm-${Date.now()}`,
@@ -217,9 +304,10 @@ export default function ChatPage() {
       senderName: user?.name ?? 'You',
       senderAvatar: user?.avatarUrl,
       receiverId: activeUserId,
-      content: draftText.trim(),
+      content: draftText.trim() || `Sent ${attachedFiles.length} file(s)`,
       createdAt: new Date().toISOString(),
-      priority
+      priority,
+      attachments: attachedFiles
     };
 
     // 1. Update messages list
@@ -228,11 +316,12 @@ export default function ChatPage() {
     localStorage.setItem(`cs_dm_msgs_${activeUserId}`, JSON.stringify(updatedMessages));
 
     // 2. Update conversation last message preview
+    const previewText = draftText.trim() || (attachedFiles.length > 0 ? `📎 ${attachedFiles[0].name}` : 'File attachment');
     const updatedConvos = conversations.map(c => {
       if (c.userId === activeUserId) {
         return {
           ...c,
-          lastMessage: draftText.trim(),
+          lastMessage: previewText,
           lastMessageAt: new Date().toISOString()
         };
       }
@@ -242,6 +331,7 @@ export default function ChatPage() {
 
     // Reset compose
     setDraftText('');
+    setAttachedFiles([]);
     setPriority('Standard');
     textareaRef.current?.focus();
   };
@@ -536,6 +626,13 @@ export default function ChatPage() {
                           <div className="text-slate-350 text-xs leading-relaxed break-words font-outfit select-text selection:bg-cyan-500/20">
                             {renderMessageContent(msg.content)}
                           </div>
+                          {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="mt-2.5 space-y-2 select-none">
+                              {msg.attachments.map((file, idx) => (
+                                <FileCard key={idx} file={file} />
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -550,6 +647,42 @@ export default function ChatPage() {
               <div className="max-w-4xl w-full mx-auto">
                 <div className="bg-slate-900/30 border border-slate-900 focus-within:border-cyan-500/40 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 shadow-2xl">
                   
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    multiple
+                    id="dm-file-input"
+                    className="hidden"
+                    onChange={async (e) => {
+                      if (!e.target.files || !activeUserId) return;
+                      setUploadingFile(true);
+                      const uploaded = [...attachedFiles];
+                      for (const file of Array.from(e.target.files)) {
+                        try {
+                          const filePath = `dms/${user?.id || 'anonymous'}/${activeUserId}/${Date.now()}-${file.name}`;
+                          const { data, error } = await supabase.storage
+                            .from('workspace_files')
+                            .upload(filePath, file);
+                          if (error) throw error;
+                          const { data: { publicUrl } } = supabase.storage
+                            .from('workspace_files')
+                            .getPublicUrl(filePath);
+                          uploaded.push({
+                            name: file.name,
+                            url: publicUrl,
+                            size: file.size,
+                            type: file.type || 'application/octet-stream',
+                            path: filePath
+                          });
+                        } catch (err) {
+                          console.error('DM File upload failed:', err);
+                        }
+                      }
+                      setAttachedFiles(uploaded);
+                      setUploadingFile(false);
+                    }}
+                  />
+
                   {/* Textarea */}
                   <textarea
                     ref={textareaRef}
@@ -558,8 +691,35 @@ export default function ChatPage() {
                     onKeyDown={handleKeyDown}
                     placeholder={`Message ${activeConvo.name}...`}
                     rows={1}
-                    className="w-full bg-transparent px-5 py-4 text-xs text-slate-200 placeholder-slate-650 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
+                    className="w-full bg-transparent px-5 py-4 text-xs text-slate-200 placeholder-slate-655 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
                   />
+
+                  {/* Uploading Status */}
+                  {uploadingFile && (
+                    <div className="flex items-center gap-2 px-5 py-2.5 border-t border-slate-900/40 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      <div className="w-3.5 h-3.5 border-2 border-t-cyan-500 border-white/10 rounded-full animate-spin" />
+                      <span>Uploading files...</span>
+                    </div>
+                  )}
+
+                  {/* Attached Files Preview */}
+                  {attachedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 px-5 py-2.5 border-t border-slate-900/40 select-text">
+                      {attachedFiles.map((file, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-slate-950 border border-slate-900 px-3 py-1.5 rounded-xl text-[10px] text-slate-350 gap-2 shrink-0 select-text">
+                          <span className="truncate max-w-[120px] select-text">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
+                            className="w-11 h-11 flex items-center justify-center text-rose-455 hover:text-rose-400 cursor-pointer transition-colors"
+                            title="Remove file"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Toolbar Panel */}
                   <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-900/60 select-none">
@@ -591,13 +751,13 @@ export default function ChatPage() {
                       <div className="h-4 w-[1px] bg-slate-900 mx-1" />
 
                       {/* Attachments */}
-                      <button
-                        onClick={() => alert("Simulated: File Attachment trigger.")}
-                        className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                      <label
+                        htmlFor="dm-file-input"
+                        className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850 flex items-center justify-center min-w-[44px] min-h-[44px]"
                         title="Attach File"
                       >
                         <Paperclip size={13} />
-                      </button>
+                      </label>
 
                       {/* Emoji Popover */}
                       <div className="relative" ref={emojiRef}>
@@ -666,15 +826,15 @@ export default function ChatPage() {
                     {/* Send Button */}
                     <button
                       onClick={handleSendMessage}
-                      disabled={!draftText.trim()}
+                      disabled={!draftText.trim() && attachedFiles.length === 0}
                       className={cn(
                         "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
-                        draftText.trim()
+                        (draftText.trim() || attachedFiles.length > 0)
                           ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98]"
                           : "bg-slate-900 text-slate-655 cursor-not-allowed border border-slate-850/50"
                       )}
                     >
-                      <Send size={11} className={cn("stroke-[2.5]", draftText.trim() ? "text-slate-950" : "text-slate-655")} />
+                      <Send size={11} className={cn("stroke-[2.5]", (draftText.trim() || attachedFiles.length > 0) ? "text-slate-950" : "text-slate-655")} />
                       Send
                     </button>
 

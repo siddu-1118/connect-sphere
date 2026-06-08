@@ -145,6 +145,10 @@ export default function GreenRoomPage() {
   const [noiseCancellation, setNoiseCancellation] = useState(true);
   const [joining, setJoining] = useState(false);
 
+  // AI Background Segmentation & Preview state
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const [segmentationLoaded, setSegmentationLoaded] = useState(false);
+
   // Hardware Lists
   const [cameras, setCameras] = useState<DeviceOption[]>([]);
   const [microphones, setMicrophones] = useState<DeviceOption[]>([]);
@@ -154,8 +158,35 @@ export default function GreenRoomPage() {
   const [selectedSpeakerId, setSelectedSpeakerId] = useState('');
 
   // Media references
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Load MediaPipe Selfie Segmentation script dynamically
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js';
+    script.async = true;
+    script.onload = () => {
+      setSegmentationLoaded(true);
+      console.log('✅ MediaPipe Selfie Segmentation loaded');
+    };
+    document.body.appendChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const setVideoRef = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el) {
+      if (activeEffect === 'blur') {
+        // Handled by the canvas loop
+      } else {
+        el.srcObject = previewStream;
+      }
+    }
+  }, [previewStream, activeEffect]);
 
   // Audio analyser refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -303,8 +334,9 @@ export default function GreenRoomPage() {
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
         streamRef.current = stream;
+        setPreviewStream(stream);
 
-        if (cameraOn && videoRef.current) {
+        if (cameraOn && videoRef.current && activeEffect !== 'blur') {
           videoRef.current.srcObject = stream;
         }
 
@@ -316,12 +348,14 @@ export default function GreenRoomPage() {
         await updateDeviceList();
       } else {
         streamRef.current = null;
+        setPreviewStream(null);
       }
     } catch (err) {
       console.warn('Webcam/Mic hardware streaming permission denied or unavailable:', err);
       streamRef.current = null;
+      setPreviewStream(null);
     }
-  }, [cameraOn, micOn, selectedCameraId, selectedMicId, noiseCancellation, updateDeviceList]);
+  }, [cameraOn, micOn, selectedCameraId, selectedMicId, noiseCancellation, updateDeviceList, activeEffect]);
 
   // Init and sync streams
   useEffect(() => {
@@ -332,9 +366,112 @@ export default function GreenRoomPage() {
     };
   }, [startStream]);
 
+  const selfieSegmentationRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!segmentationLoaded || typeof window === 'undefined') return;
+    const SelfieSegmentationClass = (window as any).SelfieSegmentation;
+    if (!SelfieSegmentationClass) return;
+
+    const selfieSegmentation = new SelfieSegmentationClass({
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+    });
+
+    selfieSegmentation.setOptions({
+      modelSelection: 1,
+    });
+
+    selfieSegmentationRef.current = selfieSegmentation;
+
+    return () => {
+      selfieSegmentation.close();
+      selfieSegmentationRef.current = null;
+    };
+  }, [segmentationLoaded]);
+
+  // AI Background Segmentation Frame Processing Loop
+  useEffect(() => {
+    if (activeEffect !== 'blur' || !previewStream || !selfieSegmentationRef.current) {
+      return;
+    }
+
+    const video = document.createElement('video');
+    video.srcObject = previewStream;
+    video.muted = true;
+    video.playsInline = true;
+    video.play().catch(err => console.warn('Hidden video play failed:', err));
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+
+    const tempCanvas = document.createElement('canvas');
+    const tempCtx = tempCanvas.getContext('2d')!;
+
+    let active = true;
+
+    selfieSegmentationRef.current.onResults((results: any) => {
+      if (!active) return;
+
+      const width = results.image.width || 640;
+      const height = results.image.height || 480;
+
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      if (tempCanvas.width !== width) tempCanvas.width = width;
+      if (tempCanvas.height !== height) tempCanvas.height = height;
+
+      // Draw mask on temp canvas
+      tempCtx.clearRect(0, 0, width, height);
+      tempCtx.drawImage(results.segmentationMask, 0, 0, width, height);
+
+      // Draw original image on temp canvas with source-in (keeping only the person)
+      tempCtx.globalCompositeOperation = 'source-in';
+      tempCtx.drawImage(results.image, 0, 0, width, height);
+      tempCtx.globalCompositeOperation = 'source-over';
+
+      // Draw blurred image on main canvas
+      ctx.clearRect(0, 0, width, height);
+      ctx.save();
+      ctx.filter = 'blur(12px)';
+      ctx.drawImage(results.image, 0, 0, width, height);
+      ctx.restore();
+
+      // Overlay the person on top of the blurred background
+      ctx.drawImage(tempCanvas, 0, 0, width, height);
+    });
+
+    const processFrame = async () => {
+      if (!active) return;
+      if (video.readyState >= 2) {
+        try {
+          await selfieSegmentationRef.current.send({ image: video });
+        } catch (err) {
+          // ignore transient frame send errors
+        }
+      }
+      requestAnimationFrame(processFrame);
+    };
+
+    processFrame();
+
+    const canvasStream = (canvas as any).captureStream ? (canvas as any).captureStream(30) : null;
+    if (canvasStream && videoRef.current) {
+      videoRef.current.srcObject = canvasStream;
+    }
+
+    return () => {
+      active = false;
+      video.pause();
+      video.srcObject = null;
+      if (videoRef.current && previewStream) {
+        videoRef.current.srcObject = previewStream;
+      }
+    };
+  }, [activeEffect, previewStream, segmentationLoaded]);
+
   // Background style filters
   const backgroundStyle = (): React.CSSProperties => {
-    if (activeEffect === 'blur') return { filter: 'blur(10px)' };
+    // Note: 'blur' is handled via AI canvas segmentation directly on the stream.
     if (activeEffect === 'beach') return { filter: 'saturate(1.3) contrast(1.05)' };
     if (activeEffect === 'dark-studio') return { filter: 'brightness(0.65) contrast(1.15)' };
     return {};
@@ -415,9 +552,9 @@ export default function GreenRoomPage() {
                 micOn ? "border-cyan-500/30 ring-2 ring-cyan-500/10" : "border-slate-900"
               )}
             >
-              {cameraOn && streamRef.current ? (
+              {cameraOn && previewStream ? (
                 <video
-                  ref={videoRef}
+                  ref={setVideoRef}
                   autoPlay
                   muted
                   playsInline

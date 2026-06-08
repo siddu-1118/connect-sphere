@@ -14,6 +14,7 @@ import calendarRoutes from './routes/calendar';
 import adminRoutes from './routes/admin';
 import pushRoutes from './routes/push';
 import { initVapidKeys, checkAndSendMeetingReminders } from './services/push';
+import { sendAssignmentReminderEmail } from './services/email';
 import { errorHandler } from './middleware/errorHandler'; // We'll create this next
 
 const app = express();
@@ -284,6 +285,10 @@ async function runStartupMigrations() {
       );
     `);
 
+    await db.execute(sql`
+      ALTER TABLE assignment_recipients ADD COLUMN IF NOT EXISTS reminder_sent BOOLEAN DEFAULT false;
+    `);
+
     // Create RPC analytics functions
     await db.execute(sql`
       CREATE OR REPLACE FUNCTION get_meeting_minutes_last_30_days()
@@ -460,8 +465,58 @@ async function runStartupMigrations() {
     setInterval(() => {
       checkAndSendMeetingReminders();
     }, 60 * 1000);
+
+    // Start hourly assignment reminders check
+    checkAndSendAssignmentReminders();
+    setInterval(() => {
+      checkAndSendAssignmentReminders();
+    }, 60 * 60 * 1000);
   } catch (err) {
     console.error('❌ Failed running startup database migrations:', err);
+  }
+}
+
+async function checkAndSendAssignmentReminders() {
+  try {
+    const query = sql`
+      SELECT 
+        ar.assignment_id,
+        ar.student_id,
+        u.email,
+        u.display_name as student_name,
+        a.title as assignment_title,
+        a.due_date
+      FROM assignment_recipients ar
+      JOIN assignments a ON ar.assignment_id = a.id
+      JOIN users u ON ar.student_id = u.id
+      WHERE ar.status = 'pending'
+        AND ar.reminder_sent = false
+        AND a.due_date IS NOT NULL
+        AND a.due_date > NOW()
+        AND a.due_date <= NOW() + INTERVAL '24 hours';
+    `;
+    const result = await db.execute(query);
+    const rows = result.rows as any[];
+
+    for (const row of rows) {
+      console.log(`✉️ Sending assignment due reminder email to student: ${row.email} for assignment: ${row.assignment_title}`);
+      const success = await sendAssignmentReminderEmail(
+        row.email,
+        row.student_name || 'Student',
+        row.assignment_title,
+        row.due_date
+      );
+      if (success) {
+        await db.execute(sql`
+          UPDATE assignment_recipients
+          SET reminder_sent = true
+          WHERE assignment_id = ${row.assignment_id}::uuid
+            AND student_id = ${row.student_id}::uuid;
+        `);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error checking/sending assignment reminders:', error);
   }
 }
 
