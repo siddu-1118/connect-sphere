@@ -25,9 +25,9 @@ export const users = pgTable('users', {
 export const meetings = pgTable('meetings', {
   id: uuid('id').primaryKey().defaultRandom(),
   title: varchar('title', { length: 255 }).notNull(),
-  code: varchar('code', { length: 12 }).unique().notNull(),
+  code: varchar('passcode', { length: 12 }).unique().notNull(),
   hostId: uuid('host_id').references(() => users.id),
-  scheduledAt: timestamp('scheduled_at'),
+  scheduledAt: timestamp('scheduled_for'),
   endedAt: timestamp('ended_at'),
   isActive: boolean('is_active').default(true),
   recordingUrl: text('recording_url'),

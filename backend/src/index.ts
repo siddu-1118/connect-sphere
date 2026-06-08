@@ -144,6 +144,12 @@ async function runStartupMigrations() {
     await db.execute(sql`
       ALTER TABLE meetings ADD COLUMN IF NOT EXISTS recording_url TEXT;
     `);
+    await db.execute(sql`
+      ALTER TABLE meetings ADD COLUMN IF NOT EXISTS ended_at TIMESTAMP WITH TIME ZONE;
+    `);
+    await db.execute(sql`
+      ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    `);
     
     // Wrap storage RLS and policies in try-catch since storage is managed by Supabase system schemas
     try {
@@ -342,7 +348,7 @@ async function runStartupMigrations() {
 
     // Ensure default demo admin is fully seeded in both tables
     try {
-      const bcrypt = require('bcrypt');
+      const bcrypt = require('bcryptjs');
       const tempHash = await bcrypt.hash('TestPassword123', 12);
       
       // 1. Try to delete any conflicting email in auth.users if the ID doesn't match

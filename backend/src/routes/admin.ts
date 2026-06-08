@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { db } from '../db';
 import { sql } from 'drizzle-orm';
 import { authenticate } from '../middleware/authenticate';
