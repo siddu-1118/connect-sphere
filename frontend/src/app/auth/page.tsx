@@ -161,7 +161,7 @@ function AuthContent() {
       try {
         const client = (window as any).google.accounts.oauth2.initCodeClient({
           client_id: clientId,
-          scope: 'openid email profile https://www.googleapis.com/auth/calendar.readonly',
+          scope: 'openid email profile',
           ux_mode: 'popup',
           callback: async (response: any) => {
             if (response.code) {
