@@ -36,7 +36,8 @@ import {
   CornerDownRight,
   Hand,
   FileText,
-  Radio
+  Radio,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -1541,6 +1542,29 @@ function LiveKitMeetingRoomInner({
   );
 }
 
+interface VideoPlayerProps extends React.VideoHTMLAttributes<HTMLVideoElement> {
+  stream: MediaStream | null;
+}
+
+const VideoPlayer = ({ stream, ...props }: VideoPlayerProps) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+      }
+      if (stream) {
+        videoRef.current.play().catch((err) => {
+          console.warn("VideoPlayer play failed:", err);
+        });
+      }
+    }
+  }, [stream]);
+
+  return <video ref={videoRef} {...props} />;
+};
+
 // ─── W E B R T C   M E E T I N G   R O O M   I N N E R ────────────────────────
 function WebRTCMeetingRoomInner({ 
   meetingId, 
@@ -1562,6 +1586,12 @@ function WebRTCMeetingRoomInner({
   const [breakoutMyRoom, setBreakoutMyRoom] = useState<string | null>(null);
   const [timeRemaining, setTimeRemaining] = useState<string>('');
 
+  const searchParams = useSearchParams();
+  const initialVideo = searchParams.get('video') !== 'false';
+  const initialAudio = searchParams.get('audio') !== 'false';
+  const camId = searchParams.get('camId') || undefined;
+  const micId = searchParams.get('micId') || undefined;
+
   const {
     localStream,
     remoteStreams,
@@ -1575,7 +1605,13 @@ function WebRTCMeetingRoomInner({
     startScreenShare,
     stopScreenShare,
     sendChatMessage,
-  } = useWebRTC(currentRoomId, socket, userId, userName);
+    whisperGroupId,
+    whisperRoomCreatorId,
+    toggleWhisperGroup,
+    kickWhisperMember,
+    muteAllWhisperMembers,
+    closeWhisperGroup,
+  } = useWebRTC(currentRoomId, socket, userId, userName, initialVideo, initialAudio, camId, micId);
 
   const micOn = !isMuted;
   const cameraOn = !isCameraOff;
@@ -1606,6 +1642,7 @@ function WebRTCMeetingRoomInner({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('People');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showWhisperModal, setShowWhisperModal] = useState(false);
 
   // Collaborative document states
   const [documentText, setDocumentText] = useState<string>('');
@@ -2497,6 +2534,16 @@ function WebRTCMeetingRoomInner({
   return (
     <div className="h-screen bg-slate-950 flex flex-col overflow-hidden text-slate-200 font-outfit relative">
       
+      {/* ── DIAGNOSTICS HUD ── */}
+      <div className="absolute top-16 left-4 bg-slate-900/90 border border-slate-850 p-3 rounded-xl text-[10px] text-cyan-400 z-50 pointer-events-none select-text flex flex-col gap-1 shadow-2xl">
+        <p className="font-bold border-b border-white/5 pb-1 mb-1">Local Camera Diagnostics</p>
+        <p>isCameraOff: <span className="font-mono text-white">{String(isCameraOff)}</span></p>
+        <p>cameraOn: <span className="font-mono text-white">{String(cameraOn)}</span></p>
+        <p>localStream: <span className="font-mono text-white">{localStream ? "Active" : "Null"}</span></p>
+        <p>Video Tracks: <span className="font-mono text-white">{localStream ? localStream.getVideoTracks().length : 0}</span></p>
+        <p>Audio Tracks: <span className="font-mono text-white">{localStream ? localStream.getAudioTracks().length : 0}</span></p>
+      </div>
+
       {/* ── 1. CALL TOP APP BAR ── */}
       <div className="h-14 bg-slate-905/30 border-b border-slate-900 flex items-center justify-between px-6 shrink-0 z-20 select-none">
         <div className="flex items-center gap-3.5 min-w-0">
@@ -2630,8 +2677,8 @@ function WebRTCMeetingRoomInner({
                   <div className="flex-[4] relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden shadow-2xl">
                     {screenSharingUser.socketId === 'local' ? (
                       localStream && (
-                        <video
-                          ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                        <VideoPlayer
+                          stream={localStream}
                           autoPlay
                           muted
                           playsInline
@@ -2640,8 +2687,8 @@ function WebRTCMeetingRoomInner({
                       )
                     ) : (
                       remoteStreams[screenSharingUser.socketId] && (
-                        <video
-                          ref={el => { if (el && remoteStreams[screenSharingUser.socketId]) el.srcObject = remoteStreams[screenSharingUser.socketId]; }}
+                        <VideoPlayer
+                          stream={remoteStreams[screenSharingUser.socketId]}
                           autoPlay
                           playsInline
                           className="w-full h-full object-contain"
@@ -2660,8 +2707,8 @@ function WebRTCMeetingRoomInner({
                     {screenSharingUser.socketId !== 'local' && (
                       <div className="relative bg-slate-900 border border-slate-850 rounded-xl overflow-hidden aspect-video w-36 md:w-full shrink-0">
                         {cameraOn && localStream ? (
-                          <video
-                            ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                          <VideoPlayer
+                            stream={localStream}
                             autoPlay
                             muted
                             playsInline
@@ -2687,14 +2734,19 @@ function WebRTCMeetingRoomInner({
                     {participants.map(p => {
                       if (p.socketId === screenSharingUser.socketId) return null;
                       const stream = remoteStreams[p.socketId];
-                      const pCameraOn = !p.isCameraOff;
+                      
+                      const inWhisperGroup = !!p.whisperGroupId;
+                      const sameWhisperGroup = p.whisperGroupId === whisperGroupId;
+                      const isBlocked = inWhisperGroup && !sameWhisperGroup;
+                      const pCameraOn = !p.isCameraOff && !isBlocked;
+                      
                       const isHandRaised = handRaises[p.userId] || false;
 
                       return (
                         <div key={p.socketId} className="relative bg-slate-900 border border-slate-850 rounded-xl overflow-hidden aspect-video w-36 md:w-full shrink-0">
                           {pCameraOn && stream ? (
-                            <video
-                              ref={el => { if (el && stream) el.srcObject = stream; }}
+                            <VideoPlayer
+                              stream={stream}
                               autoPlay
                               playsInline
                               className="w-full h-full object-cover"
@@ -2750,8 +2802,8 @@ function WebRTCMeetingRoomInner({
                       return (
                         <div key={tile.key} className="relative bg-slate-900 border border-slate-850 rounded-2xl overflow-hidden aspect-video shadow-lg">
                           {cameraOn && localStream ? (
-                            <video
-                              ref={el => { if (el && localStream) el.srcObject = localStream; }}
+                            <VideoPlayer
+                              stream={localStream}
                               autoPlay
                               muted
                               playsInline
@@ -2779,14 +2831,20 @@ function WebRTCMeetingRoomInner({
 
                     const p = tile.participant!;
                     const stream = remoteStreams[p.socketId];
-                    const pCameraOn = !p.isCameraOff;
+                    
+                    const inWhisperGroup = !!p.whisperGroupId;
+                    const sameWhisperGroup = p.whisperGroupId === whisperGroupId;
+                    const isBlocked = inWhisperGroup && !sameWhisperGroup;
+                    const pCameraOn = !p.isCameraOff && !isBlocked;
+                    const isMutedUI = p.isMuted || isBlocked;
+                    
                     const isHandRaised = handRaises[p.userId] || false;
 
                     return (
                       <div key={tile.key} className="relative bg-slate-900 border border-slate-855 rounded-2xl overflow-hidden aspect-video shadow-lg">
                         {pCameraOn && stream ? (
-                          <video
-                            ref={el => { if (el && stream) el.srcObject = stream; }}
+                          <VideoPlayer
+                            stream={stream}
                             autoPlay
                             playsInline
                             className="w-full h-full object-cover"
@@ -2799,7 +2857,7 @@ function WebRTCMeetingRoomInner({
                         )}
                         <div className="absolute bottom-3 left-3 backdrop-blur-md bg-slate-950/60 border border-slate-850 px-2.5 py-1 rounded-lg z-10 flex items-center gap-1.5 select-none">
                           <span className="text-[10px] text-slate-252 font-semibold">{p.userName}</span>
-                          {p.isMuted && <MicOff size={10} className="text-rose-400 shrink-0" />}
+                          {isMutedUI && <MicOff size={10} className="text-rose-400 shrink-0" />}
                         </div>
                         {isHandRaised && (
                           <div className="absolute top-3 right-3 bg-amber-500 text-slate-955 p-1 rounded-full z-10 shadow-lg animate-bounce">
@@ -3010,6 +3068,21 @@ function WebRTCMeetingRoomInner({
               title={dataSaverActive ? "Disable Battery & Data Saver" : "Enable Battery & Data Saver (Cap FPS & Resolution)"}
             >
               <Zap size={16} className={cn(dataSaverActive && "animate-bounce")} />
+            </button>
+
+            {/* Private Side Discussions (Whisper Groups) */}
+            <button
+              onClick={() => setShowWhisperModal(true)}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                whisperGroupId 
+                  ? "bg-purple-500 text-slate-950 font-black shadow-[0_0_15px_rgba(168,85,247,0.25)] hover:scale-[1.02]" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-200 hover:text-purple-400"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title={whisperGroupId ? "Whisper Group Active" : "Private Side Discussions (Whisper Groups)"}
+            >
+              <EyeOff size={16} className={cn(whisperGroupId && "animate-pulse")} />
             </button>
 
             {/* Sidebar Triggers */}
@@ -3443,9 +3516,228 @@ function WebRTCMeetingRoomInner({
           setRoomsActive={handleToggleRoomsActive} 
           setShowBreakoutModal={setShowBreakoutModal}
           userName={userName}
-          participantsList={[userName, ...participants.map(p => p.userName)]}
         />
       )}
+
+      {showWhisperModal && (
+        <WhisperModal
+          whisperGroupId={whisperGroupId}
+          whisperRoomCreatorId={whisperRoomCreatorId}
+          toggleWhisperGroup={toggleWhisperGroup}
+          kickWhisperMember={kickWhisperMember}
+          muteAllWhisperMembers={muteAllWhisperMembers}
+          closeWhisperGroup={closeWhisperGroup}
+          participants={participants}
+          userId={userId}
+          userName={userName}
+          setShowWhisperModal={setShowWhisperModal}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── P R I V A T E   W H I S P E R   M O D A L ───────────────────────────────
+function WhisperModal({
+  whisperGroupId,
+  whisperRoomCreatorId,
+  toggleWhisperGroup,
+  kickWhisperMember,
+  muteAllWhisperMembers,
+  closeWhisperGroup,
+  participants,
+  userId,
+  userName,
+  setShowWhisperModal,
+}: any) {
+  const [customGroupName, setCustomGroupName] = useState('');
+
+  // Find all other participants in the same whisper group
+  const sameGroupMembers = participants.filter((p: any) => p.whisperGroupId && p.whisperGroupId === whisperGroupId);
+
+  const predefinedRooms = [
+    { id: 'group-alpha', name: 'Group Alpha' },
+    { id: 'group-beta', name: 'Group Beta' },
+    { id: 'group-gamma', name: 'Group Gamma' },
+    { id: 'group-delta', name: 'Group Delta' },
+  ];
+
+  const handleCreateJoinCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customGroupName.trim()) return;
+    const formattedId = 'group-' + customGroupName.trim().toLowerCase().replace(/\s+/g, '-');
+    toggleWhisperGroup(formattedId);
+    setCustomGroupName('');
+  };
+
+  const isRoomAdmin = whisperGroupId && whisperRoomCreatorId === userId;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6.5 shadow-2xl relative text-left">
+        {/* Glow Line */}
+        <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-purple-500/20 to-transparent" />
+        
+        {/* Close Button */}
+        <button 
+          onClick={() => setShowWhisperModal(false)}
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors cursor-pointer"
+        >
+          <X size={15} />
+        </button>
+
+        {/* Header */}
+        <div className="flex items-center gap-2.5 mb-5.5 select-none">
+          <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+            <EyeOff className="w-4.5 h-4.5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-white uppercase tracking-widest leading-none mb-1">Side Discussion Panel</h3>
+            <p className="text-[9px] text-slate-555 font-bold uppercase tracking-wider">Private Whisper Rooms</p>
+          </div>
+        </div>
+
+        {/* Body */}
+        {whisperGroupId ? (
+          /* Active Group View */
+          <div className="space-y-4">
+            <div className="bg-purple-950/20 border border-purple-500/25 rounded-2xl p-4 flex flex-col gap-2 relative overflow-hidden">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#a855f7]" />
+                  <span className="text-xs font-bold text-purple-300">
+                    Connected: {whisperGroupId.replace('group-', '').toUpperCase()}
+                  </span>
+                </div>
+                {isRoomAdmin && (
+                  <span className="text-[8px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded px-1.5 py-0.5 tracking-wider uppercase">
+                    Room Admin
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 leading-normal mt-1 font-outfit">
+                🔒 <strong>Whisper Mode Active:</strong> You can see and hear the main room, but only members of this private group can see and hear you. To the rest of the meeting, you appear muted/idle.
+              </p>
+            </div>
+
+            {/* Members List */}
+            <div className="space-y-2 font-outfit">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Room Members ({sameGroupMembers.length + 1})</p>
+              <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
+                {/* Local user */}
+                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-950 border border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Avatar name={userName} size="sm" />
+                    <span className="text-xs font-semibold text-slate-300">{userName} (You)</span>
+                  </div>
+                </div>
+
+                {/* Other members */}
+                {sameGroupMembers.map((m: any) => (
+                  <div key={m.socketId} className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-955 border border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <Avatar name={m.userName} size="sm" />
+                      <span className="text-xs font-semibold text-slate-300">{m.userName}</span>
+                    </div>
+
+                    {isRoomAdmin && (
+                      <button
+                        onClick={() => kickWhisperMember(m.userId)}
+                        className="px-2.5 py-1 rounded bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-[9px] font-bold text-rose-450 uppercase tracking-wider transition-all cursor-pointer font-outfit"
+                        title="Remove from private discussion"
+                      >
+                        Kick
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Admin Controls */}
+            {isRoomAdmin && (
+              <div className="pt-2 border-t border-slate-900 space-y-2 font-outfit">
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Admin Controls</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={muteAllWhisperMembers}
+                    className="flex-1 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-[10px] font-bold text-slate-300 uppercase tracking-wider transition-all cursor-pointer text-center font-outfit"
+                  >
+                    Mute All
+                  </button>
+                  <button
+                    onClick={closeWhisperGroup}
+                    className="flex-1 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 text-[10px] font-bold text-rose-450 uppercase tracking-wider transition-all cursor-pointer text-center font-outfit"
+                  >
+                    End Side Group
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="pt-3 border-t border-slate-900 flex gap-2">
+              <button
+                onClick={() => { toggleWhisperGroup(null); setShowWhisperModal(false); }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-purple-550 hover:from-purple-500 hover:to-purple-400 text-slate-950 text-xs font-black uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(168,85,247,0.15)] flex items-center justify-center gap-1.5 cursor-pointer border-0 font-outfit"
+              >
+                Return to Main Room
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Join/Create View */
+          <div className="space-y-4.5">
+            <p className="text-[10px] text-slate-450 leading-relaxed font-outfit font-medium">
+              Create or join a private whisper room. You will still hear and see the main room speakers, but your voice/video will only go to other members inside your side room.
+            </p>
+
+            {/* Predefined Rooms */}
+            <div className="space-y-2">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1">Available Discussions</p>
+              <div className="grid grid-cols-2 gap-2 font-outfit">
+                {predefinedRooms.map((r) => {
+                  const count = participants.filter((p: any) => p.whisperGroupId === r.id).length;
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => { toggleWhisperGroup(r.id); }}
+                      className="p-3 text-left bg-slate-950 border border-slate-800 hover:border-purple-500/35 hover:bg-slate-900 rounded-xl transition-all cursor-pointer flex flex-col gap-1"
+                    >
+                      <span className="text-xs font-bold text-slate-200">{r.name}</span>
+                      <span className="text-[9px] text-slate-555 font-semibold uppercase tracking-wider">
+                        {count > 0 ? `${count} active` : 'Empty'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Room Creation */}
+            <form onSubmit={handleCreateJoinCustom} className="pt-2 border-t border-slate-900 space-y-2 font-outfit">
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest px-1 font-outfit">Create Custom Discussion</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customGroupName}
+                  onChange={(e) => setCustomGroupName(e.target.value)}
+                  placeholder="Enter group name..."
+                  maxLength={20}
+                  className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-700 outline-none focus:border-purple-500/30 font-outfit"
+                />
+                <button
+                  type="submit"
+                  disabled={!customGroupName.trim()}
+                  className="px-4 py-2 rounded-xl bg-purple-500 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer border-0 font-outfit"
+                >
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

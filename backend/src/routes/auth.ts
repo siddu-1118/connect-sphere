@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db';
@@ -255,12 +255,45 @@ router.post('/google-code', validate(googleCodeAuthSchema), async (req, res, nex
     }
 
     if (!user) {
+      // Query auth.users to see if they exist there first
+      const authUserResult = await db.execute(
+        sql`SELECT id FROM auth.users WHERE email = ${email} LIMIT 1`
+      );
+      
+      let userId: string;
+      if (authUserResult.rows.length > 0) {
+        userId = authUserResult.rows[0].id as string;
+      } else {
+        userId = uuidv4();
+        const randomPassword = uuidv4();
+        const passwordHash = await bcrypt.hash(randomPassword, SALT_ROUNDS);
+        
+        await db.execute(
+          sql`INSERT INTO auth.users (
+            instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, 
+            raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmed_at
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000000',
+            ${userId}, 'authenticated', 'authenticated', ${email}, ${passwordHash}, now(),
+            '{"provider":"google","providers":["google"]}',
+            ${JSON.stringify({
+              iss: 'https://accounts.google.com',
+              name: name || email.split('@')[0],
+              email: email,
+              picture: picture || null,
+              email_verified: true,
+            })}, now(), now(), now()
+          )`
+        );
+      }
+
       const randomPassword = uuidv4();
       const passwordHash = await bcrypt.hash(randomPassword, SALT_ROUNDS);
 
       [user] = await db
         .insert(users)
         .values({
+          id: userId,
           name: name || email.split('@')[0],
           email: email,
           passwordHash: passwordHash,
@@ -269,6 +302,19 @@ router.post('/google-code', validate(googleCodeAuthSchema), async (req, res, nex
           googleAccessToken: access_token,
           googleRefreshToken: refresh_token || null,
           googleTokenExpiresAt: tokenExpiresAt,
+        })
+        .onConflictDoUpdate({
+          target: users.id,
+          set: {
+            name: name || email.split('@')[0],
+            passwordHash: passwordHash,
+            isVerified: true,
+            avatarUrl: picture || null,
+            googleAccessToken: access_token,
+            googleRefreshToken: refresh_token || null,
+            googleTokenExpiresAt: tokenExpiresAt,
+            updatedAt: new Date()
+          }
         })
         .returning();
     } else {

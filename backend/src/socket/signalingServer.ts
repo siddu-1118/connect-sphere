@@ -46,6 +46,7 @@ interface BreakoutState {
 }
 
 const activeBreakouts = new Map<string, BreakoutState>();
+const whisperRoomCreators = new Map<string, string>(); // maps roomId:whisperGroupId -> creatorUserId
 
 interface RoomUser {
   userId: string;
@@ -53,6 +54,7 @@ interface RoomUser {
   socketId: string;
   isMuted?: boolean;
   isCameraOff?: boolean;
+  whisperGroupId?: string | null;
 }
 
 export function setupSocketIO(server: HttpServer) {
@@ -92,6 +94,28 @@ export function setupSocketIO(server: HttpServer) {
     console.log(`📡 Client connected: ${socket.id}`);
     logActiveUsersCount(io);
 
+    const handleWhisperGroupUserLeave = (roomId: string, userId: string, whisperGroupId: string | null) => {
+      if (!whisperGroupId) return;
+      const groupKey = `${roomId}:${whisperGroupId}`;
+      const creatorId = whisperRoomCreators.get(groupKey);
+      if (creatorId === userId) {
+        whisperRoomCreators.delete(groupKey);
+        const meetingRoom = `meet:${roomId}`;
+        const clients = io.sockets.adapter.rooms.get(meetingRoom);
+        if (clients) {
+          for (const clientId of clients) {
+            const clientSocket = io.sockets.sockets.get(clientId);
+            if (clientSocket && clientSocket.data.whisperGroupId === whisperGroupId) {
+              clientSocket.data.whisperGroupId = null;
+              clientSocket.emit('whisper-group-closed', { whisperGroupId });
+              io.to(meetingRoom).emit('whisper-group-update', { userId: clientSocket.data.userId, whisperGroupId: null });
+            }
+          }
+        }
+        console.log(`🛑 Whisper Group ${whisperGroupId} closed because creator ${userId} left.`);
+      }
+    };
+
     // --- WebRTC Meeting signaling ---
     socket.on('join-room', ({ roomId, userId, userName }: { roomId: string; userId: string; userName: string }) => {
       console.log(`👥 User ${userName} (${userId}) joining meet room: ${roomId}`);
@@ -105,6 +129,7 @@ export function setupSocketIO(server: HttpServer) {
       socket.data.roomId = roomId;
       socket.data.isMuted = false;
       socket.data.isCameraOff = false;
+      socket.data.whisperGroupId = null;
 
       // Get all other connected sockets in this room
       const clients = io.sockets.adapter.rooms.get(meetingRoom);
@@ -121,6 +146,7 @@ export function setupSocketIO(server: HttpServer) {
                 socketId: clientSocket.id,
                 isMuted: clientSocket.data.isMuted,
                 isCameraOff: clientSocket.data.isCameraOff,
+                whisperGroupId: clientSocket.data.whisperGroupId ?? null,
               });
             }
           }
@@ -154,6 +180,7 @@ export function setupSocketIO(server: HttpServer) {
         socketId: socket.id,
         isMuted: false,
         isCameraOff: false,
+        whisperGroupId: null,
       });
     });
 
@@ -182,6 +209,103 @@ export function setupSocketIO(server: HttpServer) {
     socket.on('camera-toggle', ({ roomId, userId, isCameraOff }: { roomId: string; userId: string; isCameraOff: boolean }) => {
       socket.data.isCameraOff = isCameraOff;
       socket.to(`meet:${roomId}`).emit('camera-update', { userId, isCameraOff });
+    });
+
+    // --- Private Whisper Groups ---
+    socket.on('whisper-group-toggle', ({ roomId, userId, whisperGroupId }: { roomId: string; userId: string; whisperGroupId: string | null }) => {
+      const oldGroupId = socket.data.whisperGroupId;
+      socket.data.whisperGroupId = whisperGroupId;
+
+      if (oldGroupId && oldGroupId !== whisperGroupId) {
+        handleWhisperGroupUserLeave(roomId, userId, oldGroupId);
+      }
+
+      if (whisperGroupId) {
+        const groupKey = `${roomId}:${whisperGroupId}`;
+        if (!whisperRoomCreators.has(groupKey)) {
+          whisperRoomCreators.set(groupKey, userId);
+          console.log(`👑 User ${userId} is the creator (Admin) of Whisper Group ${whisperGroupId} in room ${roomId}`);
+        }
+        const creatorId = whisperRoomCreators.get(groupKey);
+        socket.emit('whisper-room-creator-sync', { whisperGroupId, creatorId });
+      }
+      
+      socket.to(`meet:${roomId}`).emit('whisper-group-update', { userId, whisperGroupId });
+    });
+
+    socket.on('whisper-group-kick', ({ roomId, whisperGroupId, targetUserId }: { roomId: string; whisperGroupId: string; targetUserId: string }) => {
+      const groupKey = `${roomId}:${whisperGroupId}`;
+      const creatorId = whisperRoomCreators.get(groupKey);
+      
+      if (creatorId !== socket.data.userId) {
+        console.warn(`⚠️ Kick failed: User ${socket.data.userId} is not the creator of ${whisperGroupId}`);
+        return;
+      }
+
+      // Find the target socket and disconnect them from the whisper group
+      const meetingRoom = `meet:${roomId}`;
+      const clients = io.sockets.adapter.rooms.get(meetingRoom);
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          if (clientSocket && clientSocket.data.userId === targetUserId) {
+            clientSocket.data.whisperGroupId = null;
+            clientSocket.emit('whisper-group-kicked', { whisperGroupId });
+            io.to(meetingRoom).emit('whisper-group-update', { userId: targetUserId, whisperGroupId: null });
+            console.log(`🥾 User ${targetUserId} kicked from whisper group ${whisperGroupId} by Admin ${creatorId}`);
+            break;
+          }
+        }
+      }
+    });
+
+    socket.on('whisper-group-mute-all', ({ roomId, whisperGroupId }: { roomId: string; whisperGroupId: string }) => {
+      const groupKey = `${roomId}:${whisperGroupId}`;
+      const creatorId = whisperRoomCreators.get(groupKey);
+
+      if (creatorId !== socket.data.userId) {
+        console.warn(`⚠️ Mute-all failed: User ${socket.data.userId} is not the creator of ${whisperGroupId}`);
+        return;
+      }
+
+      const meetingRoom = `meet:${roomId}`;
+      const clients = io.sockets.adapter.rooms.get(meetingRoom);
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          // Mute other members in the same whisper group
+          if (clientSocket && clientSocket.id !== socket.id && clientSocket.data.whisperGroupId === whisperGroupId) {
+            clientSocket.emit('whisper-group-muted-by-admin');
+            console.log(`🔇 User ${clientSocket.data.userId} muted in whisper group ${whisperGroupId} by Admin ${creatorId}`);
+          }
+        }
+      }
+    });
+
+    socket.on('whisper-group-close', ({ roomId, whisperGroupId }: { roomId: string; whisperGroupId: string }) => {
+      const groupKey = `${roomId}:${whisperGroupId}`;
+      const creatorId = whisperRoomCreators.get(groupKey);
+
+      if (creatorId !== socket.data.userId) {
+        console.warn(`⚠️ Close failed: User ${socket.data.userId} is not the creator of ${whisperGroupId}`);
+        return;
+      }
+
+      whisperRoomCreators.delete(groupKey);
+
+      const meetingRoom = `meet:${roomId}`;
+      const clients = io.sockets.adapter.rooms.get(meetingRoom);
+      if (clients) {
+        for (const clientId of clients) {
+          const clientSocket = io.sockets.sockets.get(clientId);
+          if (clientSocket && clientSocket.data.whisperGroupId === whisperGroupId) {
+            clientSocket.data.whisperGroupId = null;
+            clientSocket.emit('whisper-group-closed', { whisperGroupId });
+            io.to(meetingRoom).emit('whisper-group-update', { userId: clientSocket.data.userId, whisperGroupId: null });
+          }
+        }
+      }
+      console.log(`🛑 Whisper Group ${whisperGroupId} closed by Admin ${creatorId}`);
     });
 
     // Relay Meeting Chat Messages
@@ -232,6 +356,7 @@ export function setupSocketIO(server: HttpServer) {
     // User leaving the call explicitly
     socket.on('user-leave', ({ roomId, userId }: { roomId: string; userId: string }) => {
       console.log(`🚶 User ${userId} left room explicitly: ${roomId}`);
+      handleWhisperGroupUserLeave(roomId, userId, socket.data.whisperGroupId);
       const meetingRoom = `meet:${roomId}`;
       socket.to(meetingRoom).emit('user-left', { userId, socketId: socket.id });
       socket.leave(meetingRoom);
@@ -320,6 +445,7 @@ export function setupSocketIO(server: HttpServer) {
           const roomId = room.split(':')[1];
           const userId = socket.data.userId;
           console.log(`🔌 Client disconnected unexpectedly, leaving meet: ${roomId}`);
+          handleWhisperGroupUserLeave(roomId, userId, socket.data.whisperGroupId);
           socket.to(room).emit('user-left', { userId, socketId: socket.id });
         }
       }

@@ -352,8 +352,26 @@ export default function GreenRoomPage() {
       }
     } catch (err) {
       console.warn('Webcam/Mic hardware streaming permission denied or unavailable:', err);
+      // Fallback: If camera + mic requested but failed, try audio only
+      if (cameraOn && micOn) {
+        try {
+          console.log('🔄 Attempting audio-only fallback in preview...');
+          const audioStream = await navigator.mediaDevices.getUserMedia({
+            audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true,
+          });
+          streamRef.current = audioStream;
+          setPreviewStream(audioStream);
+          setCameraOn(false); // Update UI button to off
+          startAudioAnalyser(audioStream);
+          return;
+        } catch (audioErr) {
+          console.error('Audio-only fallback also failed:', audioErr);
+        }
+      }
       streamRef.current = null;
       setPreviewStream(null);
+      setCameraOn(false);
+      setMicOn(false);
     }
   }, [cameraOn, micOn, selectedCameraId, selectedMicId, noiseCancellation, updateDeviceList, activeEffect]);
 
