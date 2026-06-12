@@ -1038,24 +1038,24 @@ export default function WorkspacePage() {
   const activeWorkspace = workspaces.find(ws => ws.id === activeWorkspaceId);
   const activeChannel = activeWorkspace?.channels.find(ch => ch.id === activeChannelId);
 
-  // Nested grouping structures
-  const parentMessages = messages.filter(m => !m.parentMessageId);
   const getRepliesForParent = (parentId: string) => {
     return messages.filter(m => m.parentMessageId === parentId);
   };
 
+  const parentMessages = messages.filter(m => !m.parentMessageId);
+
   return (
-    <div className="flex-1 flex overflow-hidden bg-slate-950 font-outfit h-full select-none relative">
+    <div className="flex-1 flex overflow-hidden bg-[#F8FAFC] font-outfit h-full select-none relative">
       
       {/* ── SECONDARY SIDEBAR: Accordion Teams/Channels List ── */}
-      <aside className="w-64 shrink-0 bg-[#0c101a] border-r border-slate-900 flex flex-col h-full select-none hidden sm:flex">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200/80 flex flex-col h-full select-none hidden sm:flex">
         
         {/* Sidebar Header */}
-        <div className="h-16 px-5 border-b border-slate-900 flex items-center justify-between shrink-0 select-none">
-          <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Workspace Channels</h2>
+        <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
+          <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace Channels</h2>
           <button
             onClick={() => setShowWorkspaceModal(true)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-455 hover:bg-slate-900 border border-transparent hover:border-slate-850 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
             title="Create Workspace"
           >
             <Plus size={15} className="stroke-[2.5]" />
@@ -1067,20 +1067,20 @@ export default function WorkspacePage() {
           {workspaces.length === 0 ? (
             /* Sidebar Empty State */
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center select-none h-full">
-              <svg width="48" height="48" viewBox="0 0 64 64" fill="none" className="mb-4 text-slate-655 opacity-40">
-                <rect x="12" y="12" width="40" height="40" rx="8" fill="#1e293b" opacity="0.1" stroke="#475569" strokeWidth="1.5" />
-                <path d="M12 28H52" stroke="#475569" strokeWidth="1.5" strokeDasharray="3 3" />
+              <svg width="48" height="48" viewBox="0 0 64 64" fill="none" className="mb-4 text-slate-400 opacity-40">
+                <rect x="12" y="12" width="40" height="40" rx="8" fill="#f1f5f9" opacity="0.5" stroke="#94a3b8" strokeWidth="1.5" />
+                <path d="M12 28H52" stroke="#94a3b8" strokeWidth="1.5" strokeDasharray="3 3" />
                 <circle cx="24" cy="20" r="3" fill="#6366f1" />
                 <circle cx="40" cy="20" r="3" fill="#06b6d4" />
-                <path d="M20 44L28 36L36 44L44 36" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M20 44L28 36L36 44L44 36" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <p className="text-xs font-bold text-slate-400">No workspaces yet</p>
-              <p className="text-[10px] text-slate-600 mt-1 max-w-[170px] leading-relaxed">
+              <p className="text-xs font-bold text-slate-700">No workspaces yet</p>
+              <p className="text-[10px] text-slate-450 mt-1 max-w-[170px] leading-relaxed">
                 You haven't joined any workspaces yet. Create one to start collaborating.
               </p>
               <button
                 onClick={() => setShowWorkspaceModal(true)}
-                className="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border border-indigo-500/25"
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-sm"
               >
                 Create Workspace
               </button>
@@ -1097,36 +1097,36 @@ export default function WorkspacePage() {
                     onClick={() => toggleWorkspace(ws.id)}
                     className={cn(
                       "flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer group transition-all duration-200",
-                      isActiveWs ? "bg-slate-900/60 border border-slate-850/50" : "hover:bg-slate-900/20 border border-transparent"
+                      isActiveWs ? "bg-slate-50 border border-slate-200/60 shadow-xs" : "hover:bg-slate-50/50 border border-transparent"
                     )}
                   >
                     <ChevronRight
                       size={14}
                       className={cn(
-                        "text-slate-500 group-hover:text-slate-350 transition-transform duration-200 shrink-0",
-                        isExpanded && "rotate-90 text-cyan-400"
+                        "text-slate-400 group-hover:text-slate-600 transition-transform duration-200 shrink-0",
+                        isExpanded && "rotate-90 text-indigo-600"
                       )}
                     />
                     
                     {/* Workspace Initials Mark */}
-                    <div className="w-6 h-6 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-bold text-[9px] flex items-center justify-center shrink-0">
+                    <div className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-650 font-bold text-[9px] flex items-center justify-center shrink-0">
                       {getWorkspaceInitials(ws.name)}
                     </div>
                     
-                    <span className="text-slate-300 text-xs font-bold truncate flex-1">{ws.name}</span>
+                    <span className="text-slate-700 text-xs font-bold truncate flex-1">{ws.name}</span>
                     
                     {/* Workspace utility options (appears on hover) */}
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); setActiveWorkspaceId(ws.id); setShowChannelModal(true); }}
-                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 hover:text-cyan-455 hover:bg-slate-800 transition-colors"
+                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 hover:text-indigo-600 hover:bg-slate-100 transition-colors"
                         title="Add Channel"
                       >
                         <Plus size={12} className="stroke-[2.5]" />
                       </button>
                       <button
                         onClick={(e) => handleDeleteWorkspace(e, ws.id)}
-                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-505 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                        className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 hover:text-red-500 hover:bg-slate-100 transition-colors"
                         title="Delete Workspace"
                       >
                         <Trash2 size={12} />
@@ -1140,7 +1140,7 @@ export default function WorkspacePage() {
                       {ws.channels.length === 0 ? (
                         <button
                           onClick={() => { setActiveWorkspaceId(ws.id); setShowChannelModal(true); }}
-                          className="w-full text-left px-3 py-1.5 text-[10px] text-slate-550 hover:text-cyan-450 flex items-center gap-1 cursor-pointer"
+                          className="w-full text-left px-3 py-1.5 text-[10px] text-slate-450 hover:text-indigo-600 flex items-center gap-1 cursor-pointer"
                         >
                           <Plus size={10} />
                           Add channel
@@ -1155,14 +1155,14 @@ export default function WorkspacePage() {
                               className={cn(
                                 "flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-colors relative border border-transparent select-none",
                                 isChanActive 
-                                  ? "bg-cyan-500/10 text-cyan-405 border-cyan-500/5 shadow-[0_0_12px_rgba(6,182,212,0.05)]" 
-                                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-900/10"
+                                  ? "bg-indigo-50 text-indigo-700 border-indigo-100/50 shadow-xs" 
+                                  : "text-slate-500 hover:text-slate-800 hover:bg-slate-50"
                               )}
                             >
                               {isChanActive && (
-                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 bg-cyan-400 rounded-full shadow-[0_0_6px_#06b6d4]" />
+                                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-3.5 bg-indigo-650 rounded-full shadow-xs" />
                               )}
-                              <Hash size={13} className="shrink-0 text-slate-500" />
+                              <Hash size={13} className="shrink-0 text-slate-400" />
                               <span className="text-[11px] font-semibold truncate leading-none mt-0.5">{ch.name}</span>
                             </div>
                           );
@@ -1177,39 +1177,38 @@ export default function WorkspacePage() {
         </div>
 
         {/* Sidebar Footer User Detail info */}
-        <div className="p-3.5 border-t border-slate-900/60 bg-[#0c101a] flex items-center justify-between shrink-0 select-none">
+        <div className="p-3.5 border-t border-slate-150 bg-slate-50 flex items-center justify-between shrink-0 select-none">
           <div className="flex items-center gap-2.5">
-            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" className="border border-slate-800" />
+            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" className="border border-slate-200 shadow-xs" />
             <div className="leading-none text-left select-none">
-              <p className="text-xs font-bold text-slate-350">{user?.name?.split(' ')[0] ?? 'Aero User'}</p>
-              <span className="text-[8px] font-bold tracking-wider text-indigo-400 uppercase select-none mt-0.5 block">Enterprise Plan</span>
+              <p className="text-xs font-bold text-slate-700">{user?.name?.split(' ')[0] ?? 'Aero User'}</p>
+              <span className="text-[8px] font-bold tracking-wider text-indigo-600 uppercase select-none mt-0.5 block">Enterprise Plan</span>
             </div>
           </div>
         </div>
-
       </aside>
 
       {/* ── MAIN CHAT CANVAS ── */}
-      <main className="flex-1 flex flex-col h-full bg-slate-950/10 overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden relative">
         {!activeChannel ? (
           /* Canvas Select Channel Empty State */
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-slate-950/40 relative">
-            <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-cyan-500/5 rounded-full blur-[130px] pointer-events-none" />
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-transparent relative">
+            <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-indigo-500/5 rounded-full blur-[130px] pointer-events-none" />
             <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-full border border-slate-900 flex items-center justify-center bg-slate-900/60 shadow-2xl z-10 relative ring-1 ring-white/5">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-cyan-500/10 border border-indigo-500/25 flex items-center justify-center shadow-lg text-cyan-404">
-                  <Hash size={24} className="text-cyan-405 stroke-[2.5]" />
+              <div className="w-20 h-20 rounded-full border border-slate-250/80 flex items-center justify-center bg-white shadow-sm z-10 relative">
+                <div className="w-14 h-14 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-xs text-indigo-600">
+                  <Hash size={24} className="text-indigo-600 stroke-[2.5]" />
                 </div>
               </div>
             </div>
-            <h3 className="text-slate-200 font-bold text-base tracking-tight">Select a channel to begin</h3>
+            <h3 className="text-slate-700 font-bold text-base tracking-tight">Select a channel to begin</h3>
             <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
               Choose a workspace and channel from the sidebar accordion, or click below to create a new collaborative space.
             </p>
             {workspaces.length === 0 && (
               <button
                 onClick={() => setShowWorkspaceModal(true)}
-                className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-650 to-indigo-500 hover:from-indigo-600 hover:to-indigo-400 text-slate-100 text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.2)] hover:scale-[1.02] cursor-pointer"
+                className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer"
               >
                 Create Workspace
               </button>
@@ -1218,14 +1217,14 @@ export default function WorkspacePage() {
         ) : (
           <>
             {/* 1. FIXED TABBED HEADER */}
-            <header className="h-16 border-b border-slate-900 bg-slate-950/30 backdrop-blur-md flex flex-col justify-end px-6 shrink-0 select-none z-20">
+            <header className="h-16 border-b border-slate-200 bg-white/80 backdrop-blur-md flex flex-col justify-end px-6 shrink-0 select-none z-20">
               <div className="flex items-center justify-between flex-1 select-none">
                 <div className="flex items-center gap-2 select-none">
-                  <Hash size={18} className="text-slate-400 stroke-[2.5]" />
-                  <h1 className="text-sm font-black text-slate-150 uppercase tracking-wide mt-0.5">{activeChannel.name}</h1>
+                  <Hash size={18} className="text-slate-500 stroke-[2.5]" />
+                  <h1 className="text-sm font-bold text-slate-800 uppercase tracking-wide mt-0.5">{activeChannel.name}</h1>
                 </div>
                 <div className="flex items-center gap-4 select-none">
-                  <span className="text-slate-555 text-[10px] font-bold tracking-wider uppercase">{activeWorkspace?.name}</span>
+                  <span className="text-slate-400 text-[10px] font-bold tracking-wider uppercase">{activeWorkspace?.name}</span>
                   {isTeacher && (
                     <button
                       onClick={() => {
@@ -1234,7 +1233,7 @@ export default function WorkspacePage() {
                         setInviteSuccess(null);
                         setShowInviteModal(true);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 rounded-full font-bold text-[9px] uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.05)] focus:outline-none"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/60 rounded-full font-bold text-[9px] uppercase tracking-wider transition-all duration-200 cursor-pointer shadow-xs focus:outline-none"
                       title="Invite student to this workspace"
                     >
                       <UserPlus size={10} className="stroke-[2.5]" />
@@ -1255,8 +1254,8 @@ export default function WorkspacePage() {
                       className={cn(
                         "pb-2.5 text-xs font-bold uppercase tracking-wider border-b-2 transition-all relative",
                         isActive 
-                          ? "border-cyan-400 text-cyan-400" 
-                          : "border-transparent text-slate-500 hover:text-slate-350 cursor-pointer"
+                          ? "border-indigo-600 text-indigo-600" 
+                          : "border-transparent text-slate-500 hover:text-slate-800 cursor-pointer"
                       )}
                     >
                       {tab}
@@ -1267,18 +1266,15 @@ export default function WorkspacePage() {
             </header>
 
             {/* 2. SCROLLABLE CENTRAL AREA */}
-            <div className={cn(
-              "flex-1 relative",
-              activeTab === 'Posts' ? "overflow-y-auto px-6 py-6 space-y-4 scrollbar-thin" : "overflow-hidden"
-            )}>
+            <div className={cn("flex-1 overflow-y-auto p-6 min-h-0", activeTab === 'Whiteboard' && 'p-0')}>
               {activeTab === 'Posts' ? (
                 parentMessages.length === 0 ? (
                   /* Message Feed Empty State */
                   <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/80 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
-                      <MessageSquare size={24} className="text-indigo-400 stroke-[2.5]" />
+                    <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-5 shadow-xs">
+                      <MessageSquare size={24} className="text-indigo-650 stroke-[2.5]" />
                     </div>
-                    <h3 className="text-slate-200 font-bold text-sm tracking-tight">Welcome to #{activeChannel.name}</h3>
+                    <h3 className="text-slate-700 font-bold text-sm tracking-tight">Welcome to #{activeChannel.name}</h3>
                     <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
                       Welcome to the beginning of this channel. Start a thread below.
                     </p>
@@ -1299,30 +1295,30 @@ export default function WorkspacePage() {
                             className={cn(
                               "flex gap-4 p-4 rounded-2xl transition-all select-text",
                               isUrgent 
-                                ? "bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)]" 
+                                ? "bg-rose-50/50 border border-rose-200 shadow-xs text-slate-800" 
                                 : isImportant 
-                                ? "bg-amber-500/5 border border-amber-500/15" 
-                                : "bg-slate-900/15 border border-slate-900/40 hover:bg-slate-900/20 hover:border-slate-850/40"
+                                ? "bg-amber-50/50 border border-amber-250/60 shadow-xs text-slate-800" 
+                                : "bg-white border border-slate-200 shadow-xs hover:border-slate-300"
                             )}
                           >
                             {/* Avatar */}
-                            <Avatar name={msg.senderName} src={msg.senderAvatar} size="md" className="border border-slate-800 shrink-0" />
+                            <Avatar name={msg.senderName} src={msg.senderAvatar} size="md" className="border border-slate-200 shrink-0 shadow-xs" />
                             
                             {/* Body */}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-100">{msg.senderName}</span>
-                                  <span className="text-[9px] font-medium text-slate-500">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  <span className="text-xs font-bold text-slate-800">{msg.senderName}</span>
+                                  <span className="text-[9px] font-medium text-slate-400">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   
                                   {/* Priority Tags */}
                                   {isUrgent && (
-                                    <span className="flex items-center gap-0.5 px-2 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
-                                      <Zap size={8} className="fill-rose-500" /> Urgent
+                                    <span className="flex items-center gap-0.5 px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                      <Zap size={8} className="fill-rose-700" /> Urgent
                                     </span>
                                   )}
                                   {isImportant && (
-                                    <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
+                                    <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[8px] font-bold uppercase tracking-wider">
                                       <AlertTriangle size={8} /> Important
                                     </span>
                                   )}
@@ -1337,7 +1333,7 @@ export default function WorkspacePage() {
                                       setActiveReplyId(msg.id);
                                     }
                                   }}
-                                  className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-cyan-455 transition-colors cursor-pointer bg-slate-950/20 hover:bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-900"
+                                  className="flex items-center gap-1 text-[10px] font-bold text-slate-500 hover:text-indigo-650 transition-colors cursor-pointer bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200"
                                 >
                                   <MessageCircle size={10} />
                                   <span>Reply</span>
@@ -1345,7 +1341,7 @@ export default function WorkspacePage() {
                               </div>
                               
                               {/* Markdown Content */}
-                              <div className="text-slate-300 text-xs leading-relaxed break-words font-outfit select-text selection:bg-cyan-500/20">
+                              <div className="text-slate-650 text-xs leading-relaxed break-words font-outfit select-text selection:bg-indigo-100">
                                 {renderMessageContent(msg.content)}
                               </div>
                             </div>
@@ -1353,20 +1349,20 @@ export default function WorkspacePage() {
 
                           {/* Nested Replies */}
                           {replies.length > 0 && (
-                            <div className="pl-8 border-l border-slate-900 ml-6 space-y-3 mt-1 animate-fadeIn">
+                            <div className="pl-8 border-l border-slate-200 ml-6 space-y-3 mt-1 animate-fadeIn">
                               {replies.map(reply => (
                                 <div 
                                   key={reply.id} 
-                                  className="flex gap-3 p-3 rounded-xl bg-slate-900/10 border border-slate-900/30 hover:bg-slate-900/15"
+                                  className="flex gap-3 p-3 rounded-xl bg-slate-50 border border-slate-150 hover:bg-slate-100/50"
                                 >
-                                  <CornerDownRight size={12} className="text-slate-655 mt-1 shrink-0" />
-                                  <Avatar name={reply.senderName} src={reply.senderAvatar} size="sm" className="border border-slate-800 shrink-0" />
+                                  <CornerDownRight size={12} className="text-slate-400 mt-1 shrink-0" />
+                                  <Avatar name={reply.senderName} src={reply.senderAvatar} size="sm" className="border border-slate-200 shrink-0" />
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">
-                                      <span className="text-[11px] font-bold text-slate-205">{reply.senderName}</span>
-                                      <span className="text-[8px] font-medium text-slate-505">{new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span className="text-[11px] font-bold text-slate-700">{reply.senderName}</span>
+                                      <span className="text-[8px] font-medium text-slate-400">{new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
-                                    <div className="text-slate-350 text-xs leading-relaxed break-words">
+                                    <div className="text-slate-600 text-xs leading-relaxed break-words">
                                       {renderMessageContent(reply.content)}
                                     </div>
                                   </div>
@@ -1378,7 +1374,7 @@ export default function WorkspacePage() {
                           {/* Inline Thread Reply Input */}
                           {activeReplyId === msg.id && (
                             <div className="pl-14 pr-2 mt-1 animate-fadeIn">
-                              <div className="flex gap-2 bg-slate-900/40 border border-slate-850 rounded-xl px-3 py-2 focus-within:border-cyan-500/40">
+                              <div className="flex gap-2 bg-white border border-slate-200 shadow-xs rounded-xl px-3 py-2 focus-within:border-indigo-500/40 flex-1">
                                 <input
                                   type="text"
                                   value={replyText}
@@ -1389,12 +1385,12 @@ export default function WorkspacePage() {
                                     }
                                   }}
                                   placeholder="Reply to thread..."
-                                  className="flex-1 bg-transparent text-xs text-slate-200 outline-none placeholder-slate-600"
+                                  className="flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder-slate-400"
                                 />
                                 <div className="flex items-center gap-1.5">
                                   <button
                                     onClick={() => { setActiveReplyId(null); setReplyText(''); }}
-                                    className="p-1 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-900 text-[10px] font-bold"
+                                    className="p-1 rounded text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-[10px] font-semibold"
                                   >
                                     Cancel
                                   </button>
@@ -1402,10 +1398,10 @@ export default function WorkspacePage() {
                                     onClick={() => handleSendReply(msg.id)}
                                     disabled={!replyText.trim()}
                                     className={cn(
-                                      "px-3 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all",
+                                      "px-3 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all shadow-xs",
                                       replyText.trim() 
-                                        ? "bg-cyan-500 text-slate-950 font-black" 
-                                        : "bg-slate-950 text-slate-600 cursor-not-allowed"
+                                        ? "bg-indigo-600 text-white hover:bg-indigo-700" 
+                                        : "bg-slate-100 text-slate-400 cursor-not-allowed"
                                     )}
                                   >
                                     Reply
@@ -1420,363 +1416,39 @@ export default function WorkspacePage() {
                     })}
                     <div ref={messagesEndRef} />
                   </div>
-                )
-              ) : activeTab === 'Whiteboard' ? (
-                <div className="absolute inset-0 p-6">
-                  <Whiteboard />
-                </div>
-              ) : activeTab === 'Assignments' ? (
-                /* Assignments Tab Stage */
-                <div className="h-full flex flex-col p-6 overflow-y-auto scrollbar-thin">
-                  <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-6 select-text">
-                    
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-slate-900 pb-4">
-                      <div className="text-left">
-                        <h2 className="text-xl font-bold text-slate-100">Class Assignments</h2>
-                        <p className="text-xs text-slate-500 mt-1">Manage and track workspace work and assignments.</p>
-                      </div>
-                      
-                      {/* Create Assignment Button (Visible only to workspace admins/owners) */}
-                      {isTeacher && (
-                        <button
-                          onClick={() => {
-                            setAssignmentTitle('');
-                            setAssignmentDesc('');
-                            setAssignmentDueDate('');
-                            setSelectedStudentIds([]);
-                            setAssignmentFiles([]);
-                            setShowAssignmentModal(true);
-                          }}
-                          className="flex items-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)]"
-                        >
-                          <Plus size={12} className="stroke-[2.5]" />
-                          Create Assignment
-                        </button>
-                      )}
-                    </div>
-
-                    {assignmentsLoading ? (
-                      <div className="flex-1 flex flex-col items-center justify-center py-20">
-                        <div className="w-8 h-8 rounded-full border-4 border-t-cyan-500 border-white/5 animate-spin" />
-                        <p className="text-xs text-slate-455 mt-3.5">Loading assignments...</p>
-                      </div>
-                    ) : assignments.length === 0 ? (
-                      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/80 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
-                          <FileText className="text-indigo-400 stroke-[2.5]" />
-                        </div>
-                        <h3 className="text-slate-200 font-bold text-sm tracking-tight">No assignments yet</h3>
-                        <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
-                          {isTeacher 
-                            ? 'Assign homework or tasks to students and track their completion status.' 
-                            : 'All clear! No assignments have been posted to this workspace.'}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {assignments.map(ass => {
-                          const isAssignedToMe = ass.recipients.some(r => r.studentId === user?.id);
-                          const myStatus = ass.recipients.find(r => r.studentId === user?.id)?.status || 'pending';
-                          return (
-                            <div key={ass.id} className="p-5 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-xl flex flex-col gap-4 text-left select-text">
-                              <div className="flex justify-between items-start gap-4">
-                                <div>
-                                  <h3 className="text-sm font-bold text-slate-100">{ass.title}</h3>
-                                  <p className="text-[10px] text-slate-500 mt-1">Assigned by: <strong>{ass.teacherName}</strong> • {new Date(ass.createdAt).toLocaleDateString()}</p>
-                                </div>
-
-                                {/* Due Date Badge */}
-                                {ass.dueDate && (
-                                  <div className="px-3 py-1 bg-slate-900 border border-slate-855 rounded-xl text-[9px] font-bold text-slate-400">
-                                    Due: {new Date(ass.dueDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
-                                  </div>
-                                )}
-                              </div>
-
-                              <p className="text-slate-350 text-xs leading-relaxed">{ass.description || 'No description provided.'}</p>
-
-                              {/* Reference Materials */}
-                              {ass.referenceMaterials && ass.referenceMaterials.length > 0 && (
-                                <div className="text-left mt-2">
-                                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider block mb-1">Reference Materials:</span>
-                                  <div className="flex flex-wrap gap-2">
-                                    {ass.referenceMaterials.map((f: any, i: number) => (
-                                      <a
-                                        key={i}
-                                        href={f.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="px-2.5 py-1.5 bg-slate-950 border border-slate-900 rounded-lg text-xs text-cyan-405 hover:text-cyan-300 hover:border-cyan-500/20 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                      >
-                                        <FileText size={12} />
-                                        <span className="truncate max-w-[150px]">{f.name}</span>
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Student View (Submit status controls) */}
-                              {isAssignedToMe && (
-                                <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-955/40 border border-slate-900/50 mt-1">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Your Status:</span>
-                                      <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
-                                        myStatus === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                        myStatus === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-                                        myStatus === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
-                                      )}>
-                                        {myStatus}
-                                      </span>
-                                    </div>
-
-                                    {/* Submitted At */}
-                                    {myStatus !== 'pending' && (
-                                      <span className="text-[9px] text-slate-550">
-                                        Submitted: {new Date(ass.recipients.find(r => r.studentId === user?.id)?.submittedAt || ass.createdAt).toLocaleString()}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {myStatus === 'pending' ? (
-                                    <div className="space-y-3 mt-1.5">
-                                      <div>
-                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Submission Note</label>
-                                        <textarea
-                                          value={submissionText[ass.id] || ''}
-                                          onChange={e => setSubmissionText(prev => ({ ...prev, [ass.id]: e.target.value }))}
-                                          placeholder="Add a comment or note about your submission..."
-                                          rows={2}
-                                          className="w-full bg-slate-955 border border-slate-855 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder:text-slate-700 outline-none focus:border-cyan-500/40 transition-all font-outfit resize-none"
-                                        />
-                                      </div>
-
-                                      {/* Work Upload */}
-                                      <div>
-                                        <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Work Files</label>
-                                        <div className="flex items-center gap-2">
-                                          <input
-                                            type="file"
-                                            multiple
-                                            id={`sub-file-${ass.id}`}
-                                            className="hidden"
-                                            onChange={async (e) => {
-                                              if (!e.target.files) return;
-                                              setUploadingSubFile(prev => ({ ...prev, [ass.id]: true }));
-                                              const uploaded = [...(submissionFiles[ass.id] || [])];
-                                              for (const file of Array.from(e.target.files)) {
-                                                try {
-                                                  const filePath = `${activeWorkspaceId}/submissions/${Date.now()}-${file.name}`;
-                                                  const { data, error } = await supabase.storage
-                                                    .from('workspace_files')
-                                                    .upload(filePath, file);
-                                                  if (error) throw error;
-                                                  const { data: { publicUrl } } = supabase.storage
-                                                    .from('workspace_files')
-                                                    .getPublicUrl(filePath);
-                                                  uploaded.push({
-                                                    name: file.name,
-                                                    url: publicUrl,
-                                                    size: file.size,
-                                                    type: file.type
-                                                  });
-                                                } catch (err) {
-                                                  console.error('File upload failed:', err);
-                                                }
-                                              }
-                                              setSubmissionFiles(prev => ({ ...prev, [ass.id]: uploaded }));
-                                              setUploadingSubFile(prev => ({ ...prev, [ass.id]: false }));
-                                            }}
-                                          />
-                                          <label
-                                            htmlFor={`sub-file-${ass.id}`}
-                                            className="flex items-center justify-center gap-2 w-full py-2 bg-slate-950 border border-slate-855 rounded-xl text-[10px] text-slate-400 hover:text-slate-200 cursor-pointer hover:border-cyan-500/30 transition-all font-outfit"
-                                          >
-                                            {uploadingSubFile[ass.id] ? (
-                                              <div className="w-3.5 h-3.5 border-2 border-t-cyan-500 border-white/10 rounded-full animate-spin" />
-                                            ) : (
-                                              <Plus size={12} />
-                                            )}
-                                            <span>{uploadingSubFile[ass.id] ? 'Uploading work files...' : 'Upload Work Files'}</span>
-                                          </label>
-                                        </div>
-
-                                        {(submissionFiles[ass.id] || []).length > 0 && (
-                                          <div className="mt-2 space-y-1.5 text-left">
-                                            {(submissionFiles[ass.id] || []).map((f, idx) => (
-                                              <div key={idx} className="flex justify-between items-center bg-slate-955/40 border border-slate-900 px-3 py-1.5 rounded-xl text-[10px] text-slate-350">
-                                                <span className="truncate flex-1 pr-2">{f.name}</span>
-                                                <button
-                                                  onClick={() => setSubmissionFiles(prev => ({
-                                                    ...prev,
-                                                    [ass.id]: prev[ass.id].filter((_, i) => i !== idx)
-                                                  }))}
-                                                  className="text-rose-455 hover:text-rose-500 font-bold cursor-pointer"
-                                                >
-                                                  Remove
-                                                </button>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      <button
-                                        onClick={async () => {
-                                          try {
-                                            const subFiles = submissionFiles[ass.id] || [];
-                                            const subText = submissionText[ass.id] || '';
-                                            const { error } = await supabase
-                                              .from('assignment_recipients')
-                                              .update({ 
-                                                status: 'submitted',
-                                                submitted_work: subFiles,
-                                                submission_text: subText,
-                                                submitted_at: new Date().toISOString()
-                                              })
-                                              .eq('assignment_id', ass.id)
-                                              .eq('student_id', user?.id);
-                                            if (error) throw error;
-                                            loadAssignments();
-                                          } catch (e) {
-                                            console.error('Error submitting assignment:', e);
-                                          }
-                                        }}
-                                        className="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-550 hover:to-cyan-450 text-slate-955 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-pointer border-0"
-                                      >
-                                        Turn In Assignment
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    /* Submitted View */
-                                    <div className="space-y-2 mt-1.5 bg-slate-955/30 border border-slate-900/60 p-3 rounded-xl text-left select-text">
-                                      {ass.recipients.find(r => r.studentId === user?.id)?.submissionText && (
-                                        <div>
-                                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Your Note:</span>
-                                          <p className="text-xs text-slate-350 leading-relaxed font-outfit select-text">{ass.recipients.find(r => r.studentId === user?.id)?.submissionText}</p>
-                                        </div>
-                                      )}
-                                      {ass.recipients.find(r => r.studentId === user?.id)?.submittedWork && (ass.recipients.find(r => r.studentId === user?.id)?.submittedWork || []).length > 0 && (
-                                        <div className="mt-2">
-                                          <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Your Work Files:</span>
-                                          <div className="flex flex-wrap gap-2">
-                                            {(ass.recipients.find(r => r.studentId === user?.id)?.submittedWork || []).map((file: any, i: number) => (
-                                              <a
-                                                key={i}
-                                                href={file.url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="px-2.5 py-1.5 bg-slate-955 border border-slate-900 rounded-lg text-xs text-cyan-400 hover:text-cyan-300 hover:border-cyan-550/20 flex items-center gap-1.5 transition-colors cursor-pointer"
-                                              >
-                                                <FileText size={12} />
-                                                <span className="truncate max-w-[150px]">{file.name}</span>
-                                              </a>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Teacher View (Recipients status table) */}
-                              {isTeacher && (
-                                <div className="border-t border-slate-900/60 pt-4 mt-2">
-                                  <h4 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2.5">Student Statuses ({ass.recipients.length})</h4>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                                    {ass.recipients.map(rec => (
-                                      <div key={rec.studentId} className="flex flex-col gap-2 p-3 bg-slate-950/20 border border-slate-900 rounded-2xl text-left select-text">
-                                        <div className="flex justify-between items-center">
-                                          <span className="text-xs text-slate-205 font-bold truncate max-w-[130px]">{rec.studentName}</span>
-                                          <div className="flex items-center gap-1.5">
-                                            <span className={cn(
-                                              "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
-                                              rec.status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                              rec.status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-                                              rec.status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
-                                            )}>
-                                              {rec.status}
-                                            </span>
-                                            {rec.status === 'submitted' && (
-                                              <button
-                                                onClick={async () => {
-                                                  try {
-                                                    const { error } = await supabase
-                                                      .from('assignment_recipients')
-                                                      .update({ status: 'graded' })
-                                                      .eq('assignment_id', ass.id)
-                                                      .eq('student_id', rec.studentId);
-                                                    if (error) throw error;
-                                                    loadAssignments();
-                                                  } catch (e) {
-                                                    console.error('Error grading assignment:', e);
-                                                  }
-                                                }}
-                                                className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded cursor-pointer"
-                                                title="Mark as Graded"
-                                              >
-                                                Grade
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-
-                                        {/* Display submission details if submitted/graded */}
-                                        {rec.status !== 'pending' && (
-                                          <div className="mt-1 space-y-1.5 bg-slate-950/30 border border-slate-900 rounded-xl p-2.5 text-xs text-slate-350 select-text">
-                                            {rec.submissionText && (
-                                              <div>
-                                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Note:</span>
-                                                <p className="text-slate-300 select-text">{rec.submissionText}</p>
-                                              </div>
-                                            )}
-                                            {rec.submittedWork && rec.submittedWork.length > 0 && (
-                                              <div className="mt-1.5">
-                                                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Files:</span>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                  {rec.submittedWork.map((file: any, idx: number) => (
-                                                    <a
-                                                      key={idx}
-                                                      href={file.url}
-                                                      target="_blank"
-                                                      rel="noreferrer"
-                                                      className="px-2 py-1 bg-slate-950 border border-slate-900 rounded text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
-                                                    >
-                                                      <FileText size={10} />
-                                                      <span className="truncate max-w-[100px]">{file.name}</span>
-                                                    </a>
-                                                  ))}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                  </div>
-                </div>
+                )) : activeTab === 'Assignments' ? (
+                  /* Assignments Tab Stage - Refactored to Kanban Board */
+                <WorkspaceKanban 
+                  assignments={assignments}
+                  isTeacher={isTeacher}
+                  user={user}
+                  activeWorkspaceId={activeWorkspaceId}
+                  loading={assignmentsLoading}
+                  onCreateClick={() => {
+                    setAssignmentTitle('');
+                    setAssignmentDesc('');
+                    setAssignmentDueDate('');
+                    setSelectedStudentIds([]);
+                    setAssignmentFiles([]);
+                    setShowAssignmentModal(true);
+                  }}
+                  onRefresh={loadAssignments}
+                  submissionText={submissionText}
+                  setSubmissionText={setSubmissionText}
+                  submissionFiles={submissionFiles}
+                  setSubmissionFiles={setSubmissionFiles}
+                  uploadingSubFile={uploadingSubFile}
+                  setUploadingSubFile={setUploadingSubFile}
+                />
               ) : activeTab === 'Members' ? (
                 /* Members Tab Stage */
                 <div className="h-full flex flex-col p-6 overflow-y-auto scrollbar-thin">
                   <div className="max-w-4xl w-full mx-auto flex-1 flex flex-col gap-8 select-text">
                     
                     {/* Header */}
-                    <div className="flex items-center justify-between border-b border-slate-900 pb-4">
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-4">
                       <div className="text-left">
-                        <h2 className="text-xl font-bold text-slate-100">Workspace Directory</h2>
+                        <h2 className="text-xl font-bold text-slate-800">Workspace Directory</h2>
                         <p className="text-xs text-slate-500 mt-1">Audit active members, track pending invites, and monitor assignment completion.</p>
                       </div>
                       
@@ -1788,7 +1460,7 @@ export default function WorkspacePage() {
                             setInviteSuccess(null);
                             setShowInviteModal(true);
                           }}
-                          className="flex items-center gap-1.5 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-505 text-slate-955 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(6,182,212,0.15)]"
+                          className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs"
                         >
                           <UserPlus size={12} className="stroke-[2.5]" />
                           Invite Student
@@ -1798,29 +1470,29 @@ export default function WorkspacePage() {
 
                     {/* Joined Members Section */}
                     <div className="space-y-3">
-                      <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
-                        <Users size={12} className="text-indigo-400" />
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                        <Users size={12} className="text-indigo-600" />
                         Joined Members ({workspaceMembers.length})
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                         {workspaceMembers.map(member => (
                           <div 
                             key={member.id} 
-                            className="p-4 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-md flex items-center justify-between group hover:border-slate-850 transition-all"
+                            className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-between group hover:border-slate-300 transition-all"
                           >
                             <div className="flex items-center gap-3.5">
-                              <Avatar name={member.name} src={member.avatarUrl} size="md" className="border border-slate-800" />
+                              <Avatar name={member.name} src={member.avatarUrl} size="md" className="border border-slate-200 shadow-xs" />
                               <div className="text-left">
-                                <h4 className="text-xs font-bold text-slate-200">{member.name}</h4>
-                                <p className="text-[10px] text-slate-505 mt-0.5">{member.email}</p>
+                                <h4 className="text-xs font-bold text-slate-800">{member.name}</h4>
+                                <p className="text-[10px] text-slate-500 mt-0.5">{member.email}</p>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={cn(
-                                "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
+                                "px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border shrink-0",
                                 member.role === 'admin' 
-                                  ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
-                                  : "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                                  ? "bg-indigo-50 border-indigo-200 text-indigo-750" 
+                                  : "bg-slate-50 border border-slate-200 text-slate-600"
                               )}>
                                 {member.role === 'admin' ? 'Teacher' : 'Student'}
                               </span>
@@ -1833,16 +1505,16 @@ export default function WorkspacePage() {
                     {/* Pending Invitations Section (Teachers only) */}
                     {isTeacher && (
                       <div className="space-y-3 pt-2">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
-                          <UserPlus size={12} className="text-cyan-400" />
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-205/60 pb-2">
+                          <UserPlus size={12} className="text-indigo-600" />
                           Pending Invitations ({pendingInvites.length})
                         </h3>
                         {loadingInvites ? (
                           <div className="py-8 flex justify-center">
-                            <div className="w-6 h-6 border-2 border-t-cyan-500 border-white/5 rounded-full animate-spin" />
+                            <div className="w-6 h-6 border-2 border-t-indigo-600 border-slate-200 rounded-full animate-spin" />
                           </div>
                         ) : pendingInvites.length === 0 ? (
-                          <div className="py-8 bg-slate-900/10 border border-slate-900/40 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
+                          <div className="py-8 bg-slate-50/50 border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
                             <p className="text-xs text-slate-500">No pending invitations. All invited students have joined!</p>
                           </div>
                         ) : (
@@ -1850,27 +1522,27 @@ export default function WorkspacePage() {
                             {pendingInvites.map(invite => (
                               <div 
                                 key={invite.id} 
-                                className="px-4 py-3 rounded-xl bg-[#0c101a] border border-slate-900/60 shadow-md flex items-center justify-between group hover:border-slate-850 transition-all select-text"
+                                className="px-4 py-3 rounded-xl bg-white border border-slate-200 shadow-xs flex items-center justify-between group hover:border-slate-300 transition-all select-text"
                               >
                                 <div className="text-left">
-                                  <span className="text-xs font-semibold text-slate-300">{invite.email}</span>
+                                  <span className="text-xs font-semibold text-slate-700">{invite.email}</span>
                                   <div className="flex items-center gap-2 mt-1">
                                     <span className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Role:</span>
-                                    <span className="text-[8px] font-black text-indigo-400 uppercase tracking-wider">{invite.role === 'admin' ? 'Teacher' : 'Student'}</span>
-                                    <span className="text-slate-700 text-[8px]">•</span>
-                                    <span className="text-[8px] text-slate-505">Invited {new Date(invite.created_at).toLocaleDateString()}</span>
+                                    <span className="text-[8px] font-bold text-indigo-650 uppercase tracking-wider">{invite.role === 'admin' ? 'Teacher' : 'Student'}</span>
+                                    <span className="text-slate-300 text-[8px]">•</span>
+                                    <span className="text-[8px] text-slate-400">Invited {new Date(invite.created_at).toLocaleDateString()}</span>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
                                   <button
                                     onClick={() => handleResendInvite(invite)}
-                                    className="px-2.5 py-1 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/15 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                    className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200/50 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all"
                                   >
                                     Resend
                                   </button>
                                   <button
                                     onClick={() => handleRevokeInvite(invite.id)}
-                                    className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/15 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all"
+                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/50 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all"
                                   >
                                     Revoke
                                   </button>
@@ -1885,12 +1557,12 @@ export default function WorkspacePage() {
                     {/* Assignment Completion Audit Hub (Teachers only) */}
                     {isTeacher && (
                       <div className="space-y-3 pt-2">
-                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-900 pb-2">
-                          <FileText size={12} className="text-amber-400" />
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                          <FileText size={12} className="text-indigo-600" />
                           Assignment Completion Hub
                         </h3>
                         {assignments.length === 0 ? (
-                          <div className="py-8 bg-slate-900/10 border border-slate-900/40 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
+                          <div className="py-8 bg-slate-50/50 border border-slate-200 border-dashed rounded-2xl flex flex-col items-center justify-center text-center">
                             <p className="text-xs text-slate-500">No assignments created yet in this workspace.</p>
                           </div>
                         ) : (
@@ -1910,18 +1582,18 @@ export default function WorkspacePage() {
                                 return (
                                   <div 
                                     key={student.id} 
-                                    className="p-4 rounded-2xl bg-[#0c101a] border border-slate-900/60 shadow-md flex flex-col gap-3.5 select-text hover:border-slate-850 transition-all text-left"
+                                    className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col gap-3.5 select-text hover:border-slate-300 transition-all text-left"
                                   >
                                     <div className="flex items-center justify-between">
                                       <div className="flex items-center gap-3">
-                                        <Avatar name={student.name} src={student.avatarUrl} size="sm" className="border border-slate-800" />
+                                        <Avatar name={student.name} src={student.avatarUrl} size="sm" className="border border-slate-200 shadow-xs" />
                                         <div>
-                                          <h4 className="text-xs font-bold text-slate-200">{student.name}</h4>
+                                          <h4 className="text-xs font-bold text-slate-800">{student.name}</h4>
                                           <p className="text-[9px] text-slate-500">{student.email}</p>
                                         </div>
                                       </div>
                                       <div className="text-right">
-                                        <span className="text-xs font-black text-cyan-400">{completedCount} / {totalCount}</span>
+                                        <span className="text-xs font-bold text-indigo-600">{completedCount} / {totalCount}</span>
                                         <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Assignments Completed</span>
                                       </div>
                                     </div>
@@ -1935,17 +1607,17 @@ export default function WorkspacePage() {
                                           return (
                                             <div 
                                               key={ass.id} 
-                                              className="flex justify-between items-center px-3 py-2 bg-slate-950/20 border border-slate-900 rounded-xl"
+                                              className="flex justify-between items-center px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl"
                                             >
-                                              <span className="text-[10px] font-semibold text-slate-350 truncate max-w-[150px]" title={ass.title}>
+                                              <span className="text-[10px] font-semibold text-slate-700 truncate max-w-[150px]" title={ass.title}>
                                                 {ass.title}
                                               </span>
                                               <div className="flex items-center gap-2">
                                                 <span className={cn(
-                                                  "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border shrink-0",
-                                                  status === 'pending' && "bg-amber-500/10 border-amber-500/20 text-amber-400",
-                                                  status === 'submitted' && "bg-cyan-500/10 border-cyan-500/20 text-cyan-400",
-                                                  status === 'graded' && "bg-green-500/10 border-green-500/20 text-green-400"
+                                                  "px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider border shrink-0",
+                                                  status === 'pending' && "bg-amber-50 border-amber-200 text-amber-700",
+                                                  status === 'submitted' && "bg-indigo-50 border-indigo-200 text-indigo-750",
+                                                  status === 'graded' && "bg-emerald-50 border-emerald-200 text-emerald-700"
                                                 )}>
                                                   {status}
                                                 </span>
@@ -1964,7 +1636,7 @@ export default function WorkspacePage() {
                                                         console.error('Error grading assignment:', e);
                                                       }
                                                     }}
-                                                    className="px-2 py-0.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 text-[8px] font-black uppercase rounded"
+                                                    className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[8px] font-bold uppercase rounded"
                                                   >
                                                     Grade
                                                   </button>
@@ -1975,14 +1647,14 @@ export default function WorkspacePage() {
                                         })}
                                       </div>
                                     ) : (
-                                      <p className="text-[10px] text-slate-600 italic">No assignments allocated to this student.</p>
+                                      <p className="text-[10px] text-slate-500 italic">No assignments allocated to this student.</p>
                                     )}
                                   </div>
                                 );
                               })}
                             {workspaceMembers.filter(m => m.role === 'member').length === 0 && (
                               <div className="py-4 text-center">
-                                <p className="text-xs text-slate-555 italic">No students joined this workspace yet.</p>
+                                <p className="text-xs text-slate-500 italic">No students joined this workspace yet.</p>
                               </div>
                             )}
                           </div>
@@ -2010,7 +1682,7 @@ export default function WorkspacePage() {
             {activeTab === 'Posts' && (
               <div className="px-6 pb-6 pt-2 shrink-0 select-none z-10">
                 <div className="max-w-4xl w-full mx-auto">
-                  <div className="bg-[#0b0e17]/80 border border-slate-900 focus-within:border-cyan-500/40 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 shadow-2xl">
+                  <div className="bg-white border border-slate-205 focus-within:border-indigo-500/40 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
                     
                     {/* Text Compose Area */}
                     <textarea
@@ -2020,42 +1692,42 @@ export default function WorkspacePage() {
                       onKeyDown={handleKeyDown}
                       placeholder={`Post a new message in #${activeChannel.name}...`}
                       rows={1}
-                      className="w-full bg-transparent px-5 py-4 text-xs text-slate-200 placeholder-slate-605 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
+                      className="w-full bg-transparent px-5 py-4 text-xs text-slate-800 placeholder-slate-400 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
                     />
 
                     {/* Toolbar Panel (Inside Compose Card) */}
-                    <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-900/60 select-none">
+                    <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-100 select-none">
                       <div className="flex items-center gap-1.5 select-none">
                         
                         {/* Formats */}
                         <button
                           onClick={() => insertFormat('**')}
-                          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-55 cursor-pointer transition-colors border border-transparent hover:border-slate-150"
                           title="Bold (**)"
                         >
                           <Bold size={13} className="stroke-[2.5]" />
                         </button>
                         <button
                           onClick={() => insertFormat('*')}
-                          className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-805 hover:bg-slate-55 cursor-pointer transition-colors border border-transparent hover:border-slate-150"
                           title="Italic (*)"
                         >
                           <Italic size={13} className="stroke-[2.5]" />
                         </button>
                         <button
                           onClick={() => insertFormat('`')}
-                          className="p-2 rounded-lg text-slate-505 hover:text-slate-300 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          className="p-2 rounded-lg text-slate-500 hover:text-slate-805 hover:bg-slate-55 cursor-pointer transition-colors border border-transparent hover:border-slate-150"
                           title="Code inline (`)"
                         >
                           <Hash size={13} />
                         </button>
                         
-                        <div className="h-4 w-[1px] bg-slate-900 mx-1" />
+                        <div className="h-4 w-[1px] bg-slate-200 mx-1" />
 
                         {/* Attachments */}
                         <button
                           onClick={() => alert("Simulated: File Attachment trigger.")}
-                          className="p-2 rounded-lg text-slate-505 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                          className="p-2 rounded-lg text-slate-505 hover:text-indigo-650 hover:bg-slate-55 cursor-pointer transition-colors border border-transparent hover:border-slate-150"
                           title="Attach File"
                         >
                           <Paperclip size={13} />
@@ -2066,20 +1738,20 @@ export default function WorkspacePage() {
                           <button
                             onClick={() => setShowEmojiMenu(!showEmojiMenu)}
                             className={cn(
-                              "p-2 rounded-lg text-slate-505 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-all border border-transparent hover:border-slate-850",
-                              showEmojiMenu && "text-cyan-400 bg-slate-900 border-slate-850"
+                              "p-2 rounded-lg text-slate-505 hover:text-indigo-650 hover:bg-slate-55 cursor-pointer transition-all border border-transparent hover:border-slate-150",
+                              showEmojiMenu && "text-indigo-650 bg-slate-55 border-slate-150"
                             )}
                             title="Insert Emoji"
                           >
                             <Smile size={13} />
                           </button>
                           {showEmojiMenu && (
-                            <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-2 z-50 flex gap-1.5 animate-fadeIn">
+                            <div className="absolute bottom-10 left-0 bg-white border border-slate-200 rounded-xl shadow-md p-2 z-50 flex gap-1.5 animate-fadeIn">
                               {['👍', '❤️', '😂', '😮', '🔥', '🎉', '🚀'].map(emoji => (
                                 <button
                                   key={emoji}
                                   onClick={() => insertEmoji(emoji)}
-                                  className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm cursor-pointer hover:scale-110 active:scale-95 transition-all"
+                                  className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-sm cursor-pointer hover:scale-110 active:scale-95 transition-all"
                                 >
                                   {emoji}
                                 </button>
@@ -2095,25 +1767,25 @@ export default function WorkspacePage() {
                             className={cn(
                               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border",
                               priority === 'Urgent' 
-                                ? "bg-rose-500/10 border-rose-500/20 text-rose-400" 
+                                ? "bg-rose-50 border-rose-200 text-rose-700" 
                                 : priority === 'Important' 
-                                ? "bg-amber-500/10 border-amber-500/20 text-amber-400" 
-                                : "bg-slate-900/60 border-slate-850 text-slate-450 hover:text-slate-350 hover:bg-slate-900"
+                                ? "bg-amber-50 border-amber-200 text-amber-700" 
+                                : "bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100"
                             )}
                           >
-                            <Zap size={11} className={cn(priority === 'Urgent' && "fill-rose-455")} />
+                            <Zap size={11} className={cn(priority === 'Urgent' && "fill-rose-700")} />
                             {priority}
-                            <ChevronDown size={10} className="text-slate-550" />
+                            <ChevronDown size={10} className="text-slate-400" />
                           </button>
                           {showPriorityMenu && (
-                            <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fadeIn">
+                            <div className="absolute bottom-10 left-0 bg-white border border-slate-205 rounded-xl shadow-md p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fadeIn">
                               {(['Standard', 'Important', 'Urgent'] as const).map(p => (
                                 <button
                                   key={p}
                                   onClick={() => { setPriority(p); setShowPriorityMenu(false); }}
                                   className={cn(
-                                    "w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors",
-                                    p === 'Urgent' ? "text-rose-400 hover:bg-rose-500/10" : p === 'Important' ? "text-amber-400 hover:bg-amber-500/10" : "text-slate-300"
+                                    "w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors",
+                                    p === 'Urgent' ? "text-rose-700 hover:bg-rose-50" : p === 'Important' ? "text-amber-700 hover:bg-amber-50" : "text-slate-700"
                                   )}
                                 >
                                   {p}
@@ -2130,22 +1802,22 @@ export default function WorkspacePage() {
                               type="button"
                               onClick={() => setShowRecipientDropdown(!showRecipientDropdown)}
                               className={cn(
-                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border border-slate-850 bg-slate-900/60 text-slate-400 hover:text-slate-200"
+                                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border border-slate-205 bg-slate-50 text-slate-500 hover:text-slate-800"
                               )}
                             >
                               <Users size={11} />
                               Alert Recipients ({selectedMessageRecipientIds.length})
-                              <ChevronDown size={10} className="text-slate-550" />
+                              <ChevronDown size={10} className="text-slate-400" />
                             </button>
                             {showRecipientDropdown && (
-                              <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-2.5 z-50 w-64 max-h-48 overflow-y-auto flex flex-col gap-1.5 animate-fadeIn select-text text-left">
-                                <p className="text-[9px] font-black text-slate-550 uppercase tracking-wider border-b border-slate-800 pb-1.5 mb-1.5">Select Students to Email</p>
+                              <div className="absolute bottom-10 left-0 bg-white border border-slate-200 rounded-xl shadow-md p-2.5 z-50 w-64 max-h-48 overflow-y-auto flex flex-col gap-1.5 animate-fadeIn select-text text-left">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-1.5 mb-1.5">Select Students to Email</p>
                                 {workspaceMembers
                                   .filter(m => m.id !== user?.id) // Don't list self
                                   .map(member => {
                                     const isChecked = selectedMessageRecipientIds.includes(member.id);
                                     return (
-                                      <label key={member.id} className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-300 hover:text-slate-100 py-0.5 select-none">
+                                      <label key={member.id} className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-600 hover:text-slate-800 py-0.5 select-none">
                                         <input
                                           type="checkbox"
                                           checked={isChecked}
@@ -2156,7 +1828,7 @@ export default function WorkspacePage() {
                                               setSelectedMessageRecipientIds(prev => [...prev, member.id]);
                                             }
                                           }}
-                                          className="accent-cyan-500 cursor-pointer"
+                                          className="accent-indigo-650 cursor-pointer"
                                         />
                                         <span className="truncate">{member.name} ({member.role})</span>
                                       </label>
@@ -2177,13 +1849,13 @@ export default function WorkspacePage() {
                         onClick={() => handleSendMessage()}
                         disabled={!messageText.trim()}
                         className={cn(
-                          "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
+                          "px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-xs",
                           messageText.trim()
-                            ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98]"
-                            : "bg-slate-900 text-slate-655 cursor-not-allowed border border-slate-850/50"
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700 hover:scale-[1.02] active:scale-[0.98]"
+                            : "bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200"
                         )}
                       >
-                        <Send size={11} className={cn("stroke-[2.5]", messageText.trim() ? "text-slate-950" : "text-slate-655")} />
+                        <Send size={11} className={cn("stroke-[2.5]", messageText.trim() ? "text-white" : "text-slate-400")} />
                         Post
                       </button>
 
@@ -2712,4 +2384,589 @@ export default function WorkspacePage() {
     setReplyText('');
     setActiveReplyId(null);
   }
+}
+
+// ─── Kanban Board Component for Assignments ───
+
+interface WorkspaceKanbanProps {
+  assignments: any[];
+  isTeacher: boolean;
+  user: any;
+  activeWorkspaceId: string | null;
+  loading: boolean;
+  onCreateClick: () => void;
+  onRefresh: () => void;
+  submissionText: Record<string, string>;
+  setSubmissionText: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  submissionFiles: Record<string, any[]>;
+  setSubmissionFiles: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
+  uploadingSubFile: Record<string, boolean>;
+  setUploadingSubFile: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}
+
+function WorkspaceKanban({
+  assignments,
+  isTeacher,
+  user,
+  activeWorkspaceId,
+  loading,
+  onCreateClick,
+  onRefresh,
+  submissionText,
+  setSubmissionText,
+  submissionFiles,
+  setSubmissionFiles,
+  uploadingSubFile,
+  setUploadingSubFile
+}: WorkspaceKanbanProps) {
+  const [selectedCard, setSelectedCard] = useState<any | null>(null);
+
+  // Group assignments/tasks into cards
+  const kanbanCards: any[] = [];
+  assignments.forEach(ass => {
+    if (isTeacher) {
+      // Teacher sees everyone's card
+      ass.recipients.forEach((rec: any) => {
+        let prio: 'Standard' | 'Important' | 'Urgent' = 'Standard';
+        if (ass.dueDate) {
+          const diff = new Date(ass.dueDate).getTime() - Date.now();
+          if (diff < 24 * 60 * 60 * 1000) prio = 'Urgent';
+          else if (diff < 3 * 24 * 60 * 60 * 1000) prio = 'Important';
+        }
+        kanbanCards.push({
+          id: `${ass.id}-${rec.studentId}`,
+          assignmentId: ass.id,
+          studentId: rec.studentId,
+          studentName: rec.studentName,
+          title: ass.title,
+          description: ass.description || '',
+          dueDate: ass.dueDate || null,
+          priority: prio,
+          status: rec.status,
+          referenceMaterials: ass.referenceMaterials || [],
+          teacherName: ass.teacherName,
+          submittedWork: rec.submittedWork || [],
+          submissionText: rec.submissionText || '',
+          submittedAt: rec.submittedAt || null
+        });
+      });
+    } else {
+      // Student sees only their own card
+      const rec = ass.recipients.find((r: any) => r.studentId === user?.id);
+      if (rec) {
+        let prio: 'Standard' | 'Important' | 'Urgent' = 'Standard';
+        if (ass.dueDate) {
+          const diff = new Date(ass.dueDate).getTime() - Date.now();
+          if (diff < 24 * 60 * 60 * 1000) prio = 'Urgent';
+          else if (diff < 3 * 24 * 60 * 60 * 1000) prio = 'Important';
+        }
+        kanbanCards.push({
+          id: `${ass.id}-${rec.studentId}`,
+          assignmentId: ass.id,
+          studentId: rec.studentId,
+          studentName: rec.studentName,
+          title: ass.title,
+          description: ass.description || '',
+          dueDate: ass.dueDate || null,
+          priority: prio,
+          status: rec.status,
+          referenceMaterials: ass.referenceMaterials || [],
+          teacherName: ass.teacherName,
+          submittedWork: rec.submittedWork || [],
+          submissionText: rec.submissionText || '',
+          submittedAt: rec.submittedAt || null
+        });
+      }
+    }
+  });
+
+  return (
+    <div className="h-full flex flex-col p-6 overflow-y-auto scrollbar-thin">
+      <div className="max-w-6xl w-full mx-auto flex-1 flex flex-col gap-6 select-text">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div className="text-left">
+            <h2 className="text-xl font-bold text-slate-800">Class Assignments</h2>
+            <p className="text-xs text-slate-500 mt-1">Manage and track workspace work and assignments.</p>
+          </div>
+          
+          {isTeacher && (
+            <button
+              onClick={onCreateClick}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-xs border-none"
+            >
+              <Plus size={12} className="stroke-[2.5]" />
+              Create Assignment
+            </button>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20">
+            <div className="w-8 h-8 rounded-full border-4 border-t-indigo-650 border-slate-205 animate-spin" />
+            <p className="text-xs text-slate-505 mt-3.5">Loading assignments...</p>
+          </div>
+        ) : kanbanCards.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-5 shadow-xs">
+              <FileText className="text-indigo-600 stroke-[2.5]" />
+            </div>
+            <h3 className="text-slate-705 font-bold text-sm tracking-tight">No assignments yet</h3>
+            <p className="text-slate-550 text-xs mt-2 max-w-[280px] leading-relaxed">
+              {isTeacher 
+                ? 'Assign homework or tasks to students and track their completion status.' 
+                : 'All clear! No assignments have been posted to this workspace.'}
+            </p>
+          </div>
+        ) : (
+          /* Kanban Board Columns Grid */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            
+            {/* Column 1: Backlog */}
+            <div className="flex flex-col gap-4 bg-slate-50 border border-slate-200/60 p-4 rounded-2xl min-h-[400px]">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Backlog</span>
+                <span className="text-[10px] font-bold bg-slate-200 text-slate-600 rounded-md px-2 py-0.5">
+                  {kanbanCards.filter(c => c.status === 'pending').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {kanbanCards.filter(c => c.status === 'pending').map(card => (
+                  <KanbanCard key={card.id} card={card} onClick={() => setSelectedCard(card)} />
+                ))}
+              </div>
+            </div>
+
+            {/* Column 2: In Progress */}
+            <div className="flex flex-col gap-4 bg-slate-50 border border-slate-200/60 p-4 rounded-2xl min-h-[400px]">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">In Progress</span>
+                <span className="text-[10px] font-bold bg-indigo-50 text-indigo-600 rounded-md px-2 py-0.5">
+                  {kanbanCards.filter(c => c.status === 'submitted').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {kanbanCards.filter(c => c.status === 'submitted').map(card => (
+                  <KanbanCard key={card.id} card={card} onClick={() => setSelectedCard(card)} />
+                ))}
+              </div>
+            </div>
+
+            {/* Column 3: Review */}
+            <div className="flex flex-col gap-4 bg-slate-50 border border-slate-200/65 p-4 rounded-2xl min-h-[400px]">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Review</span>
+                <span className="text-[10px] font-bold bg-emerald-50 text-emerald-600 rounded-md px-2 py-0.5">
+                  {kanbanCards.filter(c => c.status === 'graded').length}
+                </span>
+              </div>
+              <div className="space-y-3">
+                {kanbanCards.filter(c => c.status === 'graded').map(card => (
+                  <KanbanCard key={card.id} card={card} onClick={() => setSelectedCard(card)} />
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+      </div>
+
+      {/* Kanban Details Overlay Modal */}
+      {selectedCard && (
+        <KanbanDetailModal
+          card={selectedCard}
+          isTeacher={isTeacher}
+          user={user}
+          activeWorkspaceId={activeWorkspaceId}
+          onClose={() => setSelectedCard(null)}
+          onRefresh={() => {
+            setSelectedCard(null);
+            onRefresh();
+          }}
+          submissionText={submissionText}
+          setSubmissionText={setSubmissionText}
+          submissionFiles={submissionFiles}
+          setSubmissionFiles={setSubmissionFiles}
+          uploadingSubFile={uploadingSubFile}
+          setUploadingSubFile={setUploadingSubFile}
+        />
+      )}
+    </div>
+  );
+}
+
+function KanbanCard({ card, onClick }: { card: any; onClick: () => void }) {
+  const isUrgent = card.priority === 'Urgent';
+  const isImportant = card.priority === 'Important';
+  
+  return (
+    <div 
+      onClick={onClick}
+      className="bg-white border border-slate-200 hover:border-indigo-400 hover:shadow-md rounded-2xl p-4 flex flex-col gap-3 transition-all duration-200 cursor-pointer text-left shadow-xs"
+    >
+      <div className="flex justify-between items-center">
+        <span className={cn(
+          "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border",
+          isUrgent && "bg-rose-50 border-rose-200 text-rose-600",
+          isImportant && "bg-amber-50 border-amber-250 text-amber-700",
+          card.priority === 'Standard' && "bg-slate-50 border-slate-200 text-slate-500"
+        )}>
+          {card.priority}
+        </span>
+        {card.dueDate && (
+          <span className="text-[9px] text-slate-400 font-bold font-mono">
+            {new Date(card.dueDate).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+          </span>
+        )}
+      </div>
+
+      <div>
+        <h4 className="text-xs font-bold text-slate-800 leading-snug line-clamp-2">{card.title}</h4>
+        {card.description && (
+          <p className="text-[10px] text-slate-450 mt-1 line-clamp-2 leading-relaxed">{card.description}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="w-4 h-4 rounded-full bg-slate-205 text-slate-600 font-bold text-[8px] flex items-center justify-center">
+            {card.studentName.charAt(0).toUpperCase()}
+          </span>
+          <span className="text-[9px] font-bold text-slate-500 truncate">{card.studentName}</span>
+        </div>
+        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">Assignee</span>
+      </div>
+    </div>
+  );
+}
+
+interface KanbanDetailModalProps {
+  card: any;
+  isTeacher: boolean;
+  user: any;
+  activeWorkspaceId: string | null;
+  onClose: () => void;
+  onRefresh: () => void;
+  submissionText: Record<string, string>;
+  setSubmissionText: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  submissionFiles: Record<string, any[]>;
+  setSubmissionFiles: React.Dispatch<React.SetStateAction<Record<string, any[]>>>;
+  uploadingSubFile: Record<string, boolean>;
+  setUploadingSubFile: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}
+
+function KanbanDetailModal({
+  card,
+  isTeacher,
+  user,
+  activeWorkspaceId,
+  onClose,
+  onRefresh,
+  submissionText,
+  setSubmissionText,
+  submissionFiles,
+  setSubmissionFiles,
+  uploadingSubFile,
+  setUploadingSubFile
+}: KanbanDetailModalProps) {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const subFiles = submissionFiles[card.assignmentId] || [];
+      const subText = submissionText[card.assignmentId] || '';
+      const { error } = await supabase
+        .from('assignment_recipients')
+        .update({ 
+          status: 'submitted',
+          submitted_work: subFiles,
+          submission_text: subText,
+          submitted_at: new Date().toISOString()
+        })
+        .eq('assignment_id', card.assignmentId)
+        .eq('student_id', user?.id);
+      if (error) throw error;
+      onRefresh();
+    } catch (e) {
+      console.error('Error submitting assignment:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGrade = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('assignment_recipients')
+        .update({ status: 'graded' })
+        .eq('assignment_id', card.assignmentId)
+        .eq('student_id', card.studentId);
+      if (error) throw error;
+      onRefresh();
+    } catch (e) {
+      console.error('Error grading assignment:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+      <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <div className="text-left">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Assignment Workspace</span>
+            <h3 className="text-sm font-bold text-slate-800 mt-1">{card.title}</h3>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="text-slate-405 hover:text-slate-655 text-sm font-bold cursor-pointer transition-colors p-1 bg-transparent border-none"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-5 text-left select-text scrollbar-thin">
+          
+          {/* Metadata Grid */}
+          <div className="grid grid-cols-2 gap-4 border-b border-slate-100 pb-4">
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Due Date</span>
+              <p className="text-xs font-bold text-slate-700 mt-1">
+                {card.dueDate ? new Date(card.dueDate).toLocaleString() : 'No due date'}
+              </p>
+            </div>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Assignee</span>
+              <p className="text-xs font-bold text-slate-700 mt-1">{card.studentName}</p>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Task Instructions</span>
+            <p className="text-xs text-slate-600 leading-relaxed mt-1.5 select-text">{card.description || 'No instructions provided.'}</p>
+          </div>
+
+          {/* Reference Materials */}
+          {card.referenceMaterials && card.referenceMaterials.length > 0 && (
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Reference Attachments</span>
+              <div className="flex flex-wrap gap-2 mt-1.5">
+                {card.referenceMaterials.map((f: any, idx: number) => (
+                  <a
+                    key={idx}
+                    href={f.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-indigo-650 hover:text-indigo-855 flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <FileText size={12} />
+                    <span className="truncate max-w-[150px]">{f.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Submissions Section */}
+          <div className="border-t border-slate-100 pt-4">
+            {isTeacher ? (
+              /* Teacher Grading Workspace */
+              <div className="space-y-4">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Student Submission Details</span>
+                {card.status === 'pending' ? (
+                  <p className="text-xs text-slate-450 italic py-2">This student has not submitted work yet.</p>
+                ) : (
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    {card.submissionText && (
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-0.5">Submission Note:</span>
+                        <p className="text-xs text-slate-700 select-text leading-relaxed font-outfit">{card.submissionText}</p>
+                      </div>
+                    )}
+                    {card.submittedWork && card.submittedWork.length > 0 && (
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Submitted Files:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {card.submittedWork.map((file: any, idx: number) => (
+                            <a
+                              key={idx}
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-indigo-650 hover:text-indigo-855 flex items-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <FileText size={12} />
+                              <span className="truncate max-w-[150px]">{file.name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Student Submission Workspace */
+              <div className="space-y-4">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Your Deliverables</span>
+                {card.status === 'pending' ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Submission Note</label>
+                      <textarea
+                        value={submissionText[card.assignmentId] || ''}
+                        onChange={e => setSubmissionText(prev => ({ ...prev, [card.assignmentId]: e.target.value }))}
+                        placeholder="Add a comment or note about your submission..."
+                        rows={2}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-indigo-500/40 transition-all font-outfit resize-none"
+                      />
+                    </div>
+
+                    {/* Work Upload */}
+                    <div>
+                      <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-1 block">Work Files</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="file"
+                          multiple
+                          id={`kanban-sub-file-${card.assignmentId}`}
+                          className="hidden"
+                          onChange={async (e) => {
+                            if (!e.target.files) return;
+                            setUploadingSubFile(prev => ({ ...prev, [card.assignmentId]: true }));
+                            const uploaded = [...(submissionFiles[card.assignmentId] || [])];
+                            for (const file of Array.from(e.target.files)) {
+                              try {
+                                const filePath = `${activeWorkspaceId}/submissions/${Date.now()}-${file.name}`;
+                                const { data, error } = await supabase.storage
+                                  .from('workspace_files')
+                                  .upload(filePath, file);
+                                if (error) throw error;
+                                const { data: { publicUrl } } = supabase.storage
+                                  .from('workspace_files')
+                                  .getPublicUrl(filePath);
+                                uploaded.push({
+                                  name: file.name,
+                                  url: publicUrl,
+                                  size: file.size,
+                                  type: file.type
+                                });
+                              } catch (err) {
+                                console.error('File upload failed:', err);
+                              }
+                            }
+                            setSubmissionFiles(prev => ({ ...prev, [card.assignmentId]: uploaded }));
+                            setUploadingSubFile(prev => ({ ...prev, [card.assignmentId]: false }));
+                          }}
+                        />
+                        <label
+                          htmlFor={`kanban-sub-file-${card.assignmentId}`}
+                          className="flex items-center justify-center gap-2 w-full py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] text-slate-505 hover:text-slate-805 cursor-pointer hover:border-indigo-550 transition-all font-outfit"
+                        >
+                          {uploadingSubFile[card.assignmentId] ? (
+                            <div className="w-3.5 h-3.5 border-2 border-t-indigo-650 border-slate-200 rounded-full animate-spin" />
+                          ) : (
+                            <Plus size={12} />
+                          )}
+                          <span>{uploadingSubFile[card.assignmentId] ? 'Uploading work files...' : 'Upload Work Files'}</span>
+                        </label>
+                      </div>
+
+                      {(submissionFiles[card.assignmentId] || []).length > 0 && (
+                        <div className="mt-2 space-y-1.5 text-left">
+                          {(submissionFiles[card.assignmentId] || []).map((f, idx) => (
+                            <div key={idx} className="flex justify-between items-center bg-slate-50 border border-slate-150 px-3 py-1.5 rounded-xl text-[10px] text-slate-650">
+                              <span className="truncate flex-1 pr-2">{f.name}</span>
+                              <button
+                                onClick={() => setSubmissionFiles(prev => ({
+                                  ...prev,
+                                  [card.assignmentId]: prev[card.assignmentId].filter((_, i) => i !== idx)
+                                }))}
+                                className="text-rose-650 hover:text-rose-700 font-bold cursor-pointer bg-transparent border-none"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  /* Submitted View */
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    {card.submissionText && (
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-505 uppercase tracking-widest block mb-0.5">Your Note:</span>
+                        <p className="text-xs text-slate-600 leading-relaxed font-outfit select-text">{card.submissionText}</p>
+                      </div>
+                    )}
+                    {card.submittedWork && card.submittedWork.length > 0 && (
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-505 uppercase tracking-widest block mb-1">Your Work Files:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {card.submittedWork.map((file: any, idx: number) => (
+                            <a
+                              key={idx}
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-indigo-650 hover:text-indigo-855 flex items-center gap-1.5 transition-colors cursor-pointer"
+                            >
+                              <FileText size={12} />
+                              <span className="truncate max-w-[150px]">{file.name}</span>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+        </div>
+
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-bold uppercase tracking-wider text-slate-500 transition-all cursor-pointer disabled:opacity-50"
+          >
+            Close
+          </button>
+          
+          {isTeacher && card.status === 'submitted' && (
+            <button
+              onClick={handleGrade}
+              disabled={loading}
+              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-emerald-500/10 border-none flex items-center justify-center gap-1.5"
+            >
+              {loading && <div className="w-3.5 h-3.5 border-2 border-t-white border-white/20 rounded-full animate-spin shrink-0" />}
+              Grade Complete
+            </button>
+          )}
+
+          {!isTeacher && card.status === 'pending' && (
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-indigo-650/10 border-none flex items-center justify-center gap-1.5"
+            >
+              {loading && <div className="w-3.5 h-3.5 border-2 border-t-white border-white/20 rounded-full animate-spin shrink-0" />}
+              Turn In Task
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }

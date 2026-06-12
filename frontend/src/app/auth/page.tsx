@@ -6,6 +6,7 @@ import Script from 'next/script';
 import { useAuth } from '@/hooks/useAuth';
 import { ShieldAlert, CheckCircle2, Lock, Rocket, Mail, User, KeyRound, ArrowLeft, Send } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { getAccessToken } from '@/lib/auth';
 
 function AuthContent() {
   const router = useRouter();
@@ -20,6 +21,7 @@ function AuthContent() {
     loginWithGoogleCode,
     forgotPassword, 
     resetPassword, 
+    logout,
     user 
   } = useAuth();
 
@@ -51,6 +53,14 @@ function AuthContent() {
   useEffect(() => {
     async function handlePostLoginRedirect() {
       if (user) {
+        const token = getAccessToken();
+        if (!token) {
+          // Desync detected: Supabase is authenticated, but backend token is missing.
+          // Cleanly log out to reset the session.
+          await logout();
+          return;
+        }
+
         const urlParams = new URLSearchParams(window.location.search);
         const inviteWorkspaceId = urlParams.get('inviteWorkspaceId');
         const inviteRole = urlParams.get('inviteRole') || 'member';
@@ -89,7 +99,7 @@ function AuthContent() {
     }
     
     handlePostLoginRedirect();
-  }, [user, router]);
+  }, [user, router, logout]);
 
   // Atmospheric Particle Canvas Background
   useEffect(() => {
@@ -270,11 +280,8 @@ function AuthContent() {
       <main className="relative z-10 w-full max-w-[440px] px-6 flex flex-col items-center py-12">
         
         {/* Logo Section */}
-        <div className="mb-8 flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-indigo-650 flex items-center justify-center mb-4 shadow-[0_0_25px_rgba(6,182,212,0.25)] border border-cyan-500/30">
-            <Lock className="w-8 h-8 text-slate-900" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-cyan-400 glow-text-primary">AeroMeet</h1>
+        <div className="mb-6 flex flex-col items-center text-center">
+          <img src="/logo.png" alt="AeroMeet" className="w-64 h-auto object-contain mb-1 select-none pointer-events-none" />
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-1.5 font-mono">Encrypted Collaboration</p>
         </div>
 

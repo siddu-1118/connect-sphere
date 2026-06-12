@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FileText, Bold, Italic, List, Code, Eye, Edit3, Trash2, Plus, 
-  Sparkles, Save, BookOpen, Quote, Heading1, Heading2, CheckSquare 
+  Sparkles, Save, BookOpen, Quote, Heading1, Heading2, CheckSquare,
+  Folder, FolderOpen, Check
 } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -12,17 +13,22 @@ interface Note {
   id: string;
   title: string;
   content: string;
+  folder: string;
   updatedAt: string;
 }
+
+const FOLDERS = ['All', 'Work', 'Personal', 'Archive', 'Templates'];
 
 export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState('All');
   
   // Editor view states
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [titleInput, setTitleInput] = useState('');
   const [contentInput, setContentInput] = useState('');
+  const [savedToast, setSavedToast] = useState(false);
   
   // Load notes on mount
   useEffect(() => {
@@ -35,6 +41,7 @@ export default function NotesPage() {
       }
     } else {
       setNotes([]);
+      localStorage.setItem('cs_notes', JSON.stringify([]));
     }
   }, []);
 
@@ -49,6 +56,7 @@ export default function NotesPage() {
       id: `note-${Date.now()}`,
       title: 'Untitled Document',
       content: '# Untitled Note\n\nType here...',
+      folder: selectedFolder === 'All' ? 'Work' : selectedFolder,
       updatedAt: new Date().toISOString()
     };
     
@@ -92,7 +100,22 @@ export default function NotesPage() {
 
     setNotes(updatedNotes);
     localStorage.setItem('cs_notes', JSON.stringify(updatedNotes));
-    alert('Note saved successfully.');
+    setSavedToast(true);
+    setTimeout(() => setSavedToast(false), 2000);
+  };
+
+  const handleMoveNoteFolder = (noteId: string, folderName: string) => {
+    const updatedNotes = notes.map(n => {
+      if (n.id === noteId) {
+        return { ...n, folder: folderName };
+      }
+      return n;
+    });
+    setNotes(updatedNotes);
+    localStorage.setItem('cs_notes', JSON.stringify(updatedNotes));
+    if (selectedNote?.id === noteId) {
+      setSelectedNote(prev => prev ? { ...prev, folder: folderName } : null);
+    }
   };
 
   // Simple Markdown Parser regex converter
@@ -103,34 +126,34 @@ export default function NotesPage() {
       .replace(/>/g, '&gt;');
 
     // Headings
-    html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black text-white mt-4 mb-2 tracking-tight border-b border-slate-900 pb-1.5">$1</h1>');
-    html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-extrabold text-slate-100 mt-4 mb-2 tracking-tight">$1</h2>');
-    html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-slate-200 mt-3 mb-1 tracking-tight">$1</h3>');
+    html = html.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-black text-slate-800 mt-4 mb-2 tracking-tight border-b border-slate-100 pb-1.5">$1</h1>');
+    html = html.replace(/^## (.*$)/gim, '<h2 class="text-xl font-extrabold text-slate-800 mt-4 mb-2 tracking-tight">$1</h2>');
+    html = html.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-slate-700 mt-3 mb-1 tracking-tight">$1</h3>');
 
     // Blockquotes
-    html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-[#10B981] bg-[#10B981]/5 px-4 py-2 rounded-r-xl italic text-slate-400 my-4">$1</blockquote>');
+    html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-indigo-650 bg-indigo-50/50 px-4 py-2 rounded-r-xl italic text-slate-650 my-4">$1</blockquote>');
 
     // Code Blocks
-    html = html.replace(/\`\`\`([\s\S]*?)\`\`\`/gim, '<pre class="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-xs font-mono text-cyan-300 my-4 overflow-x-auto"><code>$1</code></pre>');
-    html = html.replace(/\`([^\`]+)\`/gim, '<code class="bg-slate-900 border border-slate-850 text-cyan-400 px-1.5 py-0.5 rounded font-mono text-xs">$1</code>');
+    html = html.replace(/\`\`\`([\s\S]*?)\`\`\`/gim, '<pre class="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-mono text-indigo-650 my-4 overflow-x-auto"><code>$1</code></pre>');
+    html = html.replace(/\`([^\`]+)\`/gim, '<code class="bg-slate-105 border border-slate-200/60 text-indigo-650 px-1.5 py-0.5 rounded font-mono text-xs">$1</code>');
 
     // Checkboxes
-    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-400 my-1"><input type="checkbox" checked disabled class="rounded border-slate-800 bg-slate-950 text-[#10B981] focus:ring-0" /> <span class="line-through">$1</span></div>');
-    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-300 my-1"><input type="checkbox" disabled class="rounded border-slate-800 bg-slate-950 text-[#10B981] focus:ring-0" /> <span>$1</span></div>');
+    html = html.replace(/^- \[x\] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-400 my-1"><input type="checkbox" checked disabled class="rounded border-slate-200 bg-slate-50 text-indigo-600 focus:ring-0" /> <span class="line-through">$1</span></div>');
+    html = html.replace(/^- \[ \] (.*$)/gim, '<div class="flex items-center gap-2 text-xs text-slate-650 my-1"><input type="checkbox" disabled class="rounded border-slate-200 bg-slate-50 text-indigo-600 focus:ring-0" /> <span>$1</span></div>');
 
     // Lists
-    html = html.replace(/^- (.*$)/gim, '<li class="list-disc list-inside text-xs text-slate-300 ml-2 my-1">$1</li>');
+    html = html.replace(/^- (.*$)/gim, '<li class="list-disc list-inside text-xs text-slate-600 ml-2 my-1">$1</li>');
 
     // Bold / Italic
-    html = html.replace(/\*\*([^\*]+)\*\*/gim, '<strong class="font-extrabold text-white">$1</strong>');
-    html = html.replace(/\*([^\*]+)\*/gim, '<em class="italic text-slate-300">$1</em>');
+    html = html.replace(/\*\*([^\*]+)\*\*/gim, '<strong class="font-extrabold text-slate-900">$1</strong>');
+    html = html.replace(/\*([^\*]+)\*/gim, '<em class="italic text-slate-600">$1</em>');
 
     // Newlines / Paragraphs
     html = html.split('\n').map(line => {
       if (line.trim().startsWith('<h') || line.trim().startsWith('<li') || line.trim().startsWith('<blockquote') || line.trim().startsWith('<pre') || line.trim().startsWith('<div') || line.trim() === '') {
         return line;
       }
-      return `<p class="text-xs leading-relaxed text-slate-300 my-2">${line}</p>`;
+      return `<p class="text-xs leading-relaxed text-slate-600 my-2">${line}</p>`;
     }).join('\n');
 
     return html;
@@ -180,95 +203,149 @@ export default function NotesPage() {
     }, 50);
   };
 
+  const filteredNotes = notes.filter(n => {
+    if (selectedFolder === 'All') return true;
+    return n.folder === selectedFolder;
+  });
+
   return (
-    <div className="flex h-[calc(100vh-130px)] md:h-[calc(100vh-100px)] border border-slate-900 rounded-3xl bg-slate-950/20 backdrop-blur-2xl overflow-hidden shadow-2xl">
+    <div className="flex h-full bg-[#F8FAFC]">
       
       {/* 1. Left Document Sidebar */}
-      <div className="w-64 border-r border-slate-900 bg-slate-950/45 flex flex-col justify-between shrink-0 h-full">
+      <div className="w-64 border-r border-slate-200/80 bg-white flex flex-col justify-between shrink-0 h-full">
         <div>
-          <div className="p-4 border-b border-slate-900 flex items-center justify-between">
+          {/* Header */}
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-[#10B981]/10 border border-[#10B981]/20 flex items-center justify-center text-primary">
-                <FileText className="w-4.5 h-4.5" />
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-650">
+                <FileText className="w-4.5 h-4.5 text-indigo-650" />
               </div>
-              <span className="text-xs font-black uppercase tracking-widest text-white">Documents</span>
+              <span className="text-xs font-black uppercase tracking-widest text-slate-800">Notebooks</span>
             </div>
             
             <button 
               onClick={handleCreateNote}
-              className="w-5 h-5 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-500 hover:text-white"
+              className="w-6 h-6 rounded-lg hover:bg-slate-50 flex items-center justify-center text-slate-400 hover:text-indigo-650 transition-colors border border-transparent hover:border-slate-200"
               title="Create note"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Notes list */}
-          <div className="p-3 space-y-1 overflow-y-auto max-h-[420px] scrollbar-thin">
-            {notes.length === 0 ? (
-              <p className="text-[10px] text-slate-600 px-2 italic">No notes created.</p>
-            ) : (
-              notes.map(note => {
-                const isSelected = selectedNote?.id === note.id;
+          {/* Folders List */}
+          <div className="px-3 pt-3 pb-2 border-b border-slate-100">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-1 block">Folders</span>
+            <div className="space-y-0.5">
+              {FOLDERS.map(folder => {
+                const isSelected = selectedFolder === folder;
+                const count = folder === 'All' ? notes.length : notes.filter(n => n.folder === folder).length;
                 return (
                   <button
+                    key={folder}
+                    onClick={() => setSelectedFolder(folder)}
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold text-left transition-all ${
+                      isSelected 
+                        ? 'bg-indigo-50 text-indigo-650' 
+                        : 'text-slate-650 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isSelected ? (
+                        <FolderOpen className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      ) : (
+                        <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      )}
+                      <span className="truncate">{folder}</span>
+                    </div>
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-500 rounded-md px-1.5 py-0.5">
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Notes list */}
+          <div className="p-3 space-y-1 overflow-y-auto max-h-[300px] scrollbar-thin">
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-1 block">Documents</span>
+            {filteredNotes.length === 0 ? (
+              <p className="text-[10px] text-slate-400 px-2 italic py-2">No documents in {selectedFolder}.</p>
+            ) : (
+              filteredNotes.map(note => {
+                const isSelected = selectedNote?.id === note.id;
+                return (
+                  <div
                     key={note.id}
                     onClick={() => selectNote(note)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all ${
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-all cursor-pointer group border ${
                       isSelected 
-                        ? 'bg-gradient-to-tr from-[#10B981]/15 to-[#06B6D4]/15 border border-[#10B981]/20 text-white' 
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-transparent'
+                        ? 'bg-white border-indigo-150 text-indigo-900 shadow-xs' 
+                        : 'text-slate-650 hover:text-slate-900 hover:bg-slate-50 border-transparent'
                     }`}
                   >
                     <span className="text-xs font-bold truncate flex-1 pr-2">{note.title}</span>
                     <button 
                       onClick={(e) => handleDeleteNote(note.id, e)}
-                      className="opacity-0 group-hover:opacity-100 hover:text-red-400 p-0.5"
+                      className="opacity-0 group-hover:opacity-100 hover:text-red-500 p-0.5 transition-opacity"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                  </button>
+                  </div>
                 );
               })
             )}
           </div>
         </div>
 
-        <div className="p-4 border-t border-slate-900 bg-slate-950/20">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-black flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> Collaborative Spaces
+        <div className="p-4 border-t border-slate-100 bg-slate-50">
+          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-650 animate-pulse" /> Workspace Notebook
           </span>
         </div>
       </div>
 
       {/* 2. Right Editor Workspace */}
-      <div className="flex-1 flex flex-col justify-between h-full bg-[#0B0F17]/35">
+      <div className="flex-1 flex flex-col justify-between h-full bg-[#F8FAFC] relative">
         {selectedNote ? (
           <>
             {/* Header bar */}
-            <div className="p-4 border-b border-slate-900 bg-slate-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <input
-                type="text"
-                value={titleInput}
-                onChange={e => setTitleInput(e.target.value)}
-                placeholder="Document Title"
-                className="bg-transparent border-none text-sm font-black text-white focus:outline-none focus:ring-0 max-w-sm"
-              />
+            <div className="p-4 border-b border-slate-200/80 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs shrink-0">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={titleInput}
+                  onChange={e => setTitleInput(e.target.value)}
+                  placeholder="Document Title"
+                  className="bg-transparent border-none text-sm font-bold text-slate-800 focus:outline-none focus:ring-0 max-w-xs focus:bg-slate-50 rounded px-1"
+                />
+                
+                {/* Folder Select Dropdown */}
+                <select
+                  value={selectedNote.folder}
+                  onChange={e => handleMoveNoteFolder(selectedNote.id, e.target.value)}
+                  className="text-[10px] font-bold bg-slate-100 border-none rounded-lg text-slate-600 py-1 px-2 focus:ring-0 cursor-pointer"
+                >
+                  {FOLDERS.filter(f => f !== 'All').map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
 
               <div className="flex items-center gap-2">
-                <div className="flex p-1 bg-slate-900/60 rounded-xl border border-slate-850 gap-0.5">
+                <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/60 gap-0.5">
                   <button
                     onClick={() => setActiveTab('edit')}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
-                      activeTab === 'edit' ? 'bg-gradient-to-tr from-[#10B981] to-[#06B6D4] text-white' : 'text-slate-400 hover:text-slate-200'
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                      activeTab === 'edit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Write
                   </button>
                   <button
                     onClick={() => setActiveTab('preview')}
-                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5 ${
-                      activeTab === 'preview' ? 'bg-gradient-to-tr from-[#10B981] to-[#06B6D4] text-white' : 'text-slate-400 hover:text-slate-200'
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                      activeTab === 'preview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     <Eye className="w-3.5 h-3.5" /> Render
@@ -277,7 +354,7 @@ export default function NotesPage() {
 
                 <button 
                   onClick={handleSave}
-                  className="px-3.5 py-2 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider text-slate-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
                 >
                   <Save className="w-3.5 h-3.5" /> Save
                 </button>
@@ -287,18 +364,18 @@ export default function NotesPage() {
             {/* Note Body viewport */}
             <div className="flex-1 p-4 overflow-y-auto scrollbar-thin">
               {activeTab === 'edit' ? (
-                <div className="h-full flex flex-col justify-between">
+                <div className="h-full flex flex-col max-w-4xl mx-auto w-full bg-white border border-slate-200/80 rounded-2xl shadow-sm p-5">
                   {/* Styling Tool Toolbar */}
-                  <div className="flex flex-wrap items-center gap-2 border-b border-slate-950 pb-2 mb-3 text-slate-500">
-                    <button onClick={() => handleShortcut('bold')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Bold"><Bold className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('italic')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Italic"><Italic className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('h1')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="H1 Header"><Heading1 className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('h2')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="H2 Header"><Heading2 className="w-4 h-4" /></button>
-                    <span className="w-px h-4 bg-slate-900" />
-                    <button onClick={() => handleShortcut('list')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Bullet List"><List className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('todo')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Todo Checklist"><CheckSquare className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('quote')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Blockquote"><Quote className="w-4 h-4" /></button>
-                    <button onClick={() => handleShortcut('code')} className="p-1 hover:bg-slate-905 hover:text-white rounded" title="Code Block"><Code className="w-4 h-4" /></button>
+                  <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-3 mb-4 text-slate-400">
+                    <button onClick={() => handleShortcut('bold')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Bold"><Bold className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('italic')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Italic"><Italic className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('h1')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="H1 Header"><Heading1 className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('h2')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="H2 Header"><Heading2 className="w-4 h-4" /></button>
+                    <span className="w-px h-5 bg-slate-200 mx-1" />
+                    <button onClick={() => handleShortcut('list')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Bullet List"><List className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('todo')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Todo Checklist"><CheckSquare className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('quote')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Blockquote"><Quote className="w-4 h-4" /></button>
+                    <button onClick={() => handleShortcut('code')} className="p-1.5 hover:bg-slate-50 hover:text-slate-800 rounded-lg transition-colors" title="Code Block"><Code className="w-4 h-4" /></button>
                   </div>
 
                   <textarea
@@ -306,19 +383,18 @@ export default function NotesPage() {
                     value={contentInput}
                     onChange={e => setContentInput(e.target.value)}
                     placeholder="Type markdown syntax here..."
-                    className="flex-1 w-full bg-transparent border-none text-slate-200 text-xs placeholder:text-slate-650 focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed"
+                    className="flex-1 w-full bg-transparent border-none text-slate-800 text-xs placeholder:text-slate-400 focus:outline-none focus:ring-0 resize-none font-mono leading-relaxed"
                   />
                 </div>
               ) : (
-                <div 
-                  className="prose prose-invert max-w-none text-xs text-slate-200 select-text leading-relaxed markdown-preview"
-                  dangerouslySetInnerHTML={{ __html: parseMarkdown(contentInput) }}
-                />
+                <div className="max-w-4xl mx-auto w-full bg-white border border-slate-200/80 rounded-2xl shadow-sm p-8 prose prose-slate select-text leading-relaxed markdown-preview">
+                  <div dangerouslySetInnerHTML={{ __html: parseMarkdown(contentInput) }} />
+                </div>
               )}
             </div>
           </>
         ) : (
-          <div className="h-full flex items-center justify-center">
+          <div className="h-full flex items-center justify-center bg-[#F8FAFC]">
             <EmptyState
               icon={FileText}
               title="No document active"
@@ -326,6 +402,14 @@ export default function NotesPage() {
               actionLabel="Create Note"
               onActionClick={handleCreateNote}
             />
+          </div>
+        )}
+        
+        {/* Saved Toast Popup */}
+        {savedToast && (
+          <div className="fixed bottom-4 right-4 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 animate-fadeIn z-50">
+            <Check className="w-4 h-4 text-emerald-400" />
+            <span>Document saved successfully</span>
           </div>
         )}
       </div>

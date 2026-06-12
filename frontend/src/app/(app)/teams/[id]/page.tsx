@@ -116,8 +116,8 @@ export default function TeamDetailPage() {
   if (loadingWorkspace) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
-        <Spinner size="lg" className="border-t-purple-500 w-12 h-12" />
-        <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest animate-pulse">
+        <Spinner size="lg" className="border-t-indigo-600 w-12 h-12" />
+        <p className="text-sm font-semibold text-slate-500 uppercase tracking-widest animate-pulse">
           Opening Workspace...
         </p>
       </div>
@@ -131,7 +131,7 @@ export default function TeamDetailPage() {
   } as const;
 
   return (
-    <div className="h-[calc(100vh-180px)] flex bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative">
+    <div className="h-[calc(100vh-180px)] flex bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm relative">
       {/* 1. Left Channel list Panel */}
       {team && (
         <div className={cn(
@@ -154,7 +154,7 @@ export default function TeamDetailPage() {
 
       {/* 2. Central Channel Chat Board */}
       <div className={cn(
-        "flex-1 flex flex-col h-full border-r border-slate-900",
+        "flex-1 flex flex-col h-full border-r border-slate-200",
         mobileView === 'chat' ? 'flex w-full' : 'hidden md:flex'
       )}>
         {activeChannel ? (
@@ -169,33 +169,33 @@ export default function TeamDetailPage() {
             onViewMembers={() => setMobileView('members')}
           />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
-            <Hash className="w-12 h-12 text-slate-700 mb-4" />
-            <h3 className="text-sm font-bold text-white mb-1">No Channel Selected</h3>
-            <p className="text-xs text-slate-500">Select a channel from the left sidebar to view discussions.</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-slate-50">
+            <Hash className="w-12 h-12 text-slate-300 mb-4" />
+            <h3 className="text-sm font-bold text-slate-800 mb-1">No Channel Selected</h3>
+            <p className="text-xs text-slate-400">Select a channel from the left sidebar to view discussions.</p>
           </div>
         )}
       </div>
 
       {/* 3. Right Members Sidebar */}
       <aside className={cn(
-        "bg-slate-950/65 flex flex-col shrink-0 h-full backdrop-blur-xl md:w-60",
+        "bg-slate-50 flex flex-col shrink-0 h-full md:w-60",
         mobileView === 'members' ? 'flex w-full' : 'hidden lg:flex'
       )}>
-        <div className="px-5 py-4 border-b border-slate-900 bg-slate-950 flex items-center gap-2">
+        <div className="px-5 py-4 border-b border-slate-200 bg-white flex items-center gap-2">
           <button
             type="button"
             onClick={() => setMobileView('chat')}
-            className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all shrink-0"
+            className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 active:scale-95 transition-all shrink-0"
             aria-label="Back to chat"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <Users className="w-4 h-4 text-purple-400" />
-          <h2 className="text-xs font-black text-white tracking-widest uppercase">
+          <Users className="w-4 h-4 text-indigo-600" />
+          <h2 className="text-xs font-black text-slate-800 tracking-widest uppercase">
             Members
           </h2>
-          <span className="px-2 py-0.5 rounded-full bg-purple-600/20 text-purple-400 text-[10px] font-bold">
+          <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold border border-indigo-100">
             {members.length}
           </span>
         </div>
@@ -204,12 +204,12 @@ export default function TeamDetailPage() {
           {members.map((member) => (
             <div key={member.id} className="flex items-center justify-between gap-2.5">
               <div className="flex items-center gap-2.5 min-w-0">
-                <Avatar name={member.user.name} src={member.user.avatarUrl} size="sm" className="shadow-md" />
+                <Avatar name={member.user.name} src={member.user.avatarUrl} size="sm" className="shadow-xs" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-white truncate leading-none mb-1">
+                  <p className="text-xs font-bold text-slate-800 truncate leading-none mb-1">
                     {member.user.name}
                   </p>
-                  <p className="text-[9px] text-slate-500 truncate leading-none">
+                  <p className="text-[9px] text-slate-400 truncate leading-none">
                     {member.user.email}
                   </p>
                 </div>
@@ -239,7 +239,7 @@ export default function TeamDetailPage() {
           />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Description (Optional)
             </label>
             <textarea
@@ -247,11 +247,11 @@ export default function TeamDetailPage() {
               rows={3}
               value={channelDesc}
               onChange={(e) => setChannelDesc(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-800 focus:border-blue-500 focus:outline-none rounded-xl text-sm text-slate-200 placeholder:text-slate-500 transition-colors shadow-inner resize-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 focus:outline-none rounded-xl text-sm text-slate-800 placeholder:text-slate-450 transition-colors resize-none"
             />
           </div>
 
-          <div className="pt-4 border-t border-slate-850 flex items-center justify-end gap-3 bg-slate-900/10">
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 bg-slate-50/55">
             <Button type="button" variant="ghost" onClick={() => setIsChannelModalOpen(false)}>
               Cancel
             </Button>

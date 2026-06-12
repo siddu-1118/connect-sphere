@@ -1,13 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <defs>
-    <linearGradient id="prism" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1" />
-      <stop offset="50%" stop-color="#4f46e5" />
-      <stop offset="100%" stop-color="#06b6d4" />
+    <linearGradient id="wingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4" />
+      <stop offset="50%" stop-color="#4F46E5" />
+      <stop offset="100%" stop-color="#1E1B4B" />
+    </linearGradient>
+    <linearGradient id="lensGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#38BDF8" />
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="128" fill="#0B0F19" />
-  <path d="M256 96L96 176l160 80 160-80L256 96z" fill="url(#prism)" />
-  <path d="M96 336l160 80 160-80" stroke="url(#prism)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-  <path d="M96 256l160 80 160-80" stroke="url(#prism)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+  <!-- Background white squircle -->
+  <rect width="32" height="32" rx="8" fill="#ffffff" stroke="#F1F5F9" stroke-width="1" />
+  
+  <!-- Outer Winged "A" Shape -->
+  <path d="M16 5 C14 5 12 7 9 12 C7 15 6 19 6 23 C7 24 9 24 10 23 C11 21 13 18 15 15 C17 12 18 10 20 8 C23 7 26 8 26 11 C26 13 24 15 22 17 C25 18 26 21 24 23 C22 24 19 24 18 22 C17 20 18 17 20 15 C19 14 17 14 16 15 C14 16 13 19 13 21 C13 23 15 24 17 24 C19 24 21 22 22 20 L23 21 C22 23 20 25 17 25 C13 25 10 23 10 19 C10 16 12 13 14 10 L16 5 Z" fill="url(#wingGrad)" />
+  
+  <!-- Inner Camera Lens -->
+  <circle cx="16" cy="15" r="4" fill="url(#lensGrad)" stroke="#ffffff" stroke-width="0.8" />
+  <circle cx="16" cy="15" r="2.2" fill="#0F172A" />
+  <circle cx="17.2" cy="13.8" r="0.6" fill="#ffffff" opacity="0.8" />
 </svg>

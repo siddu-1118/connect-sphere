@@ -21,7 +21,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar } from '@/components/ui/Avatar';
-import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -51,7 +50,7 @@ function ToggleSwitch({
       aria-checked={checked}
       onClick={() => onChange(!checked)}
       className={`relative w-10 h-5.5 rounded-full transition-colors duration-200 cursor-pointer shrink-0 focus:outline-none ${
-        checked ? 'bg-[#10B981]' : 'bg-slate-700'
+        checked ? 'bg-indigo-600' : 'bg-slate-200'
       }`}
       style={{ height: '22px', width: '40px' }}
     >
@@ -99,16 +98,16 @@ function SettingsSelect({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2 text-sm text-slate-200 cursor-pointer hover:border-white/10 transition-colors"
+        className="w-full flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 cursor-pointer hover:bg-slate-50 transition-colors shadow-xs"
       >
         <span className="truncate">{current?.label ?? value}</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 text-slate-500 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
 
       {open && (
-        <div className="absolute top-full mt-1 w-full bg-[#2a2a4a] border border-white/[0.06] rounded-xl shadow-xl overflow-hidden z-50">
+        <div className="absolute top-full mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-md overflow-hidden z-50">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -117,14 +116,14 @@ function SettingsSelect({
                 onChange(opt.value);
                 setOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer ${
+              className={`w-full flex items-center justify-between px-3 py-2 text-sm transition-colors cursor-pointer text-left ${
                 opt.value === value
-                  ? 'bg-[#10B981]/20 text-[#10B981]'
-                  : 'text-slate-300 hover:bg-white/[0.04] hover:text-slate-100'
+                  ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <span>{opt.label}</span>
-              {opt.value === value && <Check className="w-3.5 h-3.5" />}
+              {opt.value === value && <Check className="w-3.5 h-3.5 text-indigo-600" />}
             </button>
           ))}
         </div>
@@ -145,9 +144,9 @@ function SettingsRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-white/[0.04] last:border-0">
+    <div className="flex items-center justify-between gap-4 py-3.5 border-b border-slate-100 last:border-0">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-200">{label}</p>
+        <p className="text-sm font-semibold text-slate-800">{label}</p>
         {description && (
           <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{description}</p>
         )}
@@ -161,7 +160,7 @@ function SettingsRow({
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4">{title}</h3>
+    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">{title}</h3>
   );
 }
 
@@ -209,18 +208,18 @@ function BlurSlider({
       <div
         ref={trackRef}
         onMouseDown={handleMouseDown}
-        className="relative flex-1 h-1.5 bg-white/10 rounded-full cursor-pointer group"
+        className="relative flex-1 h-1.5 bg-slate-100 rounded-full cursor-pointer group"
       >
         <div
-          className="absolute inset-y-0 left-0 bg-[#10B981] rounded-full"
+          className="absolute inset-y-0 left-0 bg-indigo-600 rounded-full"
           style={{ width: `${pct}%` }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-[#10B981] group-hover:scale-110 transition-transform cursor-grab active:cursor-grabbing"
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow border-2 border-indigo-650 group-hover:scale-110 transition-transform cursor-grab active:cursor-grabbing"
           style={{ left: `calc(${pct}% - 8px)` }}
         />
       </div>
-      <span className="text-xs text-slate-400 w-10 text-right">{value}px</span>
+      <span className="text-xs text-slate-500 w-10 text-right">{value}px</span>
     </div>
   );
 }
@@ -247,13 +246,13 @@ const NAV_ITEMS: {
 function GeneralPanel() {
   const [language, setLanguage] = useState('en');
   const [timeFormat, setTimeFormat] = useState('12');
-  const [darkMode] = useState(true);
+  const [darkMode] = useState(false);
   const [startOnLogin, setStartOnLogin] = useState(false);
 
   return (
     <div>
       <SectionHeader title="General" />
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
         <SettingsRow label="App Language" description="Choose your preferred interface language.">
           <SettingsSelect
             value={language}
@@ -281,10 +280,10 @@ function GeneralPanel() {
 
         <SettingsRow
           label="Theme"
-          description="AeroMeet uses a dark theme for optimal focus and clarity."
+          description="AeroMeet uses a light theme for optimal focus and clarity."
         >
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Dark</span>
+            <span className="text-xs text-slate-400">Light</span>
             <ToggleSwitch checked={darkMode} onChange={() => {}} />
           </div>
         </SettingsRow>
@@ -342,15 +341,15 @@ function ProfilePanel() {
       <SectionHeader title="Profile" />
 
       {/* Avatar section */}
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-6 mb-4 flex flex-col gap-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-4 flex flex-col gap-4 shadow-xs">
         <div className="flex items-center gap-5">
-          <Avatar name={displayName || 'You'} src={avatarUrl} size="xl" />
-          <div>
-            <p className="text-sm font-semibold text-slate-100">{displayName || user?.name}</p>
+          <Avatar name={displayName || 'You'} src={avatarUrl} size="xl" className="shadow-xs" />
+          <div className="text-left">
+            <p className="text-sm font-semibold text-slate-800">{displayName || user?.name}</p>
             <p className="text-xs text-slate-500 mb-3">{user?.email}</p>
             <button
               onClick={() => setShowAvatarPresets(!showAvatarPresets)}
-              className="flex items-center gap-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer border border-white/[0.06]"
+              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer border border-slate-200"
             >
               <Camera className="w-3.5 h-3.5" />
               Change photo
@@ -360,8 +359,8 @@ function ProfilePanel() {
 
         {/* Change photo dropdown/presets */}
         {showAvatarPresets && (
-          <div className="pt-4 border-t border-white/[0.04] animate-fadeIn">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3">
+          <div className="pt-4 border-t border-slate-100 animate-fadeIn text-left">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3">
               Select a Preset Avatar
             </p>
             <div className="flex flex-wrap gap-3 mb-4">
@@ -369,8 +368,8 @@ function ProfilePanel() {
                 <button
                   key={preset.url}
                   onClick={() => setAvatarUrl(preset.url)}
-                  className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all p-0.5 bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 ${
-                    avatarUrl === preset.url ? 'border-[#10B981]' : 'border-transparent hover:border-white/20'
+                  className={`w-12 h-12 rounded-xl overflow-hidden border-2 transition-all p-0.5 bg-slate-50 cursor-pointer hover:scale-105 active:scale-95 ${
+                    avatarUrl === preset.url ? 'border-indigo-600' : 'border-transparent hover:border-slate-300'
                   }`}
                   title={preset.name}
                 >
@@ -380,8 +379,8 @@ function ProfilePanel() {
               ))}
               <button
                 onClick={() => setAvatarUrl('')}
-                className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 text-[10px] font-bold transition-all bg-slate-900 cursor-pointer hover:scale-105 active:scale-95 text-slate-400 ${
-                  !avatarUrl ? 'border-[#10B981] text-white' : 'border-transparent hover:border-white/20'
+                className={`w-12 h-12 rounded-xl flex items-center justify-center border-2 text-[10px] font-bold transition-all bg-slate-50 cursor-pointer hover:scale-105 active:scale-95 text-slate-500 ${
+                  !avatarUrl ? 'border-indigo-600 text-indigo-750' : 'border-transparent hover:border-slate-300'
                 }`}
                 title="Clear avatar"
               >
@@ -390,14 +389,14 @@ function ProfilePanel() {
             </div>
 
             <div>
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 block">
                 Or enter custom image URL
               </label>
               <input
                 type="text"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
-                className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-xs text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500/50 transition-colors"
                 placeholder="https://example.com/avatar.png"
               />
             </div>
@@ -406,35 +405,35 @@ function ProfilePanel() {
       </div>
 
       {/* Form fields */}
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs text-left">
         <div className="py-4">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 block">
             Display Name
           </label>
           <input
             type="text"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
+            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500/50 transition-colors"
             placeholder="Your display name"
           />
         </div>
 
         <div className="py-4">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 block">
             Email Address
           </label>
           <input
             type="email"
             value={user?.email ?? ''}
             disabled
-            className="w-full bg-white/[0.02] border border-white/[0.04] rounded-xl px-3 py-2.5 text-sm text-slate-500 outline-none cursor-not-allowed"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-450 outline-none cursor-not-allowed"
           />
-          <p className="text-[11px] text-slate-600 mt-1.5">Email cannot be changed.</p>
+          <p className="text-[11px] text-slate-400 mt-1.5">Email cannot be changed.</p>
         </div>
 
         <div className="py-4">
-          <label className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2 block">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 block">
             Status Message
           </label>
           <input
@@ -442,13 +441,13 @@ function ProfilePanel() {
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             placeholder="e.g. Available, In a meeting…"
-            className="w-full bg-white/5 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-[#10B981]/50 transition-colors"
+            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500/50 transition-colors"
           />
         </div>
       </div>
 
       {error && (
-        <p className="mt-3 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+        <p className="mt-3 text-xs text-red-750 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 text-left">
           {error}
         </p>
       )}
@@ -457,7 +456,7 @@ function ProfilePanel() {
         <button
           onClick={handleSave}
           disabled={saving || !displayName.trim()}
-          className="bg-[#10B981] hover:bg-[#059669] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer flex items-center gap-2"
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2.5 text-sm transition-colors cursor-pointer flex items-center gap-2 shadow-xs"
         >
           {saving ? (
             <>
@@ -531,7 +530,7 @@ function NotificationsPanel() {
   return (
     <div>
       <SectionHeader title="Notifications" />
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs text-left">
         {rows.map(({ key, label, description }) => (
           <SettingsRow key={key} label={label} description={description}>
             <ToggleSwitch checked={settings[key]} onChange={() => toggle(key)} />
@@ -571,25 +570,25 @@ function AudioVideoPanel() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <div>
         <SectionHeader title="Audio & Video" />
-        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
           <SettingsRow label="Microphone">
             <div className="flex items-center gap-2">
-              <Mic className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <Mic className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <SettingsSelect value={microphone} onChange={setMicrophone} options={micOptions} />
             </div>
           </SettingsRow>
           <SettingsRow label="Speaker">
             <div className="flex items-center gap-2">
-              <Speaker className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <Speaker className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <SettingsSelect value={speaker} onChange={setSpeaker} options={speakerOptions} />
             </div>
           </SettingsRow>
           <SettingsRow label="Camera">
             <div className="flex items-center gap-2">
-              <Camera className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+              <Camera className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <SettingsSelect value={camera} onChange={setCamera} options={cameraOptions} />
             </div>
           </SettingsRow>
@@ -598,7 +597,7 @@ function AudioVideoPanel() {
 
       <div>
         <SectionHeader title="Audio Enhancement" />
-        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
           <SettingsRow
             label="Noise Cancellation"
             description="Reduce background sounds like fans and keyboard noise."
@@ -638,7 +637,7 @@ function BackgroundPanel() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <div>
         <SectionHeader title="Background & Effects" />
         <div className="flex gap-3 mb-6">
@@ -648,8 +647,8 @@ function BackgroundPanel() {
               onClick={() => setBgMode(m.id)}
               className={`flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border cursor-pointer transition-all ${
                 bgMode === m.id
-                  ? 'bg-[#10B981]/20 border-[#10B981]/40 text-[#10B981]'
-                  : 'bg-[#191f31] border-white/[0.06] text-slate-400 hover:bg-[#2a2a4a] hover:border-white/10'
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
+                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300 shadow-xs'
               }`}
             >
               <span className="text-xl">{m.icon}</span>
@@ -659,29 +658,29 @@ function BackgroundPanel() {
         </div>
 
         {bgMode === 'blur' && (
-          <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
-            <p className="text-sm font-medium text-slate-200 mb-3">Blur Intensity</p>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+            <p className="text-sm font-semibold text-slate-800 mb-3">Blur Intensity</p>
             <BlurSlider value={blurLevel} onChange={setBlurLevel} />
-            <p className="text-xs text-slate-600 mt-2">
+            <p className="text-xs text-slate-450 mt-2">
               Drag to adjust background blur level.
             </p>
           </div>
         )}
 
         {bgMode === 'virtual' && (
-          <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
-            <p className="text-sm font-medium text-slate-200 mb-3">Virtual Backgrounds</p>
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+            <p className="text-sm font-semibold text-slate-800 mb-3">Virtual Backgrounds</p>
             <div className="grid grid-cols-3 gap-2 mb-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="aspect-video rounded-lg bg-gradient-to-br from-[#0B0F17] to-[#191f31] border border-white/[0.06] flex items-center justify-center cursor-pointer hover:border-[#10B981]/40 transition-colors"
+                  className="aspect-video rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center cursor-pointer hover:border-indigo-500/40 transition-colors"
                 >
-                  <span className="text-[10px] text-slate-600">Background {i}</span>
+                  <span className="text-[10px] text-slate-500">Background {i}</span>
                 </div>
               ))}
             </div>
-            <button className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-slate-100 hover:bg-white/5 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer border border-dashed border-white/10 hover:border-white/20">
+            <button className="w-full flex items-center justify-center gap-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-xl py-2.5 text-sm font-semibold transition-colors cursor-pointer border border-dashed border-slate-250 hover:border-slate-400">
               <Upload className="w-4 h-4" />
               Upload custom background
             </button>
@@ -700,10 +699,10 @@ function PrivacyPanel() {
   const [allowDMs, setAllowDMs] = useState(false);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <div>
         <SectionHeader title="Privacy" />
-        <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+        <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
           <SettingsRow
             label="Show Read Receipts"
             description="Let others know when you've read their messages."
@@ -725,11 +724,11 @@ function PrivacyPanel() {
         </div>
       </div>
 
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
         <div className="flex items-start gap-3">
-          <Shield className="w-5 h-5 text-[#10B981] shrink-0 mt-0.5" />
+          <Shield className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-slate-200 mb-1">Data Sharing</p>
+            <p className="text-sm font-semibold text-slate-800 mb-1">Data Sharing</p>
             <p className="text-xs text-slate-500 leading-relaxed">
               AeroMeet collects anonymized usage data to improve product performance and features.
               We never sell your personal data to third parties. You can request a data export or
@@ -750,9 +749,9 @@ function AccessibilityPanel() {
   const [fontSize, setFontSize] = useState('default');
 
   return (
-    <div>
+    <div className="text-left">
       <SectionHeader title="Accessibility" />
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
         <SettingsRow
           label="Always Show Captions"
           description="Display live captions during meetings and calls."
@@ -800,31 +799,31 @@ function AboutPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 text-left">
       <SectionHeader title="About" />
 
       {/* Logo + version */}
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl p-6 flex flex-col items-center gap-3">
-        <div className="w-16 h-16 rounded-2xl bg-[#10B981]/20 border border-[#10B981]/30 flex items-center justify-center">
-          <span className="text-2xl font-black text-[#10B981]">AM</span>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col items-center gap-3 shadow-xs">
+        <div className="w-16 h-16 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center shadow-xs">
+          <span className="text-2xl font-bold text-indigo-700">AM</span>
         </div>
         <div className="text-center">
-          <p className="text-base font-bold text-slate-100">AeroMeet</p>
+          <p className="text-base font-bold text-slate-800">AeroMeet</p>
           <p className="text-xs text-slate-500 mt-0.5">Version 1.0.0</p>
-          <p className="text-[11px] text-slate-600 mt-0.5">Build 2026.05.29</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Build 2026.05.29</p>
         </div>
 
         <button
           onClick={handleCheckUpdates}
           disabled={checking}
-          className="flex items-center gap-2 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2 text-sm transition-colors cursor-pointer mt-1"
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl px-5 py-2 text-sm transition-colors cursor-pointer mt-1 shadow-xs"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${checking ? 'animate-spin' : ''}`} />
           {checking ? 'Checking…' : 'Check for Updates'}
         </button>
 
         {updateStatus === 'up-to-date' && (
-          <div className="flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1.5">
+          <div className="flex items-center gap-1.5 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-1.5">
             <Check className="w-3 h-3" />
             You&apos;re up to date!
           </div>
@@ -832,7 +831,7 @@ function AboutPanel() {
       </div>
 
       {/* Legal links */}
-      <div className="bg-[#191f31] border border-white/[0.06] rounded-2xl px-4 divide-y divide-white/[0.04]">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 divide-y divide-slate-100 shadow-xs">
         {[
           { label: 'Terms of Service', href: '#' },
           { label: 'Privacy Policy', href: '#' },
@@ -841,15 +840,15 @@ function AboutPanel() {
           <a
             key={label}
             href={href}
-            className="flex items-center justify-between py-3 text-sm text-slate-300 hover:text-[#10B981] transition-colors cursor-pointer group"
+            className="flex items-center justify-between py-3 text-sm text-slate-650 hover:text-indigo-700 transition-colors cursor-pointer group"
           >
             <span>{label}</span>
-            <ExternalLink className="w-3.5 h-3.5 text-slate-600 group-hover:text-[#10B981] transition-colors" />
+            <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-700 transition-colors" />
           </a>
         ))}
       </div>
 
-      <p className="text-center text-[11px] text-slate-700">
+      <p className="text-center text-[11px] text-slate-400">
         © 2026 AeroMeet Inc. All rights reserved.
       </p>
     </div>
@@ -878,11 +877,11 @@ export default function SettingsPage() {
   const [active, setActive] = useState<SettingsCategory>('general');
 
   return (
-    <div className="flex h-full bg-[#111827]">
+    <div className="flex h-full bg-[#F8FAFC]">
       {/* ── Left nav ── */}
-      <nav className="w-56 bg-[#0B0F17] border-r border-white/[0.06] flex flex-col py-4 shrink-0">
-        <div className="px-4 mb-4">
-          <h1 className="text-xs font-black uppercase tracking-wider text-slate-500">Settings</h1>
+      <nav className="w-56 bg-white border-r border-slate-200 flex flex-col py-4 shrink-0">
+        <div className="px-4 mb-4 text-left">
+          <h1 className="text-xs font-bold uppercase tracking-wider text-slate-400">Settings</h1>
         </div>
 
         <div className="flex-1 px-2 space-y-0.5 overflow-y-auto">
@@ -894,13 +893,13 @@ export default function SettingsPage() {
                 onClick={() => setActive(id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium cursor-pointer transition-all relative ${
                   isActive
-                    ? 'bg-[#10B981]/20 text-[#10B981]'
-                    : 'text-slate-400 hover:text-slate-100 hover:bg-white/[0.04]'
+                    ? 'bg-indigo-50 text-indigo-700 font-bold'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                 }`}
               >
                 {/* Left accent bar */}
                 {isActive && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-[#10B981] rounded-full" />
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-indigo-600 rounded-full" />
                 )}
                 <Icon className="w-4 h-4 shrink-0" />
                 <span className="truncate">{label}</span>

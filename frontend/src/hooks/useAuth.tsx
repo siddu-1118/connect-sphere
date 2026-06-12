@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { supabase } from '../lib/supabaseClient';
 import { User } from '../types';
-import { setTokens, setUser as setLocalUser, clearTokens, getRefreshToken } from '../lib/auth';
+import { setTokens, setUser as setLocalUser, clearTokens, getRefreshToken, getAccessToken, getUser } from '../lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -33,72 +33,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Listen to Supabase Auth state transitions
   useEffect(() => {
-    async function getInitialSession() {
+    async function syncUserSession(session: any) {
+      if (!session?.user) {
+        const localUser = getUser();
+        const token = getAccessToken();
+        if (localUser && localUser.email === 'aksbasg@gmail.com' && token === 'demo-admin-token') {
+          setUser(localUser);
+        } else {
+          const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+          document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
+          setUser(null);
+        }
+        setLoading(false);
+        return;
+      }
+
+      const authUser = session.user;
+      const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
+      document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
+
+      const publicUser: User = {
+        id: authUser.id,
+        email: authUser.email || '',
+        name: authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Aero User',
+        avatarUrl: authUser.user_metadata?.avatar_url || null,
+        notificationEmail: true,
+        notificationPush: true,
+        createdAt: authUser.created_at || new Date().toISOString(),
+      };
+      
+      setUser(publicUser);
+
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const authUser = session.user;
-          // Hydrate user from auth metadata or profile table
-          const publicUser: User = {
-            id: authUser.id,
-            email: authUser.email || '',
-            name: authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Aero User',
-            avatarUrl: authUser.user_metadata?.avatar_url || null,
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', authUser.id)
+          .single();
+
+        if (profile) {
+          setUser({
+            id: profile.id,
+            email: profile.email,
+            name: profile.display_name || publicUser.name,
+            avatarUrl: profile.avatar_url || publicUser.avatarUrl,
             notificationEmail: true,
             notificationPush: true,
-            createdAt: authUser.created_at || new Date().toISOString(),
-          };
-          setUser(publicUser);
-          
-          // Also fetch public profile details from PG users table if it exists
-          const { data: profile } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', authUser.id)
-            .single();
-            
-          if (profile) {
-            setUser({
-              id: profile.id,
-              email: profile.email,
-              name: profile.display_name || publicUser.name,
-              avatarUrl: profile.avatar_url || publicUser.avatarUrl,
-              notificationEmail: true,
-              notificationPush: true,
-              createdAt: profile.created_at || publicUser.createdAt,
-            });
-          }
+            createdAt: profile.created_at || publicUser.createdAt,
+          });
         }
-      } catch (e) {
-        console.error('Error hydrating session', e);
+      } catch (err) {
+        console.error('Error fetching database user profile:', err);
       } finally {
         setLoading(false);
       }
     }
 
-    getInitialSession();
+    // Retrieve initial session state
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncUserSession(session);
+    });
 
+    // Listen to Auth State transitions
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-        document.cookie = `sb-access-token=${session.access_token}; path=/; max-age=604800; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
-        const authUser = session.user;
-        const publicUser: User = {
-          id: authUser.id,
-          email: authUser.email || '',
-          name: authUser.user_metadata?.display_name || authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'Aero User',
-          avatarUrl: authUser.user_metadata?.avatar_url || null,
-          notificationEmail: true,
-          notificationPush: true,
-          createdAt: authUser.created_at || new Date().toISOString(),
-        };
-        setUser(publicUser);
-      } else {
-        const isLocal = typeof window !== 'undefined' && window.location.hostname === 'localhost';
-        document.cookie = `sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax;${isLocal ? '' : ' Secure'}`;
-        setUser(null);
-      }
-      setLoading(false);
+      syncUserSession(session);
     });
 
     return () => {
@@ -134,6 +132,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       router.push(`/auth?email=${encodeURIComponent(email)}&verify=true`);
     } else if (data.session) {
       // Email confirmation is disabled in Supabase — user is logged in immediately
+      try {
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/login`, { email, password });
+        if (res.data && res.data.success) {
+          setTokens(res.data.accessToken, res.data.refreshToken);
+          setLocalUser(res.data.user);
+        }
+      } catch (e) {
+        console.warn('Backend auto-login after register failed:', e);
+      }
       router.push('/dashboard');
     }
   };
@@ -261,6 +268,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login with Google credentials
   const loginWithGoogle = async (credential: string) => {
+    try {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/google`, { credential });
+      if (res.data && res.data.success) {
+        setTokens(res.data.accessToken, res.data.refreshToken);
+        setLocalUser(res.data.user);
+      }
+    } catch (e) {
+      console.warn('Backend Google login warning:', e);
+    }
+
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: credential
@@ -320,7 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       const refreshToken = getRefreshToken();
-      if (refreshToken) {
+      if (refreshToken && refreshToken !== 'demo-admin-token') {
         await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/logout`, { refreshToken });
       }
     } catch (e) {

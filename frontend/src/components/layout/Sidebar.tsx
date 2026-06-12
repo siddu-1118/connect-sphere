@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Bell, Grid, MessageSquare, Clock, Settings, LogOut, ChevronUp, Circle, ShieldCheck
+  LayoutGrid, Video, MessageSquare, Calendar, Edit3, FileText, FolderOpen, Film, Phone, Columns, Users, Settings, LogOut, ChevronUp, Circle, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Avatar from '../ui/Avatar';
@@ -21,10 +21,17 @@ const presenceConfig: Record<Presence, { color: string; label: string; ringColor
 };
 
 const navItems = [
-  { name: 'Activity Feed',   href: '/dashboard',   icon: Bell },
-  { name: 'Workspaces',      href: '/workspace',   icon: Grid },
-  { name: 'Direct Hub',      href: '/chat',        icon: MessageSquare },
-  { name: 'Calendar',        href: '/calendar',     icon: Clock },
+  { name: 'Dashboard',   href: '/dashboard',   icon: LayoutGrid },
+  { name: 'Meet',        href: '/meet',        icon: Video },
+  { name: 'Chat',        href: '/chat',        icon: MessageSquare },
+  { name: 'Calendar',    href: '/calendar',    icon: Calendar },
+  { name: 'Whiteboards', href: '/whiteboards', icon: Edit3 },
+  { name: 'Notes',       href: '/notes',       icon: FileText },
+  { name: 'Files',       href: '/files',       icon: FolderOpen },
+  { name: 'Clips',       href: '/clips',       icon: Film },
+  { name: 'Phone',       href: '/phone',       icon: Phone },
+  { name: 'Workspace',   href: '/workspace',   icon: Columns },
+  { name: 'Room',        href: '/room',        icon: Users },
 ];
 
 export function Sidebar() {
@@ -46,50 +53,46 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="hidden md:flex w-20 bg-slate-950/80 border-r border-slate-900 flex-col items-center justify-between py-6 h-screen fixed left-0 top-0 z-40 shrink-0 select-none backdrop-blur-xl">
+    <aside className="hidden md:flex w-20 bg-white border-r border-slate-250/80 flex-col items-center justify-between py-4 h-screen fixed left-0 top-0 z-40 shrink-0 select-none shadow-sm">
       {/* Top: Branding / Logo */}
-      <div className="flex flex-col items-center gap-6 shrink-0 w-full">
+      <div className="flex flex-col items-center gap-4 shrink-0 w-full">
         <Link href="/dashboard" className="group relative flex items-center justify-center">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/10 hover:scale-105 active:scale-95 transition-all duration-300 border border-indigo-400/20">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className="text-slate-950 font-bold">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          <div className="w-12 h-12 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(99,102,241,0.12)] hover:scale-105 active:scale-95 transition-all duration-300 border border-slate-100 flex items-center justify-center bg-white relative">
+            <img src="/logo.png" alt="AeroMeet Logo" className="absolute w-[180%] h-[180%] max-w-none object-cover" style={{ top: '-18%' }} />
           </div>
           {/* Tooltip */}
-          <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900/95 border border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-200 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-2xl">
-            AeroMeet Control
+          <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-700 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
+            AeroMeet
           </div>
         </Link>
-        <div className="w-8 h-[1px] bg-slate-900" />
+        <div className="w-8 h-[1px] bg-slate-200" />
       </div>
 
       {/* Middle: Navigation Items */}
-      <nav className="flex-1 flex flex-col items-center gap-5 w-full px-2 pt-4">
+      <nav className="flex-1 flex flex-col items-center gap-3 w-full px-2 pt-2 overflow-y-auto scrollbar-thin">
         {navItems.map(({ name, href, icon: Icon }) => {
           const active = pathname === href || (href !== '/' && pathname.startsWith(href));
           return (
             <Link
               key={name}
               href={href}
-              className="group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300"
+              className="group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300 shrink-0"
             >
               <div
                 className={cn(
                   'w-full h-full rounded-xl flex items-center justify-center transition-all duration-300 relative border border-transparent',
                   active
-                    ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 hover:border-slate-800'
+                    ? 'text-indigo-600 bg-indigo-50 border-indigo-100 shadow-[0_2px_10px_rgba(99,102,241,0.06)] font-bold'
+                    : 'text-slate-450 hover:text-indigo-600 hover:bg-slate-50 hover:border-slate-100'
                 )}
               >
-                <Icon size={20} className={cn(active ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200')} />
+                <Icon size={18} className={cn(active ? 'text-indigo-600' : 'text-slate-450 group-hover:text-indigo-600')} />
                 {active && (
-                  <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-cyan-400 rounded-r-md shadow-[0_0_8px_#06b6d4]" />
+                  <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-indigo-600 rounded-r-md shadow-[0_0_8px_rgba(99,102,241,0.3)]" />
                 )}
               </div>
               {/* Tooltip */}
-              <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900/95 border border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-200 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-2xl">
+              <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-700 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
                 {name}
               </div>
             </Link>
@@ -104,17 +107,17 @@ export function Sidebar() {
               className={cn(
                 'w-full h-full rounded-xl flex items-center justify-center transition-all duration-300 relative border border-transparent',
                 pathname.startsWith('/admin')
-                  ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 hover:border-slate-800'
+                  ? 'text-cyan-600 bg-cyan-50 border-cyan-100 shadow-[0_2px_10px_rgba(6,182,212,0.06)] font-bold'
+                  : 'text-slate-450 hover:text-cyan-600 hover:bg-slate-50 hover:border-slate-100'
               )}
             >
-              <ShieldCheck size={20} className={pathname.startsWith('/admin') ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'} />
+              <ShieldCheck size={20} className={pathname.startsWith('/admin') ? 'text-cyan-600' : 'text-slate-450 group-hover:text-cyan-600'} />
               {pathname.startsWith('/admin') && (
-                <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-cyan-400 rounded-r-md shadow-[0_0_8px_#06b6d4]" />
+                <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-cyan-600 rounded-r-md shadow-[0_0_8px_rgba(6,182,212,0.3)]" />
               )}
             </div>
             {/* Tooltip */}
-            <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900/95 border border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-200 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-2xl">
+            <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-700 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
               Admin Console
             </div>
           </Link>
@@ -122,29 +125,29 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom: Settings & Profile */}
-      <div className="flex flex-col items-center gap-5 w-full px-2 shrink-0">
-        <div className="w-8 h-[1px] bg-slate-900" />
+      <div className="flex flex-col items-center gap-4 w-full px-2 shrink-0">
+        <div className="w-8 h-[1px] bg-slate-200" />
         
         {/* Settings */}
         <Link
           href="/settings"
-          className="group relative flex items-center justify-center w-12 h-12 rounded-xl transition-all duration-300"
+          className="group relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-300"
         >
           <div
             className={cn(
               'w-full h-full rounded-xl flex items-center justify-center transition-all duration-300 relative border border-transparent',
               pathname.startsWith('/settings')
-                ? 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20 shadow-[0_0_15px_rgba(6,182,212,0.15)] font-bold'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 hover:border-slate-800'
+                ? 'text-indigo-600 bg-indigo-50 border-indigo-100 shadow-[0_2px_10px_rgba(99,102,241,0.06)] font-bold'
+                : 'text-slate-450 hover:text-indigo-600 hover:bg-slate-50 hover:border-slate-100'
             )}
           >
-            <Settings size={20} className={pathname.startsWith('/settings') ? 'text-cyan-400' : 'text-slate-400 group-hover:text-slate-200'} />
+            <Settings size={18} className={pathname.startsWith('/settings') ? 'text-indigo-600' : 'text-slate-450 group-hover:text-indigo-600'} />
             {pathname.startsWith('/settings') && (
-              <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-cyan-400 rounded-r-md shadow-[0_0_8px_#06b6d4]" />
+              <span className="absolute left-[-8px] top-1/4 bottom-1/4 w-[3px] bg-indigo-600 rounded-r-md shadow-[0_0_8px_rgba(99,102,241,0.3)]" />
             )}
           </div>
           {/* Tooltip */}
-          <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-slate-900/95 border border-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-200 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-2xl">
+          <div className="absolute left-full ml-4 px-2.5 py-1.5 bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-wider text-slate-700 rounded-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 -translate-x-2 transition-all duration-200 whitespace-nowrap z-50 shadow-lg">
             Settings
           </div>
         </Link>
@@ -153,14 +156,14 @@ export function Sidebar() {
         <div className="relative" ref={presenceRef}>
           <button
             onClick={() => setShowPresenceMenu(v => !v)}
-            className="w-12 h-12 rounded-xl flex items-center justify-center hover:bg-slate-900/40 border border-transparent hover:border-slate-800 transition-all duration-200 cursor-pointer relative"
+            className="w-12 h-12 rounded-xl flex items-center justify-center hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all duration-200 cursor-pointer relative"
             title={`Status: ${presenceConfig[presence].label}`}
           >
             <div className="relative">
-              <Avatar name={user?.name || 'U'} src={user?.avatarUrl} size="sm" className="ring-1 ring-white/10" />
+              <Avatar name={user?.name || 'U'} src={user?.avatarUrl} size="sm" className="ring-1 ring-slate-100" />
               {/* Presence dot */}
               <span className={cn(
-                'absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[3px] border-slate-950 ring-2',
+                'absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[3px] border-white ring-1 ring-slate-100',
                 presenceConfig[presence].color,
                 presenceConfig[presence].ringColor
               )} />
@@ -169,26 +172,26 @@ export function Sidebar() {
 
           {/* Presence Dropdown (Floats to the right / above) */}
           {showPresenceMenu && (
-            <div className="absolute bottom-2 left-16 w-52 bg-slate-905/95 border border-slate-850 rounded-xl shadow-2xl p-2 z-50 animate-fadeIn backdrop-blur-md">
-              <p className="text-[9px] font-black uppercase tracking-wider text-slate-500 px-2.5 py-1.5 border-b border-slate-850/50 mb-1">Set Presence</p>
+            <div className="absolute bottom-2 left-16 w-52 bg-white border border-slate-200 rounded-xl shadow-2xl p-2 z-50 animate-fadeIn">
+              <p className="text-[9px] font-black uppercase tracking-wider text-slate-400 px-2.5 py-1.5 border-b border-slate-100 mb-1">Set Presence</p>
               {(Object.entries(presenceConfig) as [Presence, { color: string; label: string }][]).map(([key, cfg]) => (
                 <button
                   key={key}
                   onClick={() => { setPresence(key); setShowPresenceMenu(false); }}
                   className={cn(
-                    'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-800/50 text-left transition-all duration-150 cursor-pointer border border-transparent hover:border-slate-800/20',
-                    presence === key && 'bg-slate-900 border-slate-800'
+                    'w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-slate-50 text-left transition-all duration-150 cursor-pointer border border-transparent hover:border-slate-100',
+                    presence === key && 'bg-indigo-50/50 border-indigo-100 text-indigo-650'
                   )}
                 >
                   <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', cfg.color)} />
-                  <span className="text-xs text-slate-350">{cfg.label}</span>
-                  {presence === key && <span className="ml-auto text-cyan-400 text-[10px] font-bold">✓</span>}
+                  <span className="text-xs text-slate-600">{cfg.label}</span>
+                  {presence === key && <span className="ml-auto text-indigo-600 text-[10px] font-bold">✓</span>}
                 </button>
               ))}
-              <div className="border-t border-slate-850/50 mt-1.5 pt-1.5">
+              <div className="border-t border-slate-100 mt-1.5 pt-1.5">
                 <button
                   onClick={logout}
-                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-rose-500/10 text-left text-rose-400 hover:text-rose-300 transition-all duration-150 cursor-pointer"
+                  className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-rose-50 text-left text-rose-600 hover:text-rose-700 transition-all duration-150 cursor-pointer"
                 >
                   <LogOut size={13} className="shrink-0" />
                   <span className="text-xs font-semibold">Sign out</span>

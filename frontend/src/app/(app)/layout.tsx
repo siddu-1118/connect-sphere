@@ -25,7 +25,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Meeting views get a full-screen shell (no navigation)
-  const isMeetingView = pathname.startsWith('/room') || pathname.startsWith('/meet');
+  const isMeetingView = 
+    (pathname.startsWith('/meet/') && !pathname.startsWith('/meet/preview') && pathname !== '/meet/join' && pathname !== '/meet/create') ||
+    (pathname.startsWith('/room/') && pathname !== '/room/instant');
 
   if (isMeetingView) {
     return (
@@ -39,12 +41,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen flex bg-slate-950 text-slate-200 font-outfit">
+      <div className="min-h-screen flex bg-[#F8FAFC] text-slate-800 font-outfit">
         {/* Left Navigation Rail (desktop) */}
         <Sidebar />
 
         {/* Main content area — offset by left rail width on desktop, bottom dock on mobile */}
-        <main className="flex-1 md:ml-20 ml-0 pb-20 md:pb-0 h-screen overflow-hidden flex flex-col bg-slate-950">
+        <main className="flex-1 md:ml-20 ml-0 pb-20 md:pb-0 h-screen overflow-hidden flex flex-col bg-[#F8FAFC]">
           {children}
         </main>
 

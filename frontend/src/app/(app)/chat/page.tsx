@@ -94,25 +94,25 @@ const FileCard = ({ file }: { file: any }) => {
 
   const getIcon = (type: string) => {
     const t = type.toLowerCase();
-    if (t.includes('image/')) return <Image className="w-5 h-5 text-cyan-400" />;
-    if (t.includes('video/')) return <Film className="w-5 h-5 text-indigo-400" />;
-    if (t.includes('audio/')) return <FileAudio className="w-5 h-5 text-purple-400" />;
-    if (t.includes('pdf') || t.includes('word') || t.includes('document')) return <FileText className="w-5 h-5 text-emerald-400" />;
+    if (t.includes('image/')) return <Image className="w-5 h-5 text-sky-500" />;
+    if (t.includes('video/')) return <Film className="w-5 h-5 text-indigo-500" />;
+    if (t.includes('audio/')) return <FileAudio className="w-5 h-5 text-violet-500" />;
+    if (t.includes('pdf') || t.includes('word') || t.includes('document')) return <FileText className="w-5 h-5 text-emerald-500" />;
     if (t.includes('zip') || t.includes('rar') || t.includes('tar') || t.includes('archive')) return <FileArchive className="w-5 h-5 text-amber-500" />;
     return <File className="w-5 h-5 text-slate-400" />;
   };
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 hover:border-slate-700/60 rounded-2xl p-4 flex items-center justify-between gap-4 max-w-sm w-full transition-all shadow-md group mt-1">
+    <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-2xl p-4 flex items-center justify-between gap-4 max-w-sm w-full transition-all shadow-sm group mt-1">
       <div className="flex items-center gap-3 min-w-0">
-        <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center shrink-0 border border-slate-800/80">
+        <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
           {getIcon(file.type)}
         </div>
         <div className="min-w-0 text-left">
-          <p className="text-xs font-bold text-slate-200 truncate group-hover:text-white transition-colors" title={file.name}>
+          <p className="text-xs font-bold text-slate-700 truncate group-hover:text-indigo-650 transition-colors" title={file.name}>
             {file.name}
           </p>
-          <p className="text-[10px] text-slate-500 font-semibold mt-0.5 uppercase tracking-wider">
+          <p className="text-[10px] text-slate-450 font-semibold mt-0.5 uppercase tracking-wider">
             {formatFileSize(file.size)}
           </p>
         </div>
@@ -120,11 +120,11 @@ const FileCard = ({ file }: { file: any }) => {
       <button
         onClick={handleDownload}
         disabled={downloading}
-        className="p-2 bg-slate-950 border border-slate-800 hover:border-blue-500/30 text-slate-400 hover:text-blue-400 rounded-xl transition-all cursor-pointer hover:bg-slate-900 shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px]"
+        className="p-2 bg-slate-55 border border-slate-200 hover:border-indigo-500/30 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50/50 rounded-xl transition-all cursor-pointer shrink-0 flex items-center justify-center min-w-[44px] min-h-[44px]"
         title="Download file"
       >
         {downloading ? (
-          <span className="w-4 h-4 rounded-full border-2 border-slate-750 border-t-blue-500 animate-spin block" />
+          <span className="w-4 h-4 rounded-full border-2 border-slate-200 border-t-indigo-600 animate-spin block" />
         ) : (
           <Download className="w-4 h-4" />
         )}
@@ -369,13 +369,13 @@ export default function ChatPage() {
     const parts = text.split(/(\*\*.+?\*\*|\*.+?\*|`.+?`)/g);
     return parts.map((part, index) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index} className="font-bold text-slate-100">{part.slice(2, -2)}</strong>;
+        return <strong key={index} className="font-bold text-slate-855">{part.slice(2, -2)}</strong>;
       }
       if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={index} className="italic text-slate-350">{part.slice(1, -1)}</em>;
+        return <em key={index} className="italic text-slate-500">{part.slice(1, -1)}</em>;
       }
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={index} className="px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-cyan-400 font-mono text-xs">{part.slice(1, -1)}</code>;
+        return <code key={index} className="px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 text-indigo-600 font-mono text-xs">{part.slice(1, -1)}</code>;
       }
       return part;
     });
@@ -393,17 +393,17 @@ export default function ChatPage() {
   const activeConvo = conversations.find(c => c.userId === activeUserId);
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-slate-950 font-outfit h-full select-none relative">
+    <div className="flex-1 flex overflow-hidden bg-[#F8FAFC] font-outfit h-full select-none relative">
       
       {/* ── SECONDARY NAVIGATION SIDEBAR: Direct Message Threads ── */}
-      <aside className="w-64 shrink-0 bg-slate-905 border-r border-slate-900 flex flex-col h-full select-none hidden sm:flex">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 flex flex-col h-full select-none hidden sm:flex text-slate-655">
         
         {/* Header */}
-        <div className="h-16 px-5 border-b border-slate-900 flex items-center justify-between shrink-0 select-none">
+        <div className="h-16 px-5 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
           <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Direct Messages</h2>
           <button
             onClick={() => setShowNewChatModal(true)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-900 border border-transparent hover:border-slate-850 transition-all cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer"
             title="New Chat"
           >
             <PenSquare size={15} />
@@ -411,14 +411,14 @@ export default function ChatPage() {
         </div>
 
         {/* Search Conversation Filter */}
-        <div className="px-4 py-3 border-b border-slate-900/40 select-none">
-          <div className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 focus-within:border-cyan-500/50 transition-colors">
-            <Search size={13} className="text-slate-500 shrink-0" />
+        <div className="px-4 py-3 border-b border-slate-100 select-none">
+          <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:bg-white focus-within:border-indigo-500/50 transition-all">
+            <Search size={13} className="text-slate-400 shrink-0" />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search chats..."
-              className="flex-1 bg-transparent text-xs text-slate-200 placeholder-slate-700 outline-none font-outfit"
+              className="flex-1 bg-transparent text-xs text-slate-700 placeholder-slate-400 outline-none font-outfit"
             />
           </div>
         </div>
@@ -428,14 +428,14 @@ export default function ChatPage() {
           {filteredConversations.length === 0 ? (
             /* Sidebar Empty State */
             <div className="flex flex-col items-center justify-center py-20 px-3 text-center select-none h-full">
-              <MessageSquare size={36} className="text-slate-650 mb-4 opacity-40" />
-              <p className="text-xs font-bold text-slate-450">No chats yet</p>
-              <p className="text-[10px] text-slate-600 mt-1.5 max-w-[170px] leading-relaxed">
+              <MessageSquare size={36} className="text-slate-300 mb-4 opacity-70" />
+              <p className="text-xs font-bold text-slate-705">No chats yet</p>
+              <p className="text-[10px] text-slate-450 mt-1.5 max-w-[170px] leading-relaxed">
                 No direct messages yet. Start a chat with a teammate.
               </p>
               <button
                 onClick={() => setShowNewChatModal(true)}
-                className="mt-4 px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer shadow-md"
               >
                 Start Chat
               </button>
@@ -452,35 +452,35 @@ export default function ChatPage() {
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left relative border border-transparent select-none",
                     isActive 
-                      ? "bg-cyan-500/10 text-cyan-455 border-cyan-500/5 shadow-[0_0_12px_rgba(6,182,212,0.05)]" 
-                      : "hover:bg-slate-900/20 text-slate-400 hover:text-slate-300"
+                      ? "bg-indigo-50 text-indigo-650 border-indigo-100 shadow-sm" 
+                      : "hover:bg-slate-50 text-slate-500 hover:text-slate-800"
                   )}
                 >
                   {/* Left Active highlight bar */}
                   {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4.5 bg-cyan-455 rounded-full shadow-[0_0_6px_#06b6d4]" />
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4.5 bg-indigo-600 rounded-full" />
                   )}
 
                   {/* Avatar with Status Dot */}
                   <div className="relative shrink-0 select-none">
-                    <Avatar name={conv.name} src={conv.avatarUrl} size="sm" className="border border-slate-900" />
+                    <Avatar name={conv.name} src={conv.avatarUrl} size="sm" className="border border-slate-100" />
                     <span className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-905 ring-1 ring-slate-950",
-                      conv.presence === 'online' ? "bg-emerald-500" : conv.presence === 'away' ? "bg-amber-500" : "bg-slate-500"
+                      "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ring-1 ring-slate-100",
+                      conv.presence === 'online' ? "bg-emerald-500" : conv.presence === 'away' ? "bg-amber-500" : "bg-slate-400"
                     )} />
                   </div>
 
                   {/* Text details */}
                   <div className="flex-1 min-w-0 select-none">
                     <div className="flex items-center justify-between">
-                      <span className={cn("text-xs font-bold truncate block", isActive ? "text-cyan-455" : "text-slate-300")}>{conv.name}</span>
+                      <span className={cn("text-xs font-bold truncate block", isActive ? "text-indigo-650" : "text-slate-700")}>{conv.name}</span>
                       {conv.lastMessageAt && (
-                        <span className="text-[8px] text-slate-600 shrink-0 font-medium ml-1">
+                        <span className="text-[8px] text-slate-400 shrink-0 font-medium ml-1">
                           {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-550 truncate mt-0.5 font-medium leading-none">
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5 font-medium leading-none">
                       {hasLastMsg ? conv.lastMessage : "Click to chat"}
                     </p>
                   </div>
@@ -491,12 +491,12 @@ export default function ChatPage() {
         </div>
 
         {/* User Details Footer */}
-        <div className="p-3.5 border-t border-slate-900/60 bg-slate-905 flex items-center justify-between shrink-0 select-none">
+        <div className="p-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 select-none">
           <div className="flex items-center gap-2.5">
-            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" className="border border-slate-800" />
+            <Avatar name={user?.name ?? 'U'} src={user?.avatarUrl} size="sm" className="border border-slate-200" />
             <div className="leading-none text-left select-none">
-              <p className="text-xs font-bold text-slate-350">{user?.name?.split(' ')[0] ?? 'Aero User'}</p>
-              <span className="text-[8px] font-bold tracking-wider text-cyan-450 uppercase mt-0.5 block select-none">Chat Active</span>
+              <p className="text-xs font-bold text-slate-700">{user?.name?.split(' ')[0] ?? 'Aero User'}</p>
+              <span className="text-[8px] font-bold tracking-wider text-indigo-600 uppercase mt-0.5 block select-none">Chat Active</span>
             </div>
           </div>
         </div>
@@ -504,25 +504,25 @@ export default function ChatPage() {
       </aside>
 
       {/* ── MAIN CHAT CANVAS ── */}
-      <main className="flex-1 flex flex-col h-full bg-slate-950/10 overflow-hidden relative">
+      <main className="flex-1 flex flex-col h-full bg-[#F8FAFC] overflow-hidden relative">
         {!activeConvo ? (
           /* Select Direct Conversation Empty State */
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-slate-950/40 relative">
-            <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-cyan-500/5 rounded-full blur-[130px] pointer-events-none" />
+          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none bg-[#F8FAFC] relative">
+            <div className="absolute top-[-10%] right-[-10%] w-[350px] h-[350px] bg-indigo-500/2 rounded-full blur-[130px] pointer-events-none" />
             <div className="relative mb-6">
-              <div className="w-20 h-20 rounded-full border border-slate-900 flex items-center justify-center bg-slate-900/60 shadow-2xl z-10 relative ring-1 ring-white/5">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-cyan-500/10 border border-indigo-500/25 flex items-center justify-center shadow-lg text-cyan-450">
-                  <MessageSquare size={22} className="text-cyan-450 stroke-[2.5]" />
+              <div className="w-20 h-20 rounded-full border border-slate-200 flex items-center justify-center bg-slate-50 shadow-sm z-10 relative">
+                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-500/10 to-indigo-500/20 border border-indigo-500/25 flex items-center justify-center shadow-sm text-indigo-605">
+                  <MessageSquare size={22} className="text-indigo-600 stroke-[2.5]" />
                 </div>
               </div>
             </div>
-            <h3 className="text-slate-200 font-bold text-base tracking-tight">Select a conversation</h3>
+            <h3 className="text-slate-800 font-bold text-base tracking-tight">Select a conversation</h3>
             <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
               Select an active chat session from the list, or launch a direct messaging channel with your team contacts below.
             </p>
             <button
               onClick={() => setShowNewChatModal(true)}
-              className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-slate-950 text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:scale-[1.02] cursor-pointer"
+              className="mt-6 flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-md cursor-pointer border-0"
             >
               Start Conversation
             </button>
@@ -530,19 +530,19 @@ export default function ChatPage() {
         ) : (
           <>
             {/* DM Header */}
-            <header className="h-16 border-b border-slate-900 bg-slate-950/30 backdrop-blur-md flex items-center justify-between px-6 shrink-0 select-none z-20">
+            <header className="h-16 border-b border-slate-100 bg-white flex items-center justify-between px-6 shrink-0 select-none z-20 shadow-sm">
               <div className="flex items-center gap-3 select-none">
                 <div className="relative select-none shrink-0">
-                  <Avatar name={activeConvo.name} src={activeConvo.avatarUrl} size="sm" className="border border-slate-900" />
+                  <Avatar name={activeConvo.name} src={activeConvo.avatarUrl} size="sm" className="border border-slate-200" />
                   <span className={cn(
-                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ring-1 ring-slate-950",
-                    activeConvo.presence === 'online' ? "bg-emerald-500" : activeConvo.presence === 'away' ? "bg-amber-500" : "bg-slate-500"
+                    "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ring-1 ring-slate-105",
+                    activeConvo.presence === 'online' ? "bg-emerald-500" : activeConvo.presence === 'away' ? "bg-amber-500" : "bg-slate-400"
                   )} />
                 </div>
                 <div className="leading-none text-left select-none">
-                  <h1 className="text-xs font-bold text-slate-150 tracking-wide mt-0.5">{activeConvo.name}</h1>
+                  <h1 className="text-xs font-bold text-slate-800 tracking-wide mt-0.5">{activeConvo.name}</h1>
                   <span className={cn("text-[9px] font-semibold tracking-wider capitalize select-none mt-1 block", 
-                    activeConvo.presence === 'online' ? "text-emerald-450" : activeConvo.presence === 'away' ? "text-amber-450" : "text-slate-500"
+                    activeConvo.presence === 'online' ? "text-emerald-600" : activeConvo.presence === 'away' ? "text-amber-600" : "text-slate-400"
                   )}>
                     {activeConvo.presence} status
                   </span>
@@ -552,13 +552,13 @@ export default function ChatPage() {
               <div className="flex items-center gap-1.5 select-none">
                 <button 
                   onClick={() => alert(`Initiating audio link with ${activeConvo.name} (Simulation Only).`)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-cyan-455 hover:bg-slate-900 transition-colors border border-transparent hover:border-slate-850 cursor-pointer"
+                  className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
                 >
                   <Phone size={15} />
                 </button>
                 <button 
                   onClick={() => alert(`Initiating video link with ${activeConvo.name} (Simulation Only).`)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-cyan-455 hover:bg-slate-900 transition-colors border border-transparent hover:border-slate-850 cursor-pointer"
+                  className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-200 cursor-pointer"
                 >
                   <Video size={15} />
                 </button>
@@ -570,11 +570,11 @@ export default function ChatPage() {
               {messages.length === 0 ? (
                 /* DM Empty Feed State */
                 <div className="flex flex-col items-center justify-center py-20 px-4 text-center select-none h-full">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-900/50 border border-slate-850/85 flex items-center justify-center mb-5 ring-1 ring-white/5 shadow-2xl">
-                    <MessageSquare size={22} className="text-cyan-450 stroke-[2.5]" />
+                  <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-5 shadow-sm">
+                    <MessageSquare size={22} className="text-indigo-605 stroke-[2.5]" />
                   </div>
-                  <h3 className="text-slate-200 font-bold text-sm tracking-tight">Direct Message Thread</h3>
-                  <p className="text-slate-500 text-xs mt-2 max-w-[280px] leading-relaxed">
+                  <h3 className="text-slate-705 font-bold text-sm tracking-tight">Direct Message Thread</h3>
+                  <p className="text-slate-450 text-xs mt-2 max-w-[280px] leading-relaxed">
                     Welcome to the beginning of your chat history. Send a message to start the thread.
                   </p>
                 </div>
@@ -592,38 +592,38 @@ export default function ChatPage() {
                         className={cn(
                           "flex gap-4 p-4 rounded-2xl transition-all select-text",
                           isSenderUser 
-                            ? "bg-slate-900/20 border border-slate-900/60 ml-12" 
+                            ? "bg-indigo-50/40 border border-indigo-100 ml-12 text-slate-700" 
                             : isUrgent 
-                            ? "bg-red-500/5 border border-red-500/20 shadow-[0_0_15px_rgba(239,68,68,0.05)] mr-12" 
+                            ? "bg-red-50/40 border border-red-200 shadow-[0_0_15px_rgba(239,68,68,0.05)] mr-12 text-slate-700" 
                             : isImportant 
-                            ? "bg-amber-500/5 border border-amber-500/15 mr-12" 
-                            : "bg-slate-900/10 border border-slate-900/20 mr-12 hover:bg-slate-900/15 hover:border-slate-850/20"
+                            ? "bg-amber-50/40 border border-amber-200 mr-12 text-slate-700" 
+                            : "bg-white border border-slate-100 mr-12 shadow-sm hover:border-slate-200 text-slate-750"
                         )}
                       >
                         {/* Avatar */}
-                        <Avatar name={msg.senderName} src={msg.senderAvatar} size="md" className="border border-slate-800 shrink-0" />
+                        <Avatar name={msg.senderName} src={msg.senderAvatar} size="md" className="border border-slate-200 shrink-0" />
                         
                         {/* Body */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                            <span className="text-xs font-bold text-slate-100">{msg.senderName}</span>
-                            <span className="text-[9px] font-medium text-slate-650">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-xs font-bold text-slate-800">{msg.senderName}</span>
+                            <span className="text-[9px] font-medium text-slate-400">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             
                             {/* Priority Indicators */}
                             {isUrgent && (
-                              <span className="flex items-center gap-0.5 px-2 py-0.5 bg-rose-500/10 text-rose-455 border border-rose-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
+                              <span className="flex items-center gap-0.5 px-2 py-0.5 bg-rose-500/10 text-rose-650 border border-rose-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
                                 <Zap size={8} className="fill-rose-500" /> Urgent
                               </span>
                             )}
                             {isImportant && (
-                              <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-455 border border-amber-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
+                              <span className="flex items-center gap-0.5 px-2 py-0.5 bg-amber-500/10 text-amber-655 border border-amber-500/20 rounded-full text-[8px] font-black uppercase tracking-wider">
                                 <AlertTriangle size={8} /> Important
                               </span>
                             )}
                           </div>
                           
                           {/* Markdown parsing */}
-                          <div className="text-slate-350 text-xs leading-relaxed break-words font-outfit select-text selection:bg-cyan-500/20">
+                          <div className="text-slate-600 text-xs leading-relaxed break-words font-outfit select-text selection:bg-indigo-500/10 text-left">
                             {renderMessageContent(msg.content)}
                           </div>
                           {msg.attachments && msg.attachments.length > 0 && (
@@ -645,7 +645,7 @@ export default function ChatPage() {
             {/* Custom Rich Text Compose area */}
             <div className="px-6 pb-6 pt-2 shrink-0 select-none z-10">
               <div className="max-w-4xl w-full mx-auto">
-                <div className="bg-slate-900/30 border border-slate-900 focus-within:border-cyan-500/40 backdrop-blur-xl rounded-2xl overflow-hidden transition-all duration-300 shadow-2xl">
+                <div className="bg-white border border-slate-205 focus-within:border-indigo-500 rounded-2xl overflow-hidden transition-all duration-300 shadow-sm">
                   
                   {/* Hidden file input */}
                   <input
@@ -691,27 +691,27 @@ export default function ChatPage() {
                     onKeyDown={handleKeyDown}
                     placeholder={`Message ${activeConvo.name}...`}
                     rows={1}
-                    className="w-full bg-transparent px-5 py-4 text-xs text-slate-200 placeholder-slate-655 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
+                    className="w-full bg-transparent px-5 py-4 text-xs text-slate-700 placeholder-slate-400 outline-none resize-none leading-relaxed min-h-[52px] max-h-36 font-outfit select-text"
                   />
 
                   {/* Uploading Status */}
                   {uploadingFile && (
-                    <div className="flex items-center gap-2 px-5 py-2.5 border-t border-slate-900/40 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                      <div className="w-3.5 h-3.5 border-2 border-t-cyan-500 border-white/10 rounded-full animate-spin" />
+                    <div className="flex items-center gap-2 px-5 py-2.5 border-t border-slate-100 text-[10px] text-slate-400 font-bold uppercase tracking-wider text-left">
+                      <div className="w-3.5 h-3.5 border-2 border-t-indigo-650 border-slate-200 rounded-full animate-spin" />
                       <span>Uploading files...</span>
                     </div>
                   )}
 
                   {/* Attached Files Preview */}
                   {attachedFiles.length > 0 && (
-                    <div className="flex flex-wrap gap-2 px-5 py-2.5 border-t border-slate-900/40 select-text">
+                    <div className="flex flex-wrap gap-2 px-5 py-2.5 border-t border-slate-100 select-text">
                       {attachedFiles.map((file, idx) => (
-                        <div key={idx} className="flex items-center justify-between bg-slate-950 border border-slate-900 px-3 py-1.5 rounded-xl text-[10px] text-slate-350 gap-2 shrink-0 select-text">
+                        <div key={idx} className="flex items-center justify-between bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-[10px] text-slate-600 gap-2 shrink-0 select-text">
                           <span className="truncate max-w-[120px] select-text">{file.name}</span>
                           <button
                             type="button"
                             onClick={() => setAttachedFiles(prev => prev.filter((_, i) => i !== idx))}
-                            className="w-11 h-11 flex items-center justify-center text-rose-455 hover:text-rose-400 cursor-pointer transition-colors"
+                            className="w-11 h-11 flex items-center justify-center text-rose-600 hover:text-rose-500 cursor-pointer transition-colors"
                             title="Remove file"
                           >
                             <X size={12} />
@@ -722,38 +722,38 @@ export default function ChatPage() {
                   )}
 
                   {/* Toolbar Panel */}
-                  <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-900/60 select-none">
+                  <div className="flex items-center justify-between px-4 pb-3.5 pt-2 border-t border-slate-100 bg-slate-50/50 select-none">
                     <div className="flex items-center gap-1.5 select-none">
                       
                       {/* Bold / Italic / Code */}
                       <button
                         onClick={() => insertFormat('**')}
-                        className="p-2 rounded-lg text-slate-500 hover:text-slate-350 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                        className="p-2 rounded-lg text-slate-500 hover:text-slate-750 hover:bg-slate-100 cursor-pointer transition-colors border border-transparent hover:border-slate-200"
                         title="Bold"
                       >
                         <Bold size={13} className="stroke-[2.5]" />
                       </button>
                       <button
                         onClick={() => insertFormat('*')}
-                        className="p-2 rounded-lg text-slate-500 hover:text-slate-350 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                        className="p-2 rounded-lg text-slate-500 hover:text-slate-750 hover:bg-slate-100 cursor-pointer transition-colors border border-transparent hover:border-slate-200"
                         title="Italic"
                       >
                         <Italic size={13} className="stroke-[2.5]" />
                       </button>
                       <button
                         onClick={() => insertFormat('`')}
-                        className="p-2 rounded-lg text-slate-500 hover:text-slate-350 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850"
+                        className="p-2 rounded-lg text-slate-500 hover:text-slate-750 hover:bg-slate-100 cursor-pointer transition-colors border border-transparent hover:border-slate-200"
                         title="Code inline"
                       >
                         <Hash size={13} />
                       </button>
                       
-                      <div className="h-4 w-[1px] bg-slate-900 mx-1" />
+                      <div className="h-4 w-[1px] bg-slate-200 mx-1" />
 
                       {/* Attachments */}
                       <label
                         htmlFor="dm-file-input"
-                        className="p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-850 flex items-center justify-center min-w-[44px] min-h-[44px]"
+                        className="p-2 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-slate-100 cursor-pointer transition-colors border border-transparent hover:border-slate-200 flex items-center justify-center min-w-[44px] min-h-[44px]"
                         title="Attach File"
                       >
                         <Paperclip size={13} />
@@ -764,20 +764,20 @@ export default function ChatPage() {
                         <button
                           onClick={() => setShowEmojiMenu(!showEmojiMenu)}
                           className={cn(
-                            "p-2 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-slate-900 cursor-pointer transition-all border border-transparent hover:border-slate-850",
-                            showEmojiMenu && "text-cyan-400 bg-slate-900 border-slate-850"
+                            "p-2 rounded-lg text-slate-500 hover:text-indigo-650 hover:bg-slate-100 cursor-pointer transition-all border border-transparent hover:border-slate-205",
+                            showEmojiMenu && "text-indigo-600 bg-slate-100 border-slate-200"
                           )}
                           title="Insert Emoji"
                         >
                           <Smile size={13} />
                         </button>
                         {showEmojiMenu && (
-                          <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-2 z-50 flex gap-1.5 animate-fadeIn">
+                          <div className="absolute bottom-10 left-0 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 flex gap-1.5 animate-fadeIn">
                             {['👍', '❤️', '😂', '😮', '🔥', '🎉', '🚀'].map(emoji => (
                               <button
                                 key={emoji}
                                 onClick={() => insertEmoji(emoji)}
-                                className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-sm cursor-pointer hover:scale-110 active:scale-95 transition-all"
+                                className="w-8 h-8 rounded-lg hover:bg-slate-50 flex items-center justify-center text-sm cursor-pointer hover:scale-110 active:scale-95 transition-all"
                               >
                                 {emoji}
                               </button>
@@ -793,25 +793,25 @@ export default function ChatPage() {
                           className={cn(
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer border",
                             priority === 'Urgent' 
-                              ? "bg-rose-500/10 border-rose-500/20 text-rose-455" 
+                              ? "bg-rose-500/10 border-rose-500/20 text-rose-650" 
                               : priority === 'Important' 
-                              ? "bg-amber-500/10 border-amber-500/20 text-amber-455" 
-                              : "bg-slate-900/60 border-slate-850 text-slate-450 hover:text-slate-350 hover:bg-slate-900"
+                              ? "bg-amber-500/10 border-amber-500/20 text-amber-655" 
+                              : "bg-slate-100 border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-200"
                           )}
                         >
-                          <Zap size={11} className={cn(priority === 'Urgent' && "fill-rose-455")} />
+                          <Zap size={11} className={cn(priority === 'Urgent' && "fill-rose-500")} />
                           {priority}
                           <ChevronDown size={10} className="text-slate-500" />
                         </button>
                         {showPriorityMenu && (
-                          <div className="absolute bottom-10 left-0 bg-slate-900 border border-slate-850 rounded-xl shadow-2xl p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fadeIn">
+                          <div className="absolute bottom-10 left-0 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-50 w-32 flex flex-col gap-0.5 animate-fadeIn">
                             {(['Standard', 'Important', 'Urgent'] as const).map(p => (
                               <button
                                 key={p}
                                 onClick={() => { setPriority(p); setShowPriorityMenu(false); }}
                                 className={cn(
-                                  "w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-800 transition-colors",
-                                  p === 'Urgent' ? "text-rose-400 hover:bg-rose-500/10" : p === 'Important' ? "text-amber-400 hover:bg-amber-500/10" : "text-slate-300"
+                                  "w-full text-left px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:bg-slate-50 transition-colors",
+                                  p === 'Urgent' ? "text-rose-600 hover:bg-rose-50" : p === 'Important' ? "text-amber-605 hover:bg-amber-50" : "text-slate-600"
                                 )}
                               >
                                 {p}
@@ -830,11 +830,11 @@ export default function ChatPage() {
                       className={cn(
                         "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5",
                         (draftText.trim() || attachedFiles.length > 0)
-                          ? "bg-cyan-500 text-slate-950 font-black shadow-[0_0_15px_rgba(6,182,212,0.25)] hover:scale-[1.02] active:scale-[0.98]"
-                          : "bg-slate-900 text-slate-655 cursor-not-allowed border border-slate-850/50"
+                          ? "bg-indigo-600 hover:bg-indigo-700 text-white font-black shadow-md hover:scale-[1.02] active:scale-[0.98]"
+                          : "bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
                       )}
                     >
-                      <Send size={11} className={cn("stroke-[2.5]", (draftText.trim() || attachedFiles.length > 0) ? "text-slate-950" : "text-slate-655")} />
+                      <Send size={11} className={cn("stroke-[2.5]", (draftText.trim() || attachedFiles.length > 0) ? "text-white" : "text-slate-400")} />
                       Send
                     </button>
 
@@ -849,31 +849,30 @@ export default function ChatPage() {
 
       {/* ── CONTACT SELECTOR DIALOG MODAL ── */}
       {showNewChatModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 animate-fadeIn select-none">
-          <div className="bg-slate-900 border border-slate-850 rounded-2xl w-[380px] max-h-[500px] flex flex-col shadow-2xl relative">
-            <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-905/60 backdrop-blur-sm p-4 animate-fadeIn select-none">
+          <div className="bg-white border border-slate-200 rounded-2xl w-[380px] max-h-[500px] flex flex-col shadow-2xl relative overflow-hidden">
             
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-900 shrink-0">
-              <span className="text-xs font-black uppercase tracking-widest text-slate-300">Start Message</span>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+              <span className="text-xs font-black uppercase tracking-widest text-slate-700">Start Message</span>
               <button
                 onClick={() => { setShowNewChatModal(false); setContactSearch(''); }}
-                className="text-slate-500 hover:text-slate-300 hover:bg-slate-850 rounded-lg p-1 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-655 hover:bg-slate-50 rounded-lg p-1 transition-colors cursor-pointer"
               >
                 <X size={16} />
               </button>
             </div>
 
             {/* Filter Search */}
-            <div className="px-4 py-3 border-b border-slate-900/60 shrink-0 select-none">
-              <div className="flex items-center gap-2 bg-slate-950 border border-slate-850 rounded-xl px-3 py-2">
-                <Search size={14} className="text-slate-500 shrink-0" />
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0 select-none">
+              <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus-within:bg-white focus-within:border-indigo-500/50 transition-all">
+                <Search size={14} className="text-slate-400 shrink-0" />
                 <input
                   autoFocus
                   value={contactSearch}
                   onChange={e => setContactSearch(e.target.value)}
                   placeholder="Search team contacts..."
-                  className="flex-1 bg-transparent text-xs text-slate-200 placeholder:text-slate-700 outline-none font-outfit"
+                  className="flex-1 bg-transparent text-xs text-slate-750 placeholder:text-slate-400 outline-none font-outfit"
                 />
               </div>
             </div>
@@ -882,7 +881,7 @@ export default function ChatPage() {
             <div className="flex-1 overflow-y-auto p-2 scrollbar-thin select-none">
               {filteredContacts.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 px-4">
-                  <Search size={24} className="text-slate-700 mb-3" />
+                  <Search size={24} className="text-slate-300 mb-3" />
                   <p className="text-xs text-slate-500">No teammates found</p>
                 </div>
               ) : (
@@ -890,18 +889,18 @@ export default function ChatPage() {
                   <button
                     key={contact.id}
                     onClick={() => handleStartDM(contact)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-900/60 hover:border-slate-850/50 border border-transparent transition-all cursor-pointer text-left select-none mb-0.5"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:border-slate-100 border border-transparent transition-all cursor-pointer text-left select-none mb-0.5"
                   >
                     <div className="relative shrink-0 select-none">
-                      <Avatar name={contact.name} src={contact.avatar} size="sm" className="border border-slate-950" />
+                      <Avatar name={contact.name} src={contact.avatar} size="sm" className="border border-slate-100" />
                       <span className={cn(
-                        "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900",
-                        contact.presence === 'online' ? "bg-emerald-500" : contact.presence === 'away' ? "bg-amber-500" : "bg-slate-500"
+                        "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white shadow-sm",
+                        contact.presence === 'online' ? "bg-emerald-500" : contact.presence === 'away' ? "bg-amber-500" : "bg-slate-400"
                       )} />
                     </div>
                     <div className="flex flex-col min-w-0 select-none leading-none">
-                      <span className="text-xs font-bold text-slate-200 truncate">{contact.name}</span>
-                      <span className="text-[9px] font-semibold text-slate-550 truncate mt-1">{contact.email}</span>
+                      <span className="text-xs font-bold text-slate-705 truncate">{contact.name}</span>
+                      <span className="text-[9px] font-semibold text-slate-400 truncate mt-1">{contact.email}</span>
                     </div>
                   </button>
                 ))

@@ -31,10 +31,10 @@ export function Navbar({ onMenuToggle, onSearchClick }: NavbarProps) {
           </button>
         )}
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#10B981] to-[#10B981] flex items-center justify-center shadow-lg shadow-[#10B981]/20 group-hover:scale-105 transition-all">
-            <Layers className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center bg-white shadow-md border border-slate-100 relative">
+            <img src="/logo.png" alt="AeroMeet Logo" className="absolute w-[180%] h-[180%] max-w-none object-cover" style={{ top: '-18%' }} />
           </div>
-          <span className="text-lg font-black tracking-tighter text-[#10B981] dark:text-white bg-clip-text hidden sm:inline">
+          <span className="text-lg font-black tracking-tighter text-slate-800 dark:text-white bg-clip-text hidden sm:inline">
             AeroMeet
           </span>
         </Link>
