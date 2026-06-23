@@ -56,7 +56,15 @@ if (process.env.FRONTEND_URL) {
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow all vercel.app subdomains (covers preview deployments too)
+    if (
+      !origin ||
+      allowedOrigins.includes(origin) ||
+      /^https:\/\/[a-z0-9-]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/.test(origin) ||
+      /^https:\/\/.*\.vercel\.app$/.test(origin) ||
+      /^https:\/\/.*\.ngrok-free\.app$/.test(origin) ||
+      /^https:\/\/.*\.ngrok\.io$/.test(origin)
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -67,7 +75,11 @@ app.use(cors({
 app.use(express.json());
 
 // Global Intrusion Detection & Rate Limiting
-app.use(intrusionDetection);
+// Exempt /report-incident from intrusion detection so security reports are never blocked
+app.use((req, res, next) => {
+  if (req.path === '/api/auth/report-incident') return next();
+  return intrusionDetection(req, res, next);
+});
 app.use(rateLimiter(60, 60 * 1000));
 
 // Routes
