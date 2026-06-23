@@ -2,6 +2,7 @@ import './globals.css';
 import { AuthProvider } from '../hooks/useAuth';
 import { ThemeProvider } from '../hooks/useTheme';
 import { SecurityProvider } from '../components/layout/SecurityProvider';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata = {
   title: 'AeroMeet — Video Conferencing & Team Collaboration',
@@ -30,6 +31,7 @@ export default function RootLayout({
             </SecurityProvider>
           </AuthProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

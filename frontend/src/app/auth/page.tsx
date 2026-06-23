@@ -203,20 +203,6 @@ function AuthContent() {
     }
   }, [isVerify, isReset]);
 
-  const handleSandboxLogin = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await login('aksbasg@gmail.com', 'TestPassword123');
-      setSuccess('Sandbox profile loaded! Loading workspace...');
-    } catch (err: any) {
-      console.error(err);
-      setError('Sandbox login failed. Please verify that the backend services are running.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -563,7 +549,7 @@ function AuthContent() {
               </form>
               )}
 
-              {/* Providers (Google & Sandbox) - Only when NOT verifying or resetting */}
+              {/* Providers (Google) - Only when NOT verifying or resetting */}
               {!isVerify && !isReset && (
                 <div className="flex flex-col items-center w-full gap-4 mt-2">
                   {/* Separator */}
@@ -589,16 +575,6 @@ function AuthContent() {
                       <path fill="#EA4335" d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.859-3.578-7.859-8s3.53-8 7.859-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.107C18.29 1.96 15.48.96 12.24.96c-6.12 0-11.08 4.96-11.08 11.08s4.96 11.08 11.08 11.08c6.39 0 10.63-4.49 10.63-10.82 0-.73-.08-1.285-.177-2.015H12.24z"/>
                     </svg>
                     <span>Sign In with Google</span>
-                  </button>
-
-                  {/* Sandbox Profile Button */}
-                  <button
-                    type="button"
-                    onClick={handleSandboxLogin}
-                    className="w-full h-11 bg-transparent hover:bg-cyan-500/5 border border-cyan-500/40 hover:border-cyan-400 text-cyan-400 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-                  >
-                    <Rocket className="w-4 h-4" />
-                    <span>Use Sandbox Demo Profile</span>
                   </button>
                 </div>
               )}
