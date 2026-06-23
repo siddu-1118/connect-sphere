@@ -7,8 +7,9 @@ import { db } from '../db';
 import { users } from '../db/schema';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { generateOTP, isOTPExpired } from '../services/otp';
-import { sendOTPEmail, sendPasswordResetEmail } from '../services/email';
+import { sendOTPEmail, sendPasswordResetEmail, sendSecurityAlertEmail } from '../services/email';
 import { validate } from '../middleware/validate';
+import { rateLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 
@@ -363,7 +364,7 @@ router.post('/google-code', validate(googleCodeAuthSchema), async (req, res, nex
 });
 
 // POST /register
-router.post('/register', validate(registerSchema), async (req, res, next) => {
+router.post('/register', rateLimiter(5, 15 * 60 * 1000), validate(registerSchema), async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
@@ -411,7 +412,7 @@ router.post('/register', validate(registerSchema), async (req, res, next) => {
 });
 
 // POST /verify-otp
-router.post('/verify-otp', validate(verifyOtpSchema), async (req, res, next) => {
+router.post('/verify-otp', rateLimiter(5, 15 * 60 * 1000), validate(verifyOtpSchema), async (req, res, next) => {
   try {
     const { email, otpCode } = req.body;
 
@@ -467,7 +468,7 @@ router.post('/verify-otp', validate(verifyOtpSchema), async (req, res, next) => 
 });
 
 // POST /resend-otp
-router.post('/resend-otp', validate(forgotPasswordSchema), async (req, res, next) => {
+router.post('/resend-otp', rateLimiter(5, 15 * 60 * 1000), validate(forgotPasswordSchema), async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -501,7 +502,7 @@ router.post('/resend-otp', validate(forgotPasswordSchema), async (req, res, next
 });
 
 // POST /login
-router.post('/login', validate(loginSchema), async (req, res, next) => {
+router.post('/login', rateLimiter(5, 15 * 60 * 1000), validate(loginSchema), async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -562,7 +563,7 @@ router.post('/login', validate(loginSchema), async (req, res, next) => {
 });
 
 // POST /forgot-password
-router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res, next) => {
+router.post('/forgot-password', rateLimiter(5, 15 * 60 * 1000), validate(forgotPasswordSchema), async (req, res, next) => {
   try {
     const { email } = req.body;
 
@@ -597,7 +598,7 @@ router.post('/forgot-password', validate(forgotPasswordSchema), async (req, res,
 });
 
 // POST /reset-password
-router.post('/reset-password', validate(resetPasswordSchema), async (req, res, next) => {
+router.post('/reset-password', rateLimiter(5, 15 * 60 * 1000), validate(resetPasswordSchema), async (req, res, next) => {
   try {
     const { email, otpCode, newPassword } = req.body;
 
@@ -701,6 +702,31 @@ router.post('/logout', validate(refreshSchema), async (req, res, next) => {
       success: true,
       message: 'Logged out successfully',
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /report-incident
+router.post('/report-incident', rateLimiter(10, 1 * 60 * 1000), async (req, res, next) => {
+  try {
+    const { reason, details } = req.body;
+    const ip = (req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').toString();
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    console.warn(`🚨 Client incident reported: IP=${ip}, reason=${reason}`);
+    
+    // Send email alert to admin
+    await sendSecurityAlertEmail({
+      ip,
+      path: '/client-side-inspection',
+      method: 'CLIENT',
+      reason: reason || 'Client-side Inspect Element / Developer Tools Opened',
+      userAgent,
+      details: typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details),
+    });
+
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

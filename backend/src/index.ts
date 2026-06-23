@@ -15,9 +15,30 @@ import adminRoutes from './routes/admin';
 import pushRoutes from './routes/push';
 import { initVapidKeys, checkAndSendMeetingReminders } from './services/push';
 import { sendAssignmentReminderEmail } from './services/email';
-import { errorHandler } from './middleware/errorHandler'; // We'll create this next
+import { errorHandler } from './middleware/errorHandler';
+import { rateLimiter } from './middleware/rateLimiter';
+import { intrusionDetection } from './middleware/intrusionDetection';
 
 const app = express();
+
+// Security Headers Middleware
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src 'self' ws: wss: *; frame-src 'self' https://accounts.google.com;");
+  } else {
+    // Looser CSP for development hot-reloading
+    res.setHeader('Content-Security-Policy', "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline' 'unsafe-eval' ws: wss:;");
+  }
+  
+  res.removeHeader('X-Powered-By');
+  next();
+});
 
 // Middleware
 const allowedOrigins = [
@@ -44,6 +65,10 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+// Global Intrusion Detection & Rate Limiting
+app.use(intrusionDetection);
+app.use(rateLimiter(60, 60 * 1000));
 
 // Routes
 app.use('/api/auth', authRoutes);

@@ -37,7 +37,8 @@ import {
   Hand,
   FileText,
   Radio,
-  EyeOff
+  EyeOff,
+  Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';
@@ -47,6 +48,7 @@ import { useWebRTC } from '@/hooks/useWebRTC';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabaseClient';
 import api from '@/lib/api';
+import { AICopilotPanel } from '@/components/meeting/AICopilotPanel';
 
 // LiveKit Imports
 import {
@@ -61,7 +63,7 @@ import {
 import { Track } from 'livekit-client';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type SidebarTab = 'People' | 'Chat' | 'Q&A' | 'Notes' | 'Backstage';
+type SidebarTab = 'People' | 'Chat' | 'Q&A' | 'Notes' | 'Backstage' | 'AI Copilot';
 
 interface FloatingReaction {
   id: string;
@@ -1156,6 +1158,20 @@ function LiveKitMeetingRoomInner({
               <FileText size={16} />
             </button>
 
+            <button
+              onClick={() => handleToggleSidebar('AI Copilot')}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                sidebarOpen && activeTab === 'AI Copilot'
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-550/20" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title="AI Copilot Panel"
+            >
+              <Sparkles size={16} />
+            </button>
+
             {(userId === meetingHostId || meetingHostId === '') && (
               <button
                 onClick={() => handleToggleSidebar('Backstage')}
@@ -1207,6 +1223,7 @@ function LiveKitMeetingRoomInner({
                 'Chat',
                 'Q&A',
                 'Notes',
+                'AI Copilot',
                 ...(userId === meetingHostId || meetingHostId === '' ? ['Backstage'] : [])
               ] as SidebarTab[]).map(tab => {
                 const isTabActive = activeTab === tab;
@@ -1429,6 +1446,16 @@ function LiveKitMeetingRoomInner({
                 />
               </div>
             </div>
+          )}
+
+          {/* TAB 4.5: AI Copilot */}
+          {activeTab === 'AI Copilot' && (
+            <AICopilotPanel
+              meetingId={meetingId}
+              userId={userId}
+              userName={userName}
+              onClose={() => setSidebarOpen(false)}
+            />
           )}
 
           {/* TAB 5: Backstage whispers */}
@@ -3142,6 +3169,20 @@ function WebRTCMeetingRoomInner({
               <FileText size={16} />
             </button>
 
+            <button
+              onClick={() => handleToggleSidebar('AI Copilot')}
+              className={cn(
+                "w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border border-transparent shadow-sm shrink-0",
+                sidebarOpen && activeTab === 'AI Copilot'
+                  ? "bg-cyan-500/10 text-cyan-400 border-cyan-555/20" 
+                  : "bg-slate-800/60 hover:bg-slate-800 text-slate-255"
+              )}
+              style={{ minWidth: '44px', minHeight: '44px' }}
+              title="AI Copilot Panel"
+            >
+              <Sparkles size={16} />
+            </button>
+
             {(userId === meetingHostId || meetingHostId === '') && (
               <button
                 onClick={() => handleToggleSidebar('Backstage')}
@@ -3191,6 +3232,7 @@ function WebRTCMeetingRoomInner({
                 'Chat',
                 'Q&A',
                 'Notes',
+                'AI Copilot',
                 ...(userId === meetingHostId || meetingHostId === '' ? ['Backstage'] : [])
               ] as SidebarTab[]).map(tab => {
                 const isTabActive = activeTab === tab;
@@ -3410,6 +3452,16 @@ function WebRTCMeetingRoomInner({
                 />
               </div>
             </div>
+          )}
+
+          {/* TAB 4.5: AI Copilot */}
+          {activeTab === 'AI Copilot' && (
+            <AICopilotPanel
+              meetingId={meetingId}
+              userId={userId}
+              userName={userName}
+              onClose={() => setSidebarOpen(false)}
+            />
           )}
 
           {/* TAB 5: Backstage whispers */}

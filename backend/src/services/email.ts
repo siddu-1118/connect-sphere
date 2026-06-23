@@ -139,7 +139,7 @@ export async function sendOTPEmail(email: string, otp: string, userName: string)
         body: JSON.stringify({
           sender: {
             name: 'AeroMeet',
-            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+            email: process.env.SMTP_USER || 'noreply@aeromeet.app'
           },
           to: [
             {
@@ -341,7 +341,7 @@ export async function sendPasswordResetEmail(email: string, otp: string, userNam
         body: JSON.stringify({
           sender: {
             name: 'AeroMeet',
-            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+            email: process.env.SMTP_USER || 'noreply@aeromeet.app'
           },
           to: [
             {
@@ -541,7 +541,7 @@ export async function sendAssignmentReminderEmail(email: string, studentName: st
         body: JSON.stringify({
           sender: {
             name: 'AeroMeet',
-            email: process.env.SMTP_USER || 'saisiddharthvooka@gmail.com'
+            email: process.env.SMTP_USER || 'noreply@aeromeet.app'
           },
           to: [
             {
@@ -626,4 +626,209 @@ Assignment: ${assignmentTitle}
 `);
     return true;
   }
+}
+
+export async function sendSecurityAlertEmail(alert: {
+  ip: string;
+  path: string;
+  method: string;
+  reason: string;
+  userAgent: string;
+  details: string;
+}): Promise<boolean> {
+  const adminEmail = process.env.SMTP_USER || 'saisiddharthvooka@gmail.com';
+  const subject = `🚨 ConnectSphere Security Alert: Intrusion Detected!`;
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0B0F19;
+            color: #E2E8F0;
+            padding: 40px 20px;
+            margin: 0;
+          }
+          .container {
+            max-width: 600px;
+            background: linear-gradient(135deg, #1E1B4B 0%, #0F172A 100%);
+            border: 2px solid #EF4444;
+            border-radius: 16px;
+            padding: 40px;
+            margin: 0 auto;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.4);
+          }
+          .header {
+            text-align: center;
+            color: #EF4444;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+            padding-bottom: 20px;
+          }
+          h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #FFFFFF;
+            margin-top: 0;
+            margin-bottom: 20px;
+          }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          }
+          th {
+            color: #EF4444;
+            font-weight: 600;
+            width: 30%;
+          }
+          td {
+            color: #E2E8F0;
+            word-break: break-all;
+          }
+          pre {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 8px;
+            color: #F87171;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            border: 1px solid rgba(239, 68, 68, 0.15);
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #1E293B;
+            font-size: 12px;
+            color: #64748B;
+            text-align: center;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">🚨 INTRUSION BLOCKED</div>
+          <h2>Security Alert Details</h2>
+          <p>An automated security policy has detected and blocked a potential hacking attempt on your website.</p>
+          <table>
+            <tr>
+              <th>Timestamp</th>
+              <td>${new Date().toISOString()}</td>
+            </tr>
+            <tr>
+              <th>IP Address</th>
+              <td>${alert.ip}</td>
+            </tr>
+            <tr>
+              <th>Requested Path</th>
+              <td><code>${alert.method} ${alert.path}</code></td>
+            </tr>
+            <tr>
+              <th>Violation Reason</th>
+              <td><strong>${alert.reason}</strong></td>
+            </tr>
+            <tr>
+              <th>User Agent</th>
+              <td>${alert.userAgent}</td>
+            </tr>
+          </table>
+          <h3>Payload details:</h3>
+          <pre>${alert.details}</pre>
+          <div class="footer">
+            ConnectSphere Security Center. Built with premium protection.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  // Brevo API integration
+  const brevoApiKey = process.env.BREVO_API_KEY;
+  if (brevoApiKey) {
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'api-key': brevoApiKey,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          sender: {
+            name: 'ConnectSphere Security',
+            email: process.env.SMTP_USER || 'security@connectsphere.app'
+          },
+          to: [{ email: adminEmail, name: 'Admin' }],
+          subject: subject,
+          htmlContent: htmlContent
+        })
+      });
+      if (response.ok) return true;
+    } catch (err) {
+      console.error(`❌ Failed to send alert via Brevo:`, err);
+    }
+  }
+
+  // Resend API
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (resendApiKey) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`
+        },
+        body: JSON.stringify({
+          from: process.env.RESEND_FROM_EMAIL || 'ConnectSphere Security <security@resend.dev>',
+          to: adminEmail,
+          subject: subject,
+          html: htmlContent
+        })
+      });
+      if (response.ok) return true;
+    } catch (err) {
+      console.error(`❌ Failed to send alert via Resend:`, err);
+    }
+  }
+
+  // Nodemailer fallback
+  const mailOptions = {
+    from: process.env.EMAIL_FROM || `"ConnectSphere Security" <${adminEmail}>`,
+    to: adminEmail,
+    subject,
+    html: htmlContent,
+  };
+
+  const client = getTransporter();
+  if (client) {
+    try {
+      await client.sendMail(mailOptions);
+      return true;
+    } catch (err) {
+      console.error(`❌ Failed to send security email to ${adminEmail}:`, err);
+    }
+  }
+
+  // If no transporter exists or fails, log it to console
+  console.log(`
+🚨 [SMTP Security Alert Simulator]
+To: ${adminEmail}
+Subject: ${subject}
+IP: ${alert.ip}
+Path: ${alert.method} ${alert.path}
+Reason: ${alert.reason}
+Payload: ${alert.details}
+`);
+  return true;
 }

@@ -16,7 +16,7 @@ export async function sendEmail({ to, subject, html }: EmailParams): Promise<boo
   const port = parseInt(process.env.SMTP_PORT || '587', 10);
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
-  const fromEmail = process.env.EMAIL_FROM || `"AeroMeet" <saisiddharthvooka@gmail.com>`;
+  const fromEmail = process.env.EMAIL_FROM || `"AeroMeet" <noreply@aeromeet.app>`;
 
   if (!user || !pass) {
     console.warn('[EmailService] SMTP credentials are not defined in environment. Skipping email dispatch.');

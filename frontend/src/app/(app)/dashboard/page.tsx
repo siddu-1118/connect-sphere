@@ -18,7 +18,11 @@ import {
   Copy,
   Check,
   CalendarX,
-  X
+  X,
+  MessageSquare,
+  Send,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Avatar from '@/components/ui/Avatar';

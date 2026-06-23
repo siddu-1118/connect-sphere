@@ -1,6 +1,7 @@
 import './globals.css';
 import { AuthProvider } from '../hooks/useAuth';
 import { ThemeProvider } from '../hooks/useTheme';
+import { SecurityProvider } from '../components/layout/SecurityProvider';
 
 export const metadata = {
   title: 'AeroMeet — Video Conferencing & Team Collaboration',
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="antialiased bg-[#F3F3F3] dark:bg-[#0B0F19] text-[#242424] dark:text-slate-100 min-h-screen font-sans">
         <ThemeProvider>
           <AuthProvider>
-            {children}
+            <SecurityProvider>
+              {children}
+            </SecurityProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

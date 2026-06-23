@@ -20,12 +20,15 @@ export function errorHandler(
   });
 
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const message = (statusCode === 500 && isProduction) ? 'Something went wrong' : (err.message || 'Internal Server Error');
+  const cause = (statusCode === 500 && isProduction) ? null : ((err as any).cause?.message || null);
+  const details = (statusCode === 500 && isProduction) ? null : (err.details || null);
 
   res.status(statusCode).json({
     success: false,
     error: message,
-    cause: (err as any).cause?.message || null,
-    details: err.details || null,
+    cause,
+    details,
   });
 }

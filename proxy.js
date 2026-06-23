@@ -10,7 +10,8 @@ const BACKEND_TARGET = 'http://localhost:4000';
 
 const server = http.createServer((req, res) => {
   // Determine target based on URL path
-  const target = (req.url.startsWith('/api') || req.url.startsWith('/socket.io')) 
+  const isCopilot = req.url.startsWith('/api/copilot');
+  const target = (!isCopilot && (req.url.startsWith('/api') || req.url.startsWith('/socket.io'))) 
     ? BACKEND_TARGET 
     : FRONTEND_TARGET;
 
@@ -25,7 +26,8 @@ const server = http.createServer((req, res) => {
 
 // Upgrade WebSocket connections
 server.on('upgrade', (req, socket, head) => {
-  const target = (req.url.startsWith('/api') || req.url.startsWith('/socket.io')) 
+  const isCopilot = req.url.startsWith('/api/copilot');
+  const target = (!isCopilot && (req.url.startsWith('/api') || req.url.startsWith('/socket.io'))) 
     ? BACKEND_TARGET 
     : FRONTEND_TARGET;
 
